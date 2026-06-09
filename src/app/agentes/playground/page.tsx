@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -38,7 +38,7 @@ const AGENT_EXAMPLES: Record<string, Array<{ label: string; text: string }>> = {
   ]
 };
 
-export default function PlaygroundPage() {
+function PlaygroundContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -377,5 +377,20 @@ export default function PlaygroundPage() {
       </main>
 
     </div>
+  );
+}
+
+export default function PlaygroundPage() {
+  return (
+    <Suspense fallback={
+      <div className="bg-[#0b0c10] text-slate-100 font-sans min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw size={32} className="text-primary animate-spin mx-auto mb-4" />
+          <p className="text-sm text-slate-400">Carregando playground...</p>
+        </div>
+      </div>
+    }>
+      <PlaygroundContent />
+    </Suspense>
   );
 }
