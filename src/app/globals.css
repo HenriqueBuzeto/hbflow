@@ -1,0 +1,304 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --popover: #ffffff;
+  --popover-foreground: #0f172a;
+  --primary: #7c3aed; /* Violet 600 */
+  --primary-hover: #6d28d9; /* Violet 700 */
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f172a;
+  --muted: #f8fafc;
+  --muted-foreground: #64748b;
+  --accent: #f1f5f9;
+  --accent-foreground: #0f172a;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #7c3aed;
+  --radius: 0.75rem;
+
+  --whatsapp: #25d366;
+  --whatsapp-dark: #128c7e;
+  --sidebar-bg: #0f0f16;
+  --sidebar-fg: #f1f5f9;
+}
+
+@theme {
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-whatsapp: var(--whatsapp);
+  --color-whatsapp-dark: var(--whatsapp-dark);
+  --color-sidebar-bg: var(--sidebar-bg);
+  --color-sidebar-fg: var(--sidebar-fg);
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+}
+
+/* Custom Scrollbar Styles for premium layout */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  overflow-x: hidden;
+}
+
+/* Glassmorphism helpers */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.chat-bubble-user {
+  background: linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%);
+  color: white;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-bubble-contact {
+  background: white;
+  color: #0f172a;
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.02);
+}
+
+.chat-bubble-system {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.chat-bubble-automation {
+  background: #faf5ff;
+  color: #6b21a8;
+  border: 1px solid #f3e8ff;
+}
+
+/* Flow builder connection animation helper */
+.flow-node-active {
+  box-shadow: 0 0 0 2px #7c3aed, 0 10px 15px -3px rgba(124, 58, 237, 0.1);
+}
+
+/* Dark Mode System Styles & Class Overrides */
+.dark {
+  --background: #0f111a;
+  --foreground: #f8fafc;
+  --card: #151824;
+  --card-foreground: #f8fafc;
+  --border: #1f2937;
+  --input: #1f2937;
+  --ring: #8b5cf6;
+
+  /* Redefine Tailwind v4 Slate Palette for Dark Mode */
+  --color-slate-50: #0f111a;
+  --color-slate-100: #151824;
+  --color-slate-200: #1f2937;
+  --color-slate-300: #374151;
+  --color-slate-400: #4b5563;
+  --color-slate-500: #94a3b8;
+  --color-slate-600: #cbd5e1;
+  --color-slate-700: #e2e8f0;
+  --color-slate-800: #f1f5f9;
+  --color-slate-900: #f8fafc;
+}
+
+.dark body {
+  background-color: #0f111a;
+  color: #f8fafc;
+}
+
+.dark .bg-white {
+  background-color: #151824 !important;
+}
+
+.dark .bg-slate-50 {
+  background-color: #0f111a !important;
+}
+
+.dark .bg-slate-50\/70 {
+  background-color: rgba(15, 17, 26, 0.7) !important;
+}
+
+.dark .bg-slate-50\/30 {
+  background-color: rgba(15, 17, 26, 0.3) !important;
+}
+
+.dark .bg-slate-100 {
+  background-color: #1f2937 !important;
+}
+
+.dark .bg-slate-100\/70 {
+  background-color: rgba(31, 41, 55, 0.7) !important;
+}
+
+.dark .bg-slate-200 {
+  background-color: #374151 !important;
+}
+
+.dark .bg-slate-200\/60 {
+  background-color: rgba(55, 65, 81, 0.6) !important;
+}
+
+.dark .hover\:bg-slate-50:hover {
+  background-color: #1f2937 !important;
+}
+
+.dark .hover\:bg-slate-100:hover {
+  background-color: #2563eb10 !important;
+}
+
+.dark .hover\:bg-slate-200\/60:hover {
+  background-color: rgba(55, 65, 81, 0.8) !important;
+}
+
+.dark .text-slate-900 {
+  color: #f8fafc !important;
+}
+
+.dark .text-slate-800 {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-slate-700 {
+  color: #e2e8f0 !important;
+}
+
+.dark .text-slate-600 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-slate-500 {
+  color: #94a3b8 !important;
+}
+
+.dark .text-slate-400 {
+  color: #64748b !important;
+}
+
+.dark .border-slate-200 {
+  border-color: #1f2937 !important;
+}
+
+.dark .border-slate-100 {
+  border-color: #1f2937 !important;
+}
+
+.dark .border-slate-200\/50 {
+  border-color: rgba(31, 41, 55, 0.5) !important;
+}
+
+.dark .border-slate-100\/50 {
+  border-color: rgba(31, 41, 55, 0.5) !important;
+}
+
+.dark .divide-slate-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #1f2937 !important;
+}
+
+.dark .divide-slate-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #1f2937 !important;
+}
+
+.dark .bg-\[\#f0f2f5\] {
+  background-color: #0b0c10 !important;
+}
+
+.dark .bg-\[\#F8FAFC\] {
+  background-color: #0f111a !important;
+}
+
+.dark .chat-bubble-contact {
+  background-color: #1f2937 !important;
+  color: #f8fafc !important;
+  border-color: #374151 !important;
+}
+
+.dark .chat-bubble-system {
+  background-color: #1f2937 !important;
+  color: #94a3b8 !important;
+  border-color: #374151 !important;
+}
+
+.dark .chat-bubble-automation {
+  background-color: #2e1065 !important;
+  color: #d8b4fe !important;
+  border-color: #581c87 !important;
+}
+
+.dark input, .dark select, .dark textarea {
+  background-color: #1f2937 !important;
+  border-color: #374151 !important;
+  color: #f8fafc !important;
+}
+
+.dark input::placeholder, .dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+.dark .bg-emerald-500 {
+  background-color: #059669 !important;
+}
+
+.dark .bg-emerald-500\/10 {
+  background-color: rgba(5, 150, 105, 0.1) !important;
+}
+
+.dark .text-emerald-700 {
+  color: #34d399 !important;
+}
+
+.dark .text-emerald-600 {
+  color: #34d399 !important;
+}
+
+.dark .border-emerald-100 {
+  border-color: #064e3b !important;
+}
+
+.dark .bg-slate-900 {
+  background-color: #151824 !important;
+}
+
+.dark .border-slate-800 {
+  border-color: #1f2937 !important;
+}
+
+.dark .text-slate-300 {
+  color: #cbd5e1 !important;
+}
+
+.dark .text-indigo-400 {
+  color: #c084fc !important;
+}
+

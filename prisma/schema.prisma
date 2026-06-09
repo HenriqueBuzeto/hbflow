@@ -1,0 +1,688 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// 1. Auth & Multi-Tenant
+model Tenant {
+  id        String    @id @default(uuid())
+  name      String
+  slug      String    @unique
+  plan      String    @default("starter") // starter, pro, enterprise
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  users                User[]
+  roles                Role[]
+  permissions          Permission[]
+  whatsappConnections  WhatsappConnection[]
+  contacts             Contact[]
+  conversations        Conversation[]
+  quickReplies         QuickReply[]
+  templates            MessageTemplate[]
+  pipelines            Pipeline[]
+  deals                Deal[]
+  tasks                Task[]
+  departments          Department[]
+  routingFilters       RoutingFilter[]
+  flows                Flow[]
+  flowSessions         FlowSession[]
+  automationRules      AutomationRule[]
+  webhookEvents        WebhookEvent[]
+  auditLogs            AuditLog[]
+  notifications        Notification[]
+  businessHours        BusinessHours[]
+  slaRules             SlaRule[]
+  agentConfigs         AgentConfig[]
+  agentMemories        AgentMemory[]
+  agentExecutionLogs   AgentExecutionLog[]
+  tenantAICost         TenantAICost?
+}
+
+model User {
+  id           String    @id @default(uuid())
+  tenantId     String
+  name         String
+  email        String    @unique
+  passwordHash String
+  avatarUrl    String?
+  signature    String?   // Signature content
+  sigPosition  String    @default("end") // start, end, disabled
+  roleId       String?
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  deletedAt    DateTime?
+
+  tenant              Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role                Role?               @relation(fields: [roleId], references: [id])
+  permissions         UserPermission[]
+  conversations       Conversation[]      @relation("AssignedConversations")
+  deals               Deal[]
+  tasks               Task[]
+  userDepartments     UserDepartment[]
+  userRoutingFilters  UserRoutingFilter[]
+  routingLogs         RoutingLog[]
+}
+
+model Role {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String    // Admin, Gestor, Supervisor, Atendente, Comercial, Financeiro
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users  User[]
+}
+
+model Permission {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String    // e.g., inbox:read, pipeline:write
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  tenant Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users  UserPermission[]
+}
+
+model UserPermission {
+  id           String   @id @default(uuid())
+  userId       String
+  permissionId String
+  createdAt    DateTime @default(now())
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionId])
+}
+
+// 2. WhatsApp Connections
+model WhatsappConnection {
+  id            String    @id @default(uuid())
+  tenantId      String
+  name          String
+  phoneNumber   String?
+  phoneId       String?   // Phone Number ID
+  wabaId        String?   // WhatsApp Business Account ID
+  accessToken   String?   // Encrypted
+  verifyToken   String?
+  status        String    @default("disconnected") // connected, disconnected, warning
+  lastSyncedAt  DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  deletedAt     DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// 3. CRM & Contacts
+model Contact {
+  id             String    @id @default(uuid())
+  tenantId       String
+  name           String
+  phone          String
+  email          String?
+  document       String?   // CPF/CNPJ
+  city           String?
+  state          String?
+  origin         String    @default("whatsapp")
+  status         String    @default("lead") // lead, customer, lost
+  notes          String?
+  score          Int       @default(0)
+  totalPurchased Float     @default(0.0)
+  firstContactAt DateTime  @default(now())
+  lastContactAt  DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contactTags   ContactTag[]
+  conversations Conversation[]
+  deals         Deal[]
+  tasks         Task[]
+  flowSessions  FlowSession[]
+  agentMemories AgentMemory[]
+
+  @@unique([tenantId, phone])
+}
+
+model Tag {
+  id        String    @id @default(uuid())
+  name      String
+  color     String    @default("#7C3AED") // Tailwind violet-600
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  contactTags ContactTag[]
+}
+
+model ContactTag {
+  contactId String
+  tagId     String
+  createdAt DateTime @default(now())
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([contactId, tagId])
+}
+
+// 4. Conversations & Messages
+model Conversation {
+  id             String    @id @default(uuid())
+  tenantId       String
+  contactId      String
+  assignedUserId String?
+  status         String    @default("new") // new, open, pending, closed, favorite
+  unreadCount    Int       @default(0)
+  slaLimitAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  tenant                     Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact                    Contact                      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  assignedUser               User?                        @relation("AssignedConversations", fields: [assignedUserId], references: [id])
+  participants               ConversationParticipant[]
+  messages                   Message[]
+  conversationRoutingFilters ConversationRoutingFilter[]
+  flowSessions               FlowSession[]
+  routingLogs                RoutingLog[]
+}
+
+model ConversationParticipant {
+  id             String   @id @default(uuid())
+  conversationId String
+  userId         String
+  joinedAt       DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Message {
+  id             String    @id @default(uuid())
+  tenantId       String
+  conversationId String
+  senderType     String    // contact, user, system, automation
+  senderId       String?
+  body           String
+  type           String    @default("text") // text, image, audio, video, document, location, template
+  mediaUrl       String?
+  mimeType       String?
+  fileName       String?
+  latitude       Float?
+  longitude      Float?
+  signatureUsed  String?
+  isRead         Boolean   @default(false)
+  wamid          String?   // WhatsApp Message ID
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  conversation Conversation        @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  attachments  MessageAttachment[]
+  statuses     MessageStatus[]
+}
+
+model MessageAttachment {
+  id        String   @id @default(uuid())
+  messageId String
+  url       String
+  mimeType  String
+  name      String?
+  size      Int?
+  createdAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+model MessageStatus {
+  id        String   @id @default(uuid())
+  messageId String
+  status    String   // sent, delivered, read, failed
+  errorText String?
+  updatedAt DateTime @default(now())
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+}
+
+// 5. Automation Resources
+model QuickReply {
+  id        String    @id @default(uuid())
+  tenantId  String
+  shortcut  String    // e.g., /obrigado
+  message   String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model MessageTemplate {
+  id        String    @id @default(uuid())
+  tenantId  String
+  name      String
+  category  String
+  language  String    @default("pt_BR")
+  body      String
+  status    String    @default("approved") // approved, pending, rejected
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// 6. Pipeline & Deals
+model Pipeline {
+  id        String    @id @default(uuid())
+  tenantId  String
+  name      String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  tenant Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  stages PipelineStage[]
+}
+
+model PipelineStage {
+  id         String    @id @default(uuid())
+  pipelineId String
+  name       String    // Novo Lead, Em atendimento, Proposta enviada, etc.
+  position   Int       @default(0)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  deletedAt  DateTime?
+
+  pipeline Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+  deals    Deal[]
+}
+
+model Deal {
+  id             String    @id @default(uuid())
+  tenantId       String
+  contactId      String
+  stageId        String
+  assignedUserId String?
+  title          String
+  value          Float     @default(0.0)
+  probability    Int       @default(50)
+  origin         String?
+  products       String?
+  expectedClose  DateTime?
+  lostReason     String?
+  status         String    @default("open") // open, won, lost
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  tenant       Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact      Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  stage        PipelineStage  @relation(fields: [stageId], references: [id])
+  assignedUser User?          @relation(fields: [assignedUserId], references: [id])
+  activities   DealActivity[]
+  tasks        Task[]
+}
+
+model DealActivity {
+  id        String   @id @default(uuid())
+  dealId    String
+  type      String   // stage_change, note, status_change
+  content   String
+  createdAt DateTime @default(now())
+
+  deal Deal @relation(fields: [dealId], references: [id], onDelete: Cascade)
+}
+
+// 7. Tasks & Scheduling
+model Task {
+  id             String    @id @default(uuid())
+  tenantId       String
+  contactId      String?
+  dealId         String?
+  assignedUserId String
+  title          String
+  type           String    // call, proposal, follow_up, meeting, after_sales
+  dueAt          DateTime
+  priority       String    @default("medium") // low, medium, high
+  status         String    @default("pending") // pending, completed
+  notes          String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact      Contact? @relation(fields: [contactId], references: [id])
+  deal         Deal?    @relation(fields: [dealId], references: [id])
+  assignedUser User     @relation(fields: [assignedUserId], references: [id], onDelete: Cascade)
+}
+
+// 8. Sectors (Departments) & Routing
+model Department {
+  id                     String    @id @default(uuid())
+  tenantId               String
+  name                   String    // Vendas, Financeiro, Manutencao, Suporte, etc.
+  description            String?
+  color                  String    @default("#4F46E5") // Indigo 600
+  icon                   String    @default("Shield")
+  businessHoursId        String?
+  greetingMessage        String?
+  awayMessage            String?
+  distributionMode       String    @default("manual") // manual, workload, round_robin, priority
+  slaFirstResponseMinutes Int       @default(15)
+  slaResolutionMinutes   Int       @default(60)
+  isActive               Boolean   @default(true)
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+  deletedAt              DateTime?
+
+  tenant        Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  businessHours BusinessHours?   @relation(fields: [businessHoursId], references: [id])
+  users         UserDepartment[]
+  routingLogs   RoutingLog[]
+}
+
+model UserDepartment {
+  id           String   @id @default(uuid())
+  tenantId     String
+  userId       String
+  departmentId String
+  priority     Int      @default(1)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+}
+
+model RoutingFilter {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String
+  slug        String
+  description String?
+  color       String    @default("#10B981")
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  tenant                     Tenant                       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  userRoutingFilters         UserRoutingFilter[]
+  conversationRoutingFilters ConversationRoutingFilter[]
+}
+
+model UserRoutingFilter {
+  id              String   @id @default(uuid())
+  tenantId        String
+  userId          String
+  routingFilterId String
+  priority        Int      @default(1)
+  isRequired      Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  routingFilter RoutingFilter @relation(fields: [routingFilterId], references: [id], onDelete: Cascade)
+}
+
+model ConversationRoutingFilter {
+  id              String   @id @default(uuid())
+  tenantId        String
+  conversationId  String
+  routingFilterId String
+  source          String   @default("keyword") // keyword, flow, manual
+  confidence      Float    @default(1.0)
+  createdAt       DateTime @default(now())
+
+  conversation  Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  routingFilter RoutingFilter @relation(fields: [routingFilterId], references: [id], onDelete: Cascade)
+}
+
+// 9. Automated Routing Flow Builder
+model Flow {
+  id          String    @id @default(uuid())
+  tenantId    String
+  name        String
+  description String?
+  triggerType String    @default("message_received") // message_received, idle, keyword
+  isActive    Boolean   @default(true)
+  version     Int       @default(1)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  tenant   Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  nodes    FlowNode[]
+  edges    FlowEdge[]
+  sessions FlowSession[]
+}
+
+model FlowNode {
+  id         String @id @default(uuid())
+  tenantId   String
+  flowId     String
+  type       String // message, question, input, tag_add, tag_remove, route_department, route_user, deal_create, task_create, condition, end
+  positionX  Int    @default(0)
+  positionY  Int    @default(0)
+  configJson String // JSON config for strings, variables, options etc.
+
+  flow Flow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+}
+
+model FlowEdge {
+  id             String @id @default(uuid())
+  tenantId       String
+  flowId         String
+  sourceNodeId   String
+  targetNodeId   String
+  conditionJson  String // JSON config for triggers, matching option index etc.
+
+  flow Flow @relation(fields: [flowId], references: [id], onDelete: Cascade)
+}
+
+model FlowSession {
+  id             String    @id @default(uuid())
+  tenantId       String
+  flowId         String
+  conversationId String
+  contactId      String
+  currentNodeId  String?
+  status         String    @default("active") // active, completed, transfered, error
+  contextJson    String    @default("{}") // Stores variables and history
+  startedAt      DateTime  @default(now())
+  finishedAt     DateTime?
+
+  tenant       Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  flow         Flow         @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  contact      Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+}
+
+model RoutingLog {
+  id                   String   @id @default(uuid())
+  tenantId             String
+  conversationId       String
+  departmentId         String?
+  assignedUserId       String?
+  routingReason        String   // keyword_match, menu_selection, workload_balancing, manual
+  matchedFiltersJson   String   @default("[]")
+  distributionMode     String?
+  createdAt            DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  department   Department?  @relation(fields: [departmentId], references: [id])
+  user         User?        @relation(fields: [assignedUserId], references: [id])
+}
+
+// 10. Automations & Rules
+model AutomationRule {
+  id                 String               @id @default(uuid())
+  tenantId           String
+  name               String
+  trigger            String               // message_received, ticket_idle, assignee_changed
+  conditionsJson     String               @default("{}")
+  actionsJson        String               @default("[]")
+  isActive           Boolean              @default(true)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  deletedAt          DateTime?
+  executions         AutomationExecution[]
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model AutomationExecution {
+  id        String   @id @default(uuid())
+  ruleId    String
+  targetId  String   // conversationId, contactId, dealId
+  status    String   // success, failed
+  errorText String?
+  executedAt DateTime @default(now())
+
+  rule AutomationRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+}
+
+// 11. Core System Management
+model WebhookEvent {
+  id         String   @id @default(uuid())
+  tenantId   String?
+  provider   String   @default("whatsapp")
+  payloadJson String
+  status     String   @default("pending") // pending, processed, failed
+  createdAt  DateTime @default(now())
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String?
+  action    String   // login, config_change, conversation_claimed
+  details   String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  tenantId  String
+  userId    String
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  type      String   @default("system") // system, SLA, assignment
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model BusinessHours {
+  id          String   @id @default(uuid())
+  tenantId    String
+  name        String
+  timezone    String   @default("America/Sao_Paulo")
+  weeklyRules String   // JSON of weekly schedules (e.g. mon: 08:00-18:00)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  departments Department[]
+}
+
+model SlaRule {
+  id                    String   @id @default(uuid())
+  tenantId              String
+  name                  String
+  triggerType           String   // response, resolution
+  thresholdMinutes      Int
+  actionNotification    Boolean  @default(true)
+  actionReassignDeptId  String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+// 12. AI Workforce Models
+model AgentConfig {
+  id        String   @id @default(uuid())
+  tenantId  String
+  agentId   String   // triage-agent, sdr-agent, etc.
+  enabled   Boolean  @default(true)
+  settings  String   @default("{}") // JSON string for prompts/limits
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, agentId])
+}
+
+model AgentMemory {
+  id        String   @id @default(uuid())
+  tenantId  String
+  contactId String
+  key       String   // e.g. "preferred_payment_date", "lead_interest"
+  value     String   // e.g. "10", "multifocal lenses"
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, contactId, key])
+}
+
+model AgentExecutionLog {
+  id             String   @id @default(uuid())
+  tenantId       String
+  agentId        String
+  trigger        String
+  inputHash      String?
+  inputRaw       String?  // Store raw input for debugging
+  outputRaw      String?  // Store raw JSON output
+  success        Boolean  @default(true)
+  confidence     Float    @default(1.0)
+  actionsCount   Int      @default(0)
+  provider       String   @default("openai") // openai, anthropic, groq
+  model          String   @default("gpt-4o")
+  inputTokens    Int      @default(0)
+  outputTokens   Int      @default(0)
+  cost           Float    @default(0.0) // estimated cost in USD
+  durationMs     Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}
+
+model TenantAICost {
+  id           String   @id @default(uuid())
+  tenantId     String   @unique
+  monthlyLimit Float    @default(100.0) // USD limit
+  monthlySpent Float    @default(0.0)
+  updatedAt    DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+}

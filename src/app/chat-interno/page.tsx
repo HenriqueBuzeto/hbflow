@@ -1,0 +1,192 @@
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+import { useStore } from '@/store/useStore';
+import { MessageSquare, Send, User, ShieldCheck, ChevronRight } from 'lucide-react';
+
+interface InternalMessage {
+  id: string;
+  senderId: string;
+  receiverId: string;
+  body: string;
+  createdAt: string;
+}
+
+export default function ChatInternoPage() {
+  const { users, currentUserId } = useStore();
+  const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
+  const [msgText, setMsgText] = useState('');
+  const [chatLogs, setChatLogs] = useState<InternalMessage[]>([
+    { id: '1', senderId: 'user-2', receiverId: 'user-1', body: 'Olá João! O boleto da Ana Costa já foi emitido e anexado no CRM dela.', createdAt: '2026-06-08T18:50:00Z' },
+    { id: '2', senderId: 'user-1', receiverId: 'user-2', body: 'Excelente Maria! Vou mandar o link para ela no chat do WhatsApp.', createdAt: '2026-06-08T18:52:00Z' }
+  ]);
+
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  const currentUser = users.find((u) => u.id === currentUserId) || users[0];
+  const targetAgent = users.find((u) => u.id === selectedAgentId);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [selectedAgentId, chatLogs]);
+
+  // Filter messages between current user and target agent
+  const conversationMessages = chatLogs.filter(
+    (m) =>
+      (m.senderId === currentUserId && m.receiverId === selectedAgentId) ||
+      (m.senderId === selectedAgentId && m.receiverId === currentUserId)
+  );
+
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!msgText.trim() || !selectedAgentId) return;
+
+    const newMsg: InternalMessage = {
+      id: `int-${Date.now()}`,
+      senderId: currentUserId,
+      receiverId: selectedAgentId,
+      body: msgText.trim(),
+      createdAt: new Date().toISOString()
+    };
+
+    setChatLogs((prev) => [...prev, newMsg]);
+    setMsgText('');
+
+    // Trigger dynamic reply mock
+    if (selectedAgentId === 'user-2') {
+      setTimeout(() => {
+        const autoReply: InternalMessage = {
+          id: `int-reply-${Date.now()}`,
+          senderId: 'user-2',
+          receiverId: currentUserId,
+          body: 'Estou online. Qualquer dúvida com outros boletos me avise aqui no chat interno.',
+          createdAt: new Date().toISOString()
+        };
+        setChatLogs((prev) => [...prev, autoReply]);
+      }, 1500);
+    }
+  };
+
+  return (
+    <div className="h-[calc(100vh-8.5rem)] flex border border-slate-200 rounded-3xl bg-white shadow-sm overflow-hidden animate-in fade-in duration-150">
+      {/* COLUMN 1: AGENTS LIST */}
+      <div className="w-64 border-r border-slate-200 bg-slate-50/70 flex flex-col shrink-0">
+        <div className="p-4 border-b border-slate-200 bg-white">
+          <span className="text-[10px] uppercase font-extrabold tracking-widest text-slate-400 block mb-2">
+            Equipe Online
+          </span>
+          <p className="text-[10px] text-slate-400">Clique em um colega para iniciar o chat interno:</p>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          {users
+            .filter((u) => u.id !== currentUserId)
+            .map((user) => {
+              const isSelected = user.id === selectedAgentId;
+              return (
+                <div
+                  key={user.id}
+                  onClick={() => setSelectedAgentId(user.id)}
+                  className={`p-3 rounded-2xl cursor-pointer hover:bg-slate-200/50 transition-all flex items-center justify-between ${
+                    isSelected ? 'bg-primary/10 text-primary border-l-4 border-l-primary' : ''
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={user.avatarUrl}
+                      alt={user.name}
+                      className="w-7 h-7 rounded-full object-cover ring-2 ring-primary/20 shrink-0"
+                    />
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block leading-tight">{user.name}</span>
+                      <span className="text-[9px] text-slate-400 block mt-0.5">{user.role}</span>
+                    </div>
+                  </div>
+
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${
+                    user.isOnline ? 'bg-emerald-500 shadow-sm shadow-emerald-500/50' : 'bg-slate-300'
+                  }`} />
+                </div>
+              );
+            })}
+        </div>
+      </div>
+
+      {/* COLUMN 2: VIEWPORT */}
+      <div className="flex-1 bg-slate-50 flex flex-col min-w-0">
+        {selectedAgentId && targetAgent ? (
+          <>
+            {/* Header */}
+            <div className="h-14 bg-white border-b border-slate-200 px-5 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <img
+                  src={targetAgent.avatarUrl}
+                  alt={targetAgent.name}
+                  className="w-8 h-8 rounded-full object-cover"
+                />
+                <div>
+                  <h4 className="text-xs font-bold text-slate-800">{targetAgent.name}</h4>
+                  <span className="text-[9px] text-slate-400 block mt-0.5 capitalize">
+                    {targetAgent.role} • {targetAgent.isOnline ? 'online' : 'offline'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="text-[10px] bg-slate-100 text-slate-500 font-bold px-2 py-0.5 rounded-full">
+                Chat Corporativo Criptografado
+              </div>
+            </div>
+
+            {/* Messages body */}
+            <div className="flex-1 overflow-y-auto p-5 space-y-3 bg-slate-100/30">
+              {conversationMessages.map((m) => {
+                const isMe = m.senderId === currentUserId;
+                return (
+                  <div key={m.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                    <div className={`max-w-[70%] p-3 rounded-2xl shadow-sm text-xs relative ${
+                      isMe ? 'bg-primary text-white rounded-tr-none' : 'bg-white text-slate-800 border rounded-tl-none border-slate-200'
+                    }`}>
+                      <p className="leading-relaxed">{m.body}</p>
+                      <span className={`text-[8px] block text-right mt-1.5 ${isMe ? 'text-purple-200' : 'text-slate-400'}`}>
+                        {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+              <div ref={chatEndRef} />
+            </div>
+
+            {/* Input area */}
+            <form onSubmit={handleSend} className="bg-white border-t border-slate-200 p-4 flex gap-2 shrink-0">
+              <input
+                type="text"
+                placeholder={`Mandar mensagem interna para ${targetAgent.name}...`}
+                value={msgText}
+                onChange={(e) => setMsgText(e.target.value)}
+                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl py-2 px-4 text-xs outline-none focus:border-primary focus:bg-white"
+              />
+              <button
+                type="submit"
+                disabled={!msgText.trim()}
+                className="bg-primary hover:bg-primary-hover text-white p-2 rounded-xl transition-all shadow-md disabled:opacity-40 cursor-pointer"
+              >
+                <Send size={14} />
+              </button>
+            </form>
+          </>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-8 bg-slate-50">
+            <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mb-4 border">
+              <MessageSquare size={24} />
+            </div>
+            <h4 className="text-xs font-bold text-slate-700">Comunicação Interna</h4>
+            <p className="text-[10px] text-slate-400 max-w-xs mt-1 leading-relaxed">
+              Troque anotações de leads ou solicite auxílio de supervisores em tempo real sem sair do HBFlow.
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
