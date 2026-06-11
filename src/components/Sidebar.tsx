@@ -99,20 +99,13 @@ export default function Sidebar() {
   return (
     <aside
       className={`bg-sidebar-bg text-sidebar-fg flex flex-col transition-all duration-300 border-r border-zinc-800 ${
-        isCollapsed ? 'w-16' : 'w-60'
+        isCollapsed ? 'w-16' : 'w-64'
       } shrink-0 h-screen sticky top-0 z-30`}
     >
       {/* Brand Header */}
       <div className="h-14 flex items-center justify-between px-4 border-b border-zinc-800 shrink-0">
         {!isCollapsed && (
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center font-bold text-white shadow-lg">
-              HB
-            </div>
-            <span className="font-extrabold text-base tracking-tight text-white">
-              HB<span className="text-primary">Flow</span>
-            </span>
-          </div>
+          <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-6 object-contain" />
         )}
         {isCollapsed && (
           <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center font-bold text-white mx-auto">

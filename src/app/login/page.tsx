@@ -25,20 +25,15 @@ export default function LoginPage() {
   const selectedUser = users.find(u => u.id === currentUserId) || users[0];
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4 py-12 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4 py-12 relative overflow-hidden always-dark">
       {/* Background gradients */}
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px]" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-emerald-500/10 rounded-full blur-[120px]" />
 
       <div className="w-full max-w-md z-10">
         {/* Brand logo header */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-primary text-white font-extrabold text-2xl shadow-xl shadow-primary/30 mb-4">
-            HB
-          </div>
-          <h2 className="text-3xl font-extrabold text-white tracking-tight">
-            HB<span className="text-primary">Flow</span>
-          </h2>
+        <div className="text-center mb-8 flex flex-col items-center justify-center">
+          <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-10 object-contain mb-4" />
           <p className="text-sm text-slate-400 mt-2">
             Gestão de WhatsApp + CRM Omnichannel Multi-tenant
           </p>

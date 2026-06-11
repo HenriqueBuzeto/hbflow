@@ -50,6 +50,13 @@
   --color-sidebar-fg: var(--sidebar-fg);
   --radius-xl: 1rem;
   --radius-2xl: 1.5rem;
+  --color-slate-350: #b0c0d5;
+  --color-slate-355: #a3b8cc;
+  --color-slate-450: #7c8ba1;
+  --color-slate-455: #708096;
+  --color-slate-550: #56657a;
+  --color-slate-850: #1b2030;
+  --color-slate-955: #090e17;
 }
 
 /* Custom Scrollbar Styles for premium layout */
@@ -131,6 +138,13 @@ body {
   --color-slate-700: #e2e8f0;
   --color-slate-800: #f1f5f9;
   --color-slate-900: #f8fafc;
+  --color-slate-350: #404b5c;
+  --color-slate-355: #4a576b;
+  --color-slate-450: #707f94;
+  --color-slate-455: #7c8ca3;
+  --color-slate-550: #cbd5e1;
+  --color-slate-850: #1f2937;
+  --color-slate-955: #111724;
 }
 
 .dark body {
@@ -300,5 +314,43 @@ body {
 
 .dark .text-indigo-400 {
   color: #c084fc !important;
+}
+
+/* Reset slate palette to dark values for permanently dark containers/pages like landing page */
+.always-dark {
+  --color-slate-50: #f8fafc !important;
+  --color-slate-100: #f1f5f9 !important;
+  --color-slate-200: #e2e8f0 !important;
+  --color-slate-300: #cbd5e1 !important;
+  --color-slate-400: #94a3b8 !important;
+  --color-slate-500: #64748b !important;
+  --color-slate-600: #475569 !important;
+  --color-slate-700: #334155 !important;
+  --color-slate-800: #1e293b !important;
+  --color-slate-850: #1b2030 !important;
+  --color-slate-900: #0f172a !important;
+  --color-slate-950: #020617 !important;
+  --color-slate-955: #090e17 !important;
+}
+
+/* Estilo premium de scrollbar roxo translúcido para modo escuro, sidebar e containers permanentemente escuros */
+.dark ::-webkit-scrollbar-thumb,
+aside ::-webkit-scrollbar-thumb,
+.always-dark ::-webkit-scrollbar-thumb {
+  background: rgba(124, 58, 237, 0.25) !important;
+  border-radius: 9999px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover,
+aside ::-webkit-scrollbar-thumb:hover,
+.always-dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 58, 237, 0.45) !important;
+}
+
+/* Tornar a barra um pouco mais fina no menu e páginas escuras para um aspecto mais moderno e limpo */
+aside ::-webkit-scrollbar,
+.always-dark ::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
 }
 

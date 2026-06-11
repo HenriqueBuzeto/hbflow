@@ -154,7 +154,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="bg-[#0b0c10] text-slate-100 font-sans min-h-screen relative overflow-x-hidden selection:bg-primary selection:text-white">
+    <div className="bg-[#0b0c10] text-slate-100 font-sans min-h-screen relative overflow-x-hidden selection:bg-primary selection:text-white always-dark">
       
       {/* Decorative Radial Gradients */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-primary/10 rounded-full blur-[160px] pointer-events-none -z-10" />
@@ -168,12 +168,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center font-black text-white shadow-lg shadow-primary/20 text-sm">
-              HB
-            </div>
-            <span className="font-extrabold text-sm tracking-tight text-white">
-              HB<span className="text-primary">Flow</span>
-            </span>
+            <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-7 object-contain" />
           </div>
 
           {/* Nav Links */}
@@ -755,12 +750,7 @@ export default function LandingPage() {
       <footer className="py-12 border-t border-slate-900 bg-slate-950 text-center text-[10px] text-slate-550 font-bold uppercase tracking-wider">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-lg bg-primary flex items-center justify-center font-black text-white text-[10px]">
-              HB
-            </div>
-            <span className="font-extrabold text-[11px] text-white">
-              HB<span className="text-primary">Flow</span>
-            </span>
+            <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-5 object-contain" />
           </div>
           <span>© {currentYear} HBFlow Layer. Todos os direitos reservados.</span>
           <div className="flex gap-4">

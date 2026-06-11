@@ -31,7 +31,7 @@ export default function PublicAgentsCatalog() {
   });
 
   return (
-    <div className="bg-[#0b0c10] text-slate-100 font-sans min-h-screen relative selection:bg-primary selection:text-white pb-20">
+    <div className="bg-[#0b0c10] text-slate-100 font-sans min-h-screen relative selection:bg-primary selection:text-white pb-20 always-dark">
       
       {/* Decorative Blur Backgrounds */}
       <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-primary/10 rounded-full blur-[150px] pointer-events-none -z-10" />
@@ -42,12 +42,7 @@ export default function PublicAgentsCatalog() {
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           {/* Brand Logo */}
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/')}>
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-black text-white shadow shadow-primary/20">
-              HB
-            </div>
-            <span className="font-extrabold text-sm text-white">
-              HB<span className="text-primary">Flow</span>
-            </span>
+            <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-6 object-contain" />
           </div>
 
           {/* Desktop Navigation Links */}

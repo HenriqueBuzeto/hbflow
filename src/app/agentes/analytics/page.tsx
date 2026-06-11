@@ -96,7 +96,7 @@ export default function AnalyticsPage() {
   }, []);
 
   return (
-    <div className="bg-[#0b0c10] text-slate-100 font-sans min-h-screen relative selection:bg-primary selection:text-white pb-20">
+    <div className="bg-[#0b0c10] text-slate-100 font-sans min-h-screen relative selection:bg-primary selection:text-white pb-20 always-dark">
       
       {/* Background Blurs */}
       <div className="absolute top-0 left-1/3 w-[600px] h-[600px] bg-primary/10 rounded-full blur-[170px] pointer-events-none -z-10" />
@@ -106,12 +106,7 @@ export default function AnalyticsPage() {
       <header className="sticky top-0 w-full z-50 bg-slate-950/80 backdrop-blur-lg border-b border-slate-900 py-3 shadow-lg">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/')}>
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-black text-white shadow shadow-primary/20">
-              HB
-            </div>
-            <span className="font-extrabold text-sm text-white">
-              HB<span className="text-primary">Flow</span>
-            </span>
+            <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-6 object-contain" />
           </div>
 
           <nav className="hidden md:flex items-center gap-6 text-xs font-semibold text-slate-300">
