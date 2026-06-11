@@ -42,7 +42,7 @@ export default function PublicAgentsCatalog() {
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           {/* Brand Logo */}
           <div className="flex items-center gap-2 cursor-pointer" onClick={() => router.push('/')}>
-            <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-6 object-contain" />
+            <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-9 object-contain" />
           </div>
 
           {/* Desktop Navigation Links */}
