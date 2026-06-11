@@ -13,6 +13,7 @@ export async function GET() {
       where: { id: user.userId },
       include: {
         tenant: true,
+        role: true
       },
     });
 
@@ -21,6 +22,22 @@ export async function GET() {
         { error: 'User not found' },
         { status: 404 }
       );
+    }
+
+    const isSuperAdmin = 
+      fullUser.email === 'henrique@hbflow.com' ||
+      (fullUser.role?.name === 'Admin' && fullUser.tenant?.slug === 'hbflow');
+
+    let isBlocked = false;
+    let blockError: string | undefined = undefined;
+
+    if (!isSuperAdmin) {
+      const { SubscriptionAccessService } = await import('@/server/services/billing/subscription-access.service');
+      const access = await SubscriptionAccessService.checkAccess(user.tenantId);
+      if (!access.hasAccess) {
+        isBlocked = true;
+        blockError = 'SUBSCRIPTION_REQUIRED';
+      }
     }
 
     // Obter permissões usando o PermissionService
@@ -32,6 +49,8 @@ export async function GET() {
     return NextResponse.json({
       user: userWithoutPassword,
       permissions,
+      isBlocked,
+      error: blockError
     });
   } catch (error) {
     if (error instanceof Error && error.message === 'UNAUTHORIZED') {

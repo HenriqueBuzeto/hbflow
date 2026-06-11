@@ -410,14 +410,45 @@ export class AuthService {
         },
       });
 
+      // Ensure the 'starter' Plan exists
+      let planStarter = await tx.plan.findUnique({
+        where: { slug: 'starter' }
+      });
+      if (!planStarter) {
+        planStarter = await tx.plan.create({
+          data: {
+            name: 'Starter Plan',
+            slug: 'starter',
+            priceCents: 14900, // R$ 149.00
+            billingCycle: 'monthly',
+            isActive: true
+          }
+        });
+      }
+
+      const trialEndsAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days
+
       // Create Billing trial entry ending in 3 days
       await tx.tenantBilling.create({
         data: {
           tenantId: tenant.id,
           currentPeriodStart: new Date(),
-          currentPeriodEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days
+          currentPeriodEnd: trialEndsAt,
         },
       });
+
+      // Create Subscription entry ending in 3 days
+      await tx.subscription.create({
+        data: {
+          tenantId: tenant.id,
+          planId: planStarter.id,
+          status: 'trialing',
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: trialEndsAt,
+          trialEndsAt: trialEndsAt,
+        }
+      });
+
 
       return { tenant, user, loginEmail, rawPassword, adminRoleId: adminRole.id };
     });

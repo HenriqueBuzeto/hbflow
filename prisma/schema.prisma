@@ -64,6 +64,11 @@ model Tenant {
   webhookEndpoints     WebhookEndpoint[]
   webhookEvents        WebhookEvent[]
   whatsappConnections  WhatsappConnection[]
+  subscriptions        Subscription[]
+  invoices             Invoice[]
+  payments             Payment[]
+  pixCharges           PixCharge[]
+  tenantDiscounts      TenantDiscount[]
 }
 
 model TenantSettings {
@@ -181,6 +186,7 @@ model User {
   presence            UserPresence?
   profile             UserProfile?
   userRoutingFilters  UserRoutingFilter[]
+  tenantDiscountsCreated TenantDiscount[]
 }
 
 model UserProfile {
@@ -307,6 +313,8 @@ model WhatsappConnection {
   id                String                    @id @default(uuid())
   tenantId          String
   name              String
+  provider          String                    @default("cloud_api")
+  instanceName      String?
   phoneNumber       String?
   phoneNumberId     String?
   wabaId            String?
@@ -317,6 +325,12 @@ model WhatsappConnection {
   status            String                    @default("disconnected")
   qualityRating     String?
   messagingLimit    Int?
+  displayName       String?
+  qrCode            String?
+  lastQrAt          DateTime?
+  connectedAt       DateTime?
+  disconnectedAt    DateTime?
+  metadataJson      String?                   @default("{}")
   lastWebhookAt     DateTime?
   lastSyncAt        DateTime?
   createdAt         DateTime                  @default(now())
@@ -1695,10 +1709,150 @@ model TenantFeatureFlag {
   overriddenBy  String?
   overriddenAt  DateTime    @default(now())
   metadataJson  String      @default("{}")
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  featureFlag   FeatureFlag @relation(fields: [featureFlagId], references: [id], onDelete: Cascade)
-  tenant        Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  featureFlag   FeatureFlag         @relation(fields: [featureFlagId], references: [id], onDelete: Cascade)
+  tenant        Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   @@unique([tenantId, featureFlagId])
+}
+
+model Plan {
+  id           String         @id @default(uuid())
+  name         String
+  slug         String         @unique
+  priceCents   Int
+  billingCycle String         @default("monthly") // monthly | yearly
+  isActive     Boolean        @default(true)
+  featuresJson String         @default("{}")
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  deletedAt    DateTime?
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                 String    @id @default(uuid())
+  tenantId           String
+  planId             String
+  status             String    @default("trialing") // trialing | active | past_due | suspended | cancelled | free
+  currentPeriodStart DateTime  @default(now())
+  currentPeriodEnd   DateTime
+  trialEndsAt        DateTime?
+  cancelledAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  deletedAt          DateTime?
+  plan               Plan      @relation(fields: [planId], references: [id])
+  tenant             Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  invoices           Invoice[]
+
+  @@index([tenantId])
+}
+
+model Coupon {
+  id             String           @id @default(uuid())
+  code           String           @unique
+  type           String           @default("percentage") // percentage | fixed_amount | free_access
+  value          Float // value of discount: e.g. 20.0 for 20% or 1000 for 10.00 R$
+  duration       String           @default("once") // once | months | forever
+  durationMonths Int?
+  maxRedemptions Int?
+  redeemedCount  Int              @default(0)
+  validFrom      DateTime?
+  validUntil     DateTime?
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  deletedAt      DateTime?
+  discounts      TenantDiscount[]
+}
+
+model TenantDiscount {
+  id              String    @id @default(uuid())
+  tenantId        String
+  couponId        String?
+  type            String    @default("percentage") // percentage | fixed_amount | free_access
+  value           Float
+  reason          String
+  startsAt        DateTime  @default(now())
+  endsAt          DateTime?
+  isActive        Boolean   @default(true)
+  createdByUserId String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+  coupon          Coupon?   @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy       User?     @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+}
+
+model Invoice {
+  id                 String      @id @default(uuid())
+  tenantId           String
+  subscriptionId     String?
+  invoiceNumber      String      @unique
+  status             String      @default("draft") // draft | open | paid | overdue | cancelled | void
+  subtotalCents      Int
+  discountCents      Int
+  totalCents         Int
+  dueDate            DateTime
+  paidAt             DateTime?
+  billingPeriodStart DateTime
+  billingPeriodEnd   DateTime
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+  deletedAt          DateTime?
+  subscription       Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  tenant             Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  payments           Payment[]
+  pixCharges         PixCharge[]
+
+  @@index([tenantId])
+}
+
+model Payment {
+  id           String      @id @default(uuid())
+  tenantId     String
+  invoiceId    String
+  provider     String      @default("manual_pix") // manual_pix | asaas | mercado_pago | stripe | internal
+  method       String      @default("pix") // pix
+  status       String      @default("pending") // pending | paid | failed | expired | refunded
+  amountCents  Int
+  paidAt       DateTime?
+  externalId   String?
+  metadataJson String      @default("{}")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  invoice      Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  tenant       Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  pixCharges   PixCharge[]
+
+  @@index([tenantId])
+  @@index([invoiceId])
+}
+
+model PixCharge {
+  id             String    @id @default(uuid())
+  tenantId       String
+  invoiceId      String
+  paymentId      String?
+  amountCents    Int
+  qrCode         String
+  qrCodeImageUrl String?
+  copyPasteCode  String
+  expiresAt      DateTime
+  status         String    @default("active") // active | paid | expired | cancelled
+  provider       String    @default("manual_pix")
+  externalId     String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  invoice        Invoice   @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  payment        Payment?  @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  tenant         Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([invoiceId])
 }

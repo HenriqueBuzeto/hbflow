@@ -4,16 +4,16 @@
 
 const SENSITIVE_FIELDS = [
   'password',
-  'passwordHash',
+  'passwordhash',
   'token',
-  'accessToken',
-  'refreshToken',
-  'apiKey',
+  'accesstoken',
+  'refreshtoken',
+  'apikey',
   'secret',
-  'whatsappToken',
+  'whatsapptoken',
   'authorization',
   'cookie',
-  'creditCard',
+  'creditcard',
   'ssn',
   'cpf',
   'cnpj',
@@ -63,7 +63,7 @@ export function sanitizeMetadata(metadata: any): any {
         const lowerKey = key.toLowerCase();
         
         // Skip sensitive fields
-        if (SENSITIVE_FIELDS.some(field => lowerKey.includes(field))) {
+        if (SENSITIVE_FIELDS.some(field => lowerKey.includes(field.toLowerCase()))) {
           result[key] = '[REDACTED]';
           continue;
         }
@@ -90,5 +90,5 @@ export function sanitizeMetadata(metadata: any): any {
  */
 export function isSensitiveField(fieldName: string): boolean {
   const lowerName = fieldName.toLowerCase();
-  return SENSITIVE_FIELDS.some(field => lowerName.includes(field));
+  return SENSITIVE_FIELDS.some(field => lowerName.includes(field.toLowerCase()));
 }

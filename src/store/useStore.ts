@@ -68,6 +68,8 @@ export interface User {
 
 export interface WhatsappConnection {
   name: string;
+  provider?: 'cloud_api' | 'qr_gateway';
+  instanceName?: string;
   phoneNumber: string;
   phoneId: string;
   wabaId: string;
@@ -335,11 +337,13 @@ interface Actions {
 // Zod schemas for validation
 export const whatsappConnectionSchema = z.object({
   name: z.string().min(2, "Nome inválido"),
-  phoneNumber: z.string().regex(/^\+?[1-9]\d{1,14}$/, "Telefone inválido"),
-  phoneId: z.string().min(5, "Phone Number ID é obrigatório"),
-  wabaId: z.string().min(5, "WhatsApp Business ID é obrigatório"),
-  accessToken: z.string().min(10, "Token de acesso inválido"),
-  verifyToken: z.string().min(4, "Verify token inválido"),
+  provider: z.enum(['cloud_api', 'qr_gateway']).optional(),
+  instanceName: z.string().optional(),
+  phoneNumber: z.string().regex(/^\+?[1-9]\d{1,14}$/, "Telefone inválido").optional().or(z.literal('')),
+  phoneId: z.string().optional().or(z.literal('')),
+  wabaId: z.string().optional().or(z.literal('')),
+  accessToken: z.string().optional().or(z.literal('')),
+  verifyToken: z.string().optional().or(z.literal('')),
 });
 
 // Mock Initial Data
@@ -357,6 +361,7 @@ const initialUsers: User[] = [
 
 const initialWhatsapp: WhatsappConnection = {
   name: 'HBFlow Oficial',
+  provider: 'cloud_api',
   phoneNumber: '+55 11 99999-8888',
   phoneId: '109843789012345',
   wabaId: '234908127390841',

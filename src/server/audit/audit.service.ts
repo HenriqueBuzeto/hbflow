@@ -76,7 +76,10 @@ export class AuditService {
     metadata?: any;
   }): Promise<void> {
     try {
-      const sanitizedMetadata = data.metadata ? sanitizeMetadata(data.metadata) : '{}';
+      const sanitized = data.metadata ? sanitizeMetadata(data.metadata) : null;
+      const sanitizedMetadata = sanitized
+        ? (typeof sanitized === 'object' ? JSON.stringify(sanitized) : String(sanitized))
+        : '{}';
 
       await prisma.errorLog.create({
         data: {
@@ -105,7 +108,10 @@ export class AuditService {
     metadata?: any;
   }): Promise<void> {
     try {
-      const sanitizedMetadata = data.metadata ? sanitizeMetadata(data.metadata) : '{}';
+      const sanitized = data.metadata ? sanitizeMetadata(data.metadata) : null;
+      const sanitizedMetadata = sanitized
+        ? (typeof sanitized === 'object' ? JSON.stringify(sanitized) : String(sanitized))
+        : '{}';
 
       await prisma.systemEvent.create({
         data: {

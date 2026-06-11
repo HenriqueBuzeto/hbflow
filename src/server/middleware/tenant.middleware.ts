@@ -34,6 +34,7 @@ export async function requireTenant(): Promise<string> {
   }
 
   setTenantContext(user.tenantId);
+
   return user.tenantId;
 }
 
