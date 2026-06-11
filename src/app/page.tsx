@@ -56,7 +56,7 @@ export default function LandingPage() {
       name: 'Rodrigo Silva',
       phone: '+55 (11) 99823-1142',
       status: 'Aguardando',
-      avatarId: 1, // Will use inline emoji/initials for robustness
+      avatarId: 1,
       agentName: 'SDR Agent',
       messages: [
         { sender: 'client', text: 'Olá, gostaria de saber se o sistema de vocês atende minha empresa. Preciso de um orçamento.', time: '14:20' },
@@ -119,13 +119,10 @@ export default function LandingPage() {
       // Create response based on message content and contact
       let botResponse = '';
       if (selectedDemoContact === 0) {
-        // SDR
         botResponse = `Entendido! Para a sua imobiliária, o SDR IA pode qualificar leads interessados em comprar ou alugar imóveis diretamente no WhatsApp e agendar as visitas automáticas no calendário dos corretores. Deseja iniciar um teste gratuito do plano Pro?`;
       } else if (selectedDemoContact === 1) {
-        // Financeiro
         botResponse = `Perfeito, Mateus! Faturamento confirmado. Identifiquei o pagamento no banco e o status da sua assinatura já consta como ativo. Obrigado!`;
       } else {
-        // Follow-up
         botResponse = `Que ótima notícia! Ficamos no aguardo da aprovação. Qualquer dúvida, estou à total disposição por aqui!`;
       }
 
@@ -153,17 +150,36 @@ export default function LandingPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Framer Motion Animation Variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: { staggerChildren: 0.1 }
+    }
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { type: 'spring', stiffness: 100, damping: 15 }
+    }
+  };
+
   return (
-    <div className="bg-[#0b0c10] text-slate-100 font-sans min-h-screen relative overflow-x-hidden selection:bg-primary selection:text-white always-dark">
+    <div className="bg-[#030712] text-slate-100 font-sans min-h-screen relative overflow-x-hidden selection:bg-primary selection:text-white always-dark">
       
-      {/* Decorative Radial Gradients */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-primary/10 rounded-full blur-[160px] pointer-events-none -z-10" />
-      <div className="absolute top-[1200px] -right-20 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[140px] pointer-events-none -z-10" />
-      <div className="absolute top-[2600px] -left-20 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[140px] pointer-events-none -z-10" />
+      {/* Premium Radial Gradients / Background Glows */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1200px] h-[600px] bg-primary/10 rounded-full blur-[160px] pointer-events-none -z-10" />
+      <div className="absolute top-[800px] -left-20 w-[600px] h-[600px] bg-indigo-500/5 rounded-full blur-[140px] pointer-events-none -z-10" />
+      <div className="absolute top-[1800px] -right-20 w-[700px] h-[700px] bg-violet-600/5 rounded-full blur-[160px] pointer-events-none -z-10" />
+      <div className="absolute top-[2800px] left-1/2 -translate-x-1/2 w-[1000px] h-[600px] bg-primary/5 rounded-full blur-[150px] pointer-events-none -z-10" />
 
       {/* FLOATING HEADER */}
       <header className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-        scrolled ? 'bg-slate-950/90 backdrop-blur-md border-b border-slate-900/80 py-3 shadow-xl' : 'bg-transparent py-5'
+        scrolled ? 'bg-slate-950/70 backdrop-blur-md border-b border-white/5 py-3 shadow-2xl shadow-black/40' : 'bg-transparent py-5'
       }`}>
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           {/* Logo */}
@@ -172,12 +188,12 @@ export default function LandingPage() {
           </div>
 
           {/* Nav Links */}
-          <nav className="hidden md:flex items-center gap-8 text-xs font-semibold text-slate-300">
-            <a href="#como-funciona" className="hover:text-primary transition-colors">Como Funciona</a>
-            <a href="#agentes" className="hover:text-primary transition-colors">Equipe de IA</a>
-            <a href="#simulador" className="hover:text-primary transition-colors">Simulador</a>
-            <a href="#planos" className="hover:text-primary transition-colors">Planos & Preços</a>
-            <button onClick={() => router.push('/agentes')} className="text-primary hover:underline font-bold bg-transparent border-none cursor-pointer flex items-center gap-0.5">
+          <nav className="hidden md:flex items-center gap-8 text-xs font-semibold text-slate-350">
+            <a href="#como-funciona" className="hover:text-primary transition-colors duration-200">Como Funciona</a>
+            <a href="#agentes" className="hover:text-primary transition-colors duration-200">Equipe de IA</a>
+            <a href="#simulador" className="hover:text-primary transition-colors duration-200">Simulador</a>
+            <a href="#planos" className="hover:text-primary transition-colors duration-200">Planos & Preços</a>
+            <button onClick={() => router.push('/agentes')} className="text-primary hover:text-primary-hover font-bold bg-transparent border-none cursor-pointer flex items-center gap-0.5 transition-colors duration-200">
               Catálogo de Agentes <ArrowUpRight size={12} />
             </button>
           </nav>
@@ -186,47 +202,57 @@ export default function LandingPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push('/login')}
-              className="hidden sm:inline-block text-slate-300 hover:text-white text-xs font-bold px-4 py-2 bg-slate-900/40 hover:bg-slate-900 border border-slate-800 rounded-xl transition-all cursor-pointer"
+              className="hidden sm:inline-block text-slate-300 hover:text-white text-xs font-bold px-4 py-2 bg-slate-900/40 hover:bg-slate-900 border border-white/5 rounded-xl transition-all cursor-pointer duration-200"
             >
               Entrar
             </button>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02, boxShadow: '0 0 15px rgba(124, 58, 237, 0.4)' }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => router.push('/login')}
-              className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-primary/20 cursor-pointer"
+              className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer shadow-md shadow-primary/10"
             >
               Teste Grátis
-            </button>
+            </motion.button>
             
             {/* Mobile menu trigger */}
-            <button className="md:hidden text-slate-300 hover:text-white" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            <button className="md:hidden text-slate-300 hover:text-white transition-colors" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
               {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
           </div>
         </div>
 
         {/* Mobile Navigation Drawer */}
-        {mobileMenuOpen && (
-          <div className="md:hidden absolute top-full left-0 w-full bg-slate-950 border-b border-slate-900 p-6 flex flex-col gap-4 animate-in slide-in-from-top duration-200">
-            <a href="#como-funciona" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-350 hover:text-white">Como Funciona</a>
-            <a href="#agentes" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-355 hover:text-white">Equipe de IA</a>
-            <a href="#simulador" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-355 hover:text-white">Simulador</a>
-            <a href="#planos" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-355 hover:text-white">Planos & Preços</a>
-            <button onClick={() => { setMobileMenuOpen(false); router.push('/agentes'); }} className="text-left text-sm font-bold text-primary">Catálogo de Agentes</button>
-            <hr className="border-slate-900 my-1" />
-            <button onClick={() => { setMobileMenuOpen(false); router.push('/login'); }} className="bg-primary text-white text-xs font-bold py-3 rounded-xl text-center">Começar Agora</button>
-          </div>
-        )}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.15 }}
+              className="md:hidden absolute top-full left-0 w-full bg-slate-950/95 backdrop-blur-md border-b border-white/5 p-6 flex flex-col gap-4 shadow-xl"
+            >
+              <a href="#como-funciona" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-300 hover:text-white transition-colors">Como Funciona</a>
+              <a href="#agentes" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-300 hover:text-white transition-colors">Equipe de IA</a>
+              <a href="#simulador" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-300 hover:text-white transition-colors">Simulador</a>
+              <a href="#planos" onClick={() => setMobileMenuOpen(false)} className="text-sm font-medium text-slate-300 hover:text-white transition-colors">Planos & Preços</a>
+              <button onClick={() => { setMobileMenuOpen(false); router.push('/agentes'); }} className="text-left text-sm font-bold text-primary hover:text-primary-hover transition-colors">Catálogo de Agentes</button>
+              <hr className="border-white/5 my-1" />
+              <button onClick={() => { setMobileMenuOpen(false); router.push('/login'); }} className="bg-primary hover:bg-primary-hover text-white text-xs font-bold py-3 rounded-xl text-center transition-colors">Começar Agora</button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </header>
 
       {/* HERO SECTION */}
-      <section className="relative pt-32 pb-20 px-6 text-center">
+      <section className="relative pt-36 pb-24 px-6 text-center">
         <div className="max-w-5xl mx-auto flex flex-col items-center">
           
           {/* AI Workforce Badge */}
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary mb-6 uppercase tracking-wider"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 text-[10px] font-bold text-primary mb-6 uppercase tracking-widest shadow-[0_0_15px_rgba(124, 58, 237, 0.15)]"
           >
             <Sparkles size={11} className="animate-pulse text-primary" />
             <span>AI WORKFORCE LAYER ATIVA</span>
@@ -237,9 +263,9 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1 }}
-            className="text-4xl md:text-6xl font-extrabold tracking-tight text-white max-w-4xl leading-[1.1]"
+            className="text-4xl md:text-7xl font-extrabold tracking-tight text-white max-w-4xl leading-[1.08]"
           >
-            Transforme seu WhatsApp em uma <span className="bg-gradient-to-r from-primary via-indigo-400 to-violet-500 bg-clip-text text-transparent">equipe de vendas com IA</span>
+            Transforme seu WhatsApp em uma <span className="bg-gradient-to-r from-primary via-indigo-400 to-violet-500 bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(124,58,237,0.15)]">equipe de vendas com IA</span>
           </motion.h1>
 
           {/* Subheading */}
@@ -247,7 +273,7 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2 }}
-            className="text-slate-400 text-sm md:text-base mt-6 max-w-2xl leading-relaxed font-medium"
+            className="text-slate-400 text-sm md:text-lg mt-6 max-w-2xl leading-relaxed font-medium"
           >
             Atenda, qualifique, venda e faça follow-up automaticamente com agentes inteligentes integrados ao seu WhatsApp e CRM comercial.
           </motion.p>
@@ -257,23 +283,27 @@ export default function LandingPage() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.3 }}
-            className="flex flex-col sm:flex-row items-center gap-3.5 mt-8"
+            className="flex flex-col sm:flex-row items-center gap-3.5 mt-9"
           >
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02, boxShadow: '0 0 25px rgba(124, 58, 237, 0.4)' }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => router.push('/login')}
-              className="w-full sm:w-auto bg-primary hover:bg-primary-hover text-white text-xs font-bold px-7 py-3.5 rounded-xl transition-all shadow-lg shadow-primary/25 cursor-pointer flex items-center justify-center gap-1.5"
+              className="w-full sm:w-auto bg-gradient-to-r from-primary to-indigo-600 hover:from-primary-hover hover:to-indigo-700 text-white text-xs font-bold px-8 py-4 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-lg shadow-primary/20"
             >
               <span>Criar Conta Grátis</span>
               <ArrowRight size={14} />
-            </button>
+            </motion.button>
             
-            <a
+            <motion.a
+              whileHover={{ scale: 1.02, borderColor: 'rgba(255,255,255,0.15)' }}
+              whileTap={{ scale: 0.98 }}
               href="#simulador"
-              className="w-full sm:w-auto border border-slate-800 hover:border-slate-700 bg-slate-900/40 text-slate-350 hover:text-white text-xs font-bold px-7 py-3.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
+              className="w-full sm:w-auto border border-white/5 hover:bg-slate-900/40 bg-slate-900/20 text-slate-300 hover:text-white text-xs font-bold px-8 py-4 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5"
             >
               <Play size={11} fill="currentColor" />
               <span>Ver Simulador</span>
-            </a>
+            </motion.a>
           </motion.div>
 
           {/* Trust Indicators */}
@@ -281,29 +311,35 @@ export default function LandingPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 mt-12 text-slate-500 text-[10px] font-bold uppercase tracking-wider"
+            className="flex flex-wrap items-center justify-center gap-x-8 gap-y-3 mt-14 text-slate-500 text-[10px] font-bold uppercase tracking-wider"
           >
-            <span className="flex items-center gap-1"><Shield size={12} className="text-primary" /> Multi-Tenant Isolado</span>
-            <span className="flex items-center gap-1"><Zap size={12} className="text-primary" /> SLA Controlado</span>
-            <span className="flex items-center gap-1"><Users size={12} className="text-primary" /> API Oficial</span>
+            <span className="flex items-center gap-1.5"><Shield size={12} className="text-primary/70" /> Multi-Tenant Isolado</span>
+            <span className="flex items-center gap-1.5"><Zap size={12} className="text-primary/70" /> SLA Controlado</span>
+            <span className="flex items-center gap-1.5"><Users size={12} className="text-primary/70" /> API Oficial</span>
           </motion.div>
         </div>
       </section>
 
-      {/* COMO FUNCIONA (Timeline Flow) */}
-      <section id="como-funciona" className="py-20 border-t border-slate-900 bg-slate-950/30 px-6">
+      {/* COMO FUNCIONA (Timeline Flow Redesign) */}
+      <section id="como-funciona" className="py-24 border-t border-white/5 bg-slate-950/20 px-6">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-2xl md:text-3xl font-extrabold text-white">Como Funciona a Operação</h2>
+            <h2 className="text-2xl md:text-4xl font-extrabold text-white">Como Funciona a Operação</h2>
             <p className="text-slate-400 text-xs md:text-sm mt-3 max-w-lg mx-auto font-medium">
               Da primeira mensagem ao pós-venda, veja como a inteligência artificial orquestra o fluxo de atendimento da sua empresa de ponta a ponta:
             </p>
           </div>
 
           {/* Timeline Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 relative">
-            {/* Horizontal Line for Desktops */}
-            <div className="hidden lg:block absolute top-[28px] left-[8%] right-[8%] h-[2px] bg-slate-800 -z-10" />
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-100px' }}
+            className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 relative"
+          >
+            {/* Horizontal Flow Indicator Line for Desktops */}
+            <div className="hidden lg:block absolute top-[28px] left-[8%] right-[8%] h-[2px] bg-gradient-to-r from-primary/20 via-indigo-500/20 to-primary/20 -z-10" />
 
             {[
               { id: '1', title: 'Mensagem do Cliente', desc: 'O cliente inicia contato no WhatsApp.' },
@@ -313,43 +349,52 @@ export default function LandingPage() {
               { id: '5', title: 'Distribuição Inteligente', desc: 'O chat é direcionado para a fila do atendente ideal.' },
               { id: '6', title: 'Follow-up IA', desc: 'Agente cobra propostas ou faturas em atraso.' }
             ].map((step, idx) => (
-              <div
+              <motion.div
                 key={idx}
-                className="bg-slate-950/80 border border-slate-850 p-5 rounded-2xl flex flex-col items-center md:items-start text-center md:text-left transition-all hover:border-slate-800 hover:shadow-md"
+                variants={cardVariants}
+                className="bg-gradient-to-b from-slate-900/40 to-slate-950/60 border border-white/5 p-5 rounded-2xl flex flex-col items-center md:items-start text-center md:text-left transition-all duration-300 hover:border-primary/20 hover:shadow-[0_8px_30px_rgba(124,58,237,0.06)] hover:-translate-y-1 backdrop-blur-md"
               >
-                <div className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center font-bold text-xs text-primary mb-4 shadow">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-primary/15 to-indigo-500/15 border border-primary/20 flex items-center justify-center font-bold text-xs text-primary mb-4 shadow-[0_0_10px_rgba(124,58,237,0.1)]">
                   {step.id}
                 </div>
                 <h3 className="text-xs font-bold text-white mb-2 leading-tight">{step.title}</h3>
-                <p className="text-[10.5px] text-slate-450 leading-relaxed font-medium">{step.desc}</p>
-              </div>
+                <p className="text-[10.5px] text-slate-400 leading-relaxed font-medium">{step.desc}</p>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* MEET THE AI TEAM (15 Agents Highlight) */}
-      <section id="agentes" className="py-20 border-t border-slate-900 px-6">
+      {/* MEET THE AI TEAM (Premium Redesign) */}
+      <section id="agentes" className="py-24 border-t border-white/5 px-6">
         <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
+          <div className="flex flex-col md:flex-row md:items-end justify-between mb-14 gap-4">
             <div>
-              <h2 className="text-2xl md:text-3xl font-extrabold text-white">Sua Equipe de Agentes de IA</h2>
+              <h2 className="text-2xl md:text-4xl font-extrabold text-white">Sua Equipe de Agentes de IA</h2>
               <p className="text-slate-400 text-xs md:text-sm mt-2 font-medium">
                 Conheça os especialistas que trabalham em segundo plano para otimizar sua empresa:
               </p>
             </div>
             
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02, borderColor: 'rgba(255,255,255,0.15)' }}
+              whileTap={{ scale: 0.98 }}
               onClick={() => router.push('/agentes')}
-              className="w-fit border border-slate-850 hover:border-slate-700 bg-slate-900/40 text-slate-300 hover:text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-1 align-self-start md:align-self-auto"
+              className="w-fit border border-white/5 bg-slate-900/40 hover:bg-slate-900 text-slate-300 hover:text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-1 transition-colors duration-200"
             >
               <span>Ver Todos os 15 Agentes</span>
               <ArrowUpRight size={13} />
-            </button>
+            </motion.button>
           </div>
 
           {/* Grid of Main 5 Agents */}
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+          <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: '-100px' }}
+            className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6"
+          >
             {[
               {
                 name: '🤖 SDR IA',
@@ -382,45 +427,54 @@ export default function LandingPage() {
                 desc: 'Analisa conversas e o pipeline do Kanban para gerar projeções de faturamento e relatórios gerenciais sobre o funil.'
               }
             ].map((agent, index) => (
-              <div
+              <motion.div
                 key={index}
-                className="bg-slate-950 border border-slate-850 rounded-2xl p-5 flex flex-col justify-between hover:border-slate-800 transition-all hover:-translate-y-1"
+                variants={cardVariants}
+                className="bg-gradient-to-b from-slate-900/40 to-slate-950/60 border border-white/5 rounded-2xl p-5 flex flex-col justify-between hover:border-primary/20 hover:shadow-[0_8px_30px_rgba(124,58,237,0.08)] hover:-translate-y-1 transition-all duration-300 backdrop-blur-md"
               >
                 <div>
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-[7.5px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-slate-900 text-slate-450 border border-slate-800">
+                  <div className="flex justify-between items-center mb-3.5">
+                    <span className="text-[7.5px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
                       Plano {agent.plan}
                     </span>
                   </div>
-                  <h3 className="text-xs font-bold text-white mb-1">{agent.name}</h3>
-                  <span className="text-[9px] text-primary font-bold block mb-3">{agent.role}</span>
-                  <p className="text-[10.5px] text-slate-450 leading-relaxed font-medium">{agent.desc}</p>
+                  <h3 className="text-xs font-bold text-white mb-1.5">{agent.name}</h3>
+                  <span className="text-[9px] text-primary/90 font-bold block mb-3">{agent.role}</span>
+                  <p className="text-[10.5px] text-slate-400 leading-relaxed font-medium">{agent.desc}</p>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* LIVE SIMULATOR INBOX (Wow Factor) */}
-      <section id="simulador" className="py-20 border-t border-slate-900 bg-slate-950/20 px-6">
+      {/* LIVE SIMULATOR INBOX (Premium Mac Redesign) */}
+      <section id="simulador" className="py-24 border-t border-white/5 bg-slate-950/10 px-6">
         <div className="max-w-5xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-extrabold text-white">Simulador Inbox Interativo</h2>
+            <h2 className="text-2xl md:text-4xl font-extrabold text-white">Simulador Inbox Interativo</h2>
             <p className="text-slate-400 text-xs md:text-sm mt-3 max-w-lg mx-auto font-medium">
               Escolha um contato comercial na barra lateral e simule uma mensagem de cliente para ver o fluxo da IA agir em tempo real:
             </p>
           </div>
 
           {/* Simulator Container */}
-          <div className="grid grid-cols-1 md:grid-cols-3 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl bg-slate-955/80 h-[520px] text-xs">
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6 }}
+            className="grid grid-cols-1 md:grid-cols-3 border border-white/5 rounded-3xl overflow-hidden shadow-2xl shadow-black/80 bg-slate-950/40 h-[520px] text-xs backdrop-blur-md"
+          >
             
             {/* Sidebar (Contacts) */}
-            <div className="bg-slate-950 border-r border-slate-900 flex flex-col">
-              <div className="p-4 border-b border-slate-900 bg-slate-950/50">
-                <span className="text-[10px] uppercase font-extrabold tracking-widest text-slate-500 block">Conversas em Fila</span>
+            <div className="bg-slate-950/90 border-r border-white/5 flex flex-col">
+              <div className="p-4 border-b border-white/5 bg-slate-950/50 flex items-center justify-between">
+                <span className="text-[9px] uppercase font-extrabold tracking-widest text-slate-500 block">Conversas em Fila</span>
+                {/* Simulated search icon or filter indicator */}
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
               </div>
-              <div className="flex-1 overflow-y-auto divide-y divide-slate-900/60">
+              <div className="flex-1 overflow-y-auto divide-y divide-white/5">
                 {demoChats.map((chat, idx) => {
                   const isSelected = selectedDemoContact === idx;
                   const lastMsg = chat.messages[chat.messages.length - 1];
@@ -431,13 +485,13 @@ export default function LandingPage() {
                         if (isTyping) return;
                         setSelectedDemoContact(idx);
                       }}
-                      className={`p-3.5 flex items-center gap-3 cursor-pointer transition-all ${
+                      className={`p-4 flex items-center gap-3.5 cursor-pointer transition-all duration-200 ${
                         isSelected 
-                          ? 'bg-slate-900/60 border-l-2 border-primary' 
-                          : 'hover:bg-slate-900/30'
+                          ? 'bg-primary/10 border-l-2 border-primary' 
+                          : 'hover:bg-white/5'
                       }`}
                     >
-                      <div className="w-8 h-8 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-sm">
+                      <div className="w-8 h-8 rounded-xl bg-slate-900 border border-white/5 flex items-center justify-center text-sm shadow">
                         {chat.avatarId === 1 ? '👔' : chat.avatarId === 2 ? '💳' : '👩'}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -456,41 +510,48 @@ export default function LandingPage() {
             </div>
 
             {/* Chat Area */}
-            <div className="col-span-2 flex flex-col bg-slate-955 h-full justify-between">
+            <div className="col-span-2 flex flex-col bg-slate-955/60 h-full justify-between">
               
-              {/* Header */}
-              <div className="p-3 border-b border-slate-900 bg-slate-950/80 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded-lg bg-slate-900 border border-slate-850 flex items-center justify-center text-xs">
+              {/* Header with macOS window control dots */}
+              <div className="p-4 border-b border-white/5 bg-slate-950/80 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {/* macOS dots */}
+                  <div className="flex gap-1.5 mr-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
+                  </div>
+                  
+                  <div className="w-7 h-7 rounded-lg bg-slate-900 border border-white/5 flex items-center justify-center text-xs">
                     {demoChats[selectedDemoContact].avatarId === 1 ? '👔' : demoChats[selectedDemoContact].avatarId === 2 ? '💳' : '👩'}
                   </div>
                   <div>
                     <h4 className="font-bold text-white text-[11px] leading-tight">{demoChats[selectedDemoContact].name}</h4>
-                    <span className="text-[8.5px] text-slate-450 font-mono font-medium">{demoChats[selectedDemoContact].phone}</span>
+                    <span className="text-[8.5px] text-slate-400 font-mono font-medium">{demoChats[selectedDemoContact].phone}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="text-[8.5px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-primary/10 border border-primary/20 text-primary">
+                  <span className="text-[8.5px] font-extrabold uppercase px-2.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary shadow-[0_0_10px_rgba(124,58,237,0.1)]">
                     AI ORCHESTRATOR
                   </span>
                 </div>
               </div>
 
               {/* Message List */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col justify-end">
+              <div className="flex-1 overflow-y-auto p-5 space-y-3.5 flex flex-col justify-end">
                 {demoChats[selectedDemoContact].messages.map((msg, mIdx) => {
                   const isBot = msg.sender === 'bot';
                   const isTriage = msg.agent === 'Triage Agent';
 
                   return (
                     <div key={mIdx} className={`flex ${isBot ? 'justify-start' : 'justify-end'}`}>
-                      <div className={`max-w-[85%] rounded-2xl p-3 shadow-md ${
+                      <div className={`max-w-[85%] rounded-2xl p-3.5 shadow-lg ${
                         isBot 
                           ? isTriage 
-                            ? 'bg-purple-950/40 border border-purple-900/40 text-purple-300 text-[10px] font-mono leading-relaxed'
-                            : 'bg-slate-900 border border-slate-800 text-slate-200 text-[11px] leading-relaxed'
-                          : 'bg-primary text-white text-[11px] leading-relaxed'
+                            ? 'bg-purple-950/20 border border-purple-900/30 text-purple-300 text-[10px] font-mono leading-relaxed'
+                            : 'bg-slate-900 border border-white/5 text-slate-200 text-[11px] leading-relaxed'
+                          : 'bg-gradient-to-r from-primary to-indigo-600 text-white text-[11px] leading-relaxed shadow-primary/10'
                       }`}>
                         {isBot && msg.agent && !isTriage && (
                           <span className="text-[8.5px] text-primary font-black block uppercase tracking-wider mb-1 font-sans">
@@ -506,7 +567,7 @@ export default function LandingPage() {
                 {/* Typing status indicator */}
                 {isTyping && (
                   <div className="flex justify-start">
-                    <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 flex items-center gap-2 text-[10px] text-slate-400 font-mono">
+                    <div className="bg-slate-900 border border-white/5 rounded-2xl p-3 flex items-center gap-2 text-[10px] text-slate-400 font-mono">
                       <Bot size={12} className="animate-spin text-primary" />
                       <span>{typingAgent} formulando resposta inteligente...</span>
                     </div>
@@ -515,41 +576,41 @@ export default function LandingPage() {
               </div>
 
               {/* Chat Input */}
-              <form onSubmit={handleSendSimulationMessage} className="p-3 border-t border-slate-900 bg-slate-950/90 flex gap-2">
+              <form onSubmit={handleSendSimulationMessage} className="p-3 border-t border-white/5 bg-slate-950/90 flex gap-2">
                 <input
                   type="text"
                   placeholder="Escreva uma mensagem simulada (ex: 'Quero fechar o plano Pro')..."
                   value={customInputValue}
                   onChange={(e) => setCustomInputValue(e.target.value)}
                   disabled={isTyping}
-                  className="flex-1 bg-slate-900 border border-slate-850 hover:border-slate-800 focus:border-primary text-slate-100 rounded-xl px-3.5 py-2.5 text-xs outline-none transition-all placeholder-slate-500 font-medium"
+                  className="flex-1 bg-slate-900 border border-white/5 hover:border-slate-800 focus:border-primary text-slate-100 rounded-xl px-4 py-3 text-xs outline-none transition-all placeholder-slate-500 font-medium"
                 />
                 <button
                   type="submit"
                   disabled={isTyping}
-                  className="bg-primary hover:bg-primary-hover text-white px-4 py-2.5 rounded-xl text-xs font-bold transition-all shadow shadow-primary/20 shrink-0 cursor-pointer disabled:opacity-50"
+                  className="bg-primary hover:bg-primary-hover text-white px-5 py-3 rounded-xl text-xs font-bold transition-all shadow-md shadow-primary/20 shrink-0 cursor-pointer disabled:opacity-50"
                 >
                   Enviar
                 </button>
               </form>
 
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* SEGMENT TARGETS (Ideal Para) */}
-      <section className="py-20 border-t border-slate-900 px-6">
+      {/* SEGMENT TARGETS (Ideal Para - Modern Tag Layout) */}
+      <section className="py-24 border-t border-white/5 px-6">
         <div className="max-w-4xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-extrabold text-white">Ideal Para o Seu Negócio</h2>
+          <div className="text-center mb-14">
+            <h2 className="text-2xl md:text-4xl font-extrabold text-white">Ideal Para o Seu Negócio</h2>
             <p className="text-slate-400 text-xs md:text-sm mt-3 font-medium">
               O HBFlow se adapta de forma inteligente a diversas verticais comerciais do mercado brasileiro:
             </p>
           </div>
 
           {/* Segment Chips */}
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
             {[
               { label: 'Óticas', desc: 'Agendamento de exames e lembretes.' },
               { label: 'Clínicas & Consultórios', desc: 'Confirmação de consultas e dúvidas.' },
@@ -558,11 +619,11 @@ export default function LandingPage() {
               { label: 'Franquias', desc: 'Consolidação de dados de unidades.' },
               { label: 'Vendas B2B / SaaS', desc: 'Triagem de contas e conexão no CRM.' }
             ].map((item, idx) => (
-              <div key={idx} className="bg-slate-950 border border-slate-850 hover:border-slate-800 rounded-2xl p-4 flex gap-3 items-start transition-all">
+              <div key={idx} className="bg-slate-900/20 border border-white/5 hover:border-primary/20 rounded-2xl p-5 flex gap-3.5 items-start transition-all duration-300 hover:bg-slate-900/40">
                 <CheckCircle2 size={16} className="text-emerald-500 shrink-0 mt-0.5" />
                 <div>
                   <h4 className="text-xs font-extrabold text-white leading-tight">{item.label}</h4>
-                  <p className="text-[10px] text-slate-500 mt-1 font-medium leading-relaxed">{item.desc}</p>
+                  <p className="text-[10.5px] text-slate-400 mt-1 font-medium leading-relaxed">{item.desc}</p>
                 </div>
               </div>
             ))}
@@ -570,53 +631,70 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* PRICING SECTION */}
-      <section id="planos" className="py-20 border-t border-slate-900 bg-slate-950/40 px-6">
+      {/* PRICING SECTION (Gorgeous & Custom Layout) */}
+      <section id="planos" className="py-24 border-t border-white/5 bg-slate-950/20 px-6">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-extrabold text-white">Planos & Investimento</h2>
+          <div className="text-center mb-14">
+            <h2 className="text-2xl md:text-4xl font-extrabold text-white">Planos & Investimento</h2>
             <p className="text-slate-400 text-xs md:text-sm mt-3 max-w-sm mx-auto font-medium">
               Escolha a velocidade ideal de crescimento para o seu time com suporte a múltiplos operadores de IA:
             </p>
 
-            {/* Toggle Period */}
-            <div className="flex bg-slate-900 border border-slate-800 p-0.5 rounded-xl w-fit mx-auto mt-6">
+            {/* Sliding Toggle Period */}
+            <div className="relative flex bg-slate-900/80 border border-white/5 p-1 rounded-xl w-fit mx-auto mt-7 backdrop-blur-md">
               <button
                 onClick={() => setBillingPeriod('monthly')}
-                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all cursor-pointer ${
-                  billingPeriod === 'monthly' ? 'bg-primary text-white' : 'text-slate-450 hover:text-slate-200'
+                className={`relative z-10 px-5 py-2 rounded-lg text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                  billingPeriod === 'monthly' ? 'text-white font-extrabold' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
+                {billingPeriod === 'monthly' && (
+                  <motion.div
+                    layoutId="active-billing"
+                    className="absolute inset-0 bg-primary rounded-lg -z-10 shadow-lg shadow-primary/25"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                )}
                 Mensal
               </button>
               <button
                 onClick={() => setBillingPeriod('yearly')}
-                className={`px-4 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all cursor-pointer ${
-                  billingPeriod === 'yearly' ? 'bg-primary text-white' : 'text-slate-455 hover:text-slate-200'
+                className={`relative z-10 px-5 py-2 rounded-lg text-[10px] font-bold uppercase transition-all cursor-pointer ${
+                  billingPeriod === 'yearly' ? 'text-white font-extrabold' : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
+                {billingPeriod === 'yearly' && (
+                  <motion.div
+                    layoutId="active-billing"
+                    className="absolute inset-0 bg-primary rounded-lg -z-10 shadow-lg shadow-primary/25"
+                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                  />
+                )}
                 Anual (Economize 20%)
               </button>
             </div>
           </div>
 
           {/* Pricing Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch pt-4">
             
             {/* Starter Plan */}
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-6 flex flex-col justify-between hover:border-slate-800 transition-all">
+            <motion.div
+              whileHover={{ y: -5 }}
+              className="bg-gradient-to-b from-slate-900/40 to-slate-950/60 border border-white/5 rounded-3xl p-7 flex flex-col justify-between transition-all duration-300 shadow-xl backdrop-blur-md"
+            >
               <div>
                 <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Iniciante</span>
                 <h3 className="text-lg font-extrabold text-white">Plano Starter</h3>
-                <p className="text-slate-450 text-[10.5px] mt-2 font-medium">Ideal para pequenas lojas que precisam automatizar o WhatsApp básico.</p>
+                <p className="text-slate-400 text-[10.5px] mt-2 font-medium">Ideal para pequenas lojas que precisam automatizar o WhatsApp básico.</p>
                 <div className="my-6">
                   <span className="text-2xl font-black text-white font-mono">
                     R$ {billingPeriod === 'monthly' ? '149' : '119'}
                   </span>
                   <span className="text-[10px] text-slate-500 font-bold">/mês</span>
                 </div>
-                <hr className="border-slate-900/60 my-4" />
-                <ul className="space-y-2.5 text-[10.5px] font-semibold text-slate-350">
+                <hr className="border-white/5 my-4" />
+                <ul className="space-y-3 text-[10.5px] font-semibold text-slate-350">
                   <li className="flex items-center gap-2"><Check size={12} className="text-emerald-500" /> 1 Canal de WhatsApp</li>
                   <li className="flex items-center gap-2"><Check size={12} className="text-emerald-500" /> 3 Atendentes Humanos</li>
                   <li className="flex items-center gap-2"><Check size={12} className="text-emerald-500" /> IA Triage, FAQ e Summary</li>
@@ -624,28 +702,31 @@ export default function LandingPage() {
                   <li className="flex items-center gap-2 text-slate-600"><X size={12} className="text-rose-500" /> Supervisor & Relatórios</li>
                 </ul>
               </div>
-              <button onClick={() => router.push('/login')} className="mt-8 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-200 hover:text-white text-xs font-bold py-3 rounded-xl transition-all cursor-pointer">
+              <button onClick={() => router.push('/login')} className="mt-8 bg-slate-900/60 hover:bg-slate-900 border border-white/5 text-slate-200 hover:text-white text-xs font-bold py-3 rounded-xl transition-all cursor-pointer">
                 Começar Teste
               </button>
-            </div>
+            </motion.div>
 
-            {/* Pro Plan (Best Seller) */}
-            <div className="bg-slate-950 border-2 border-primary rounded-3xl p-6 flex flex-col justify-between relative shadow-2xl scale-[1.03]">
-              <div className="absolute top-0 right-6 -translate-y-1/2 bg-primary text-white font-extrabold text-[8px] uppercase tracking-wider px-2.5 py-1 rounded-full">
+            {/* Pro Plan (Best Seller Redesign) */}
+            <motion.div
+              whileHover={{ y: -5 }}
+              className="bg-gradient-to-b from-slate-950 via-slate-900/80 to-slate-950 border-2 border-primary rounded-3xl p-7 flex flex-col justify-between relative scale-[1.04] z-10 shadow-[0_0_40px_rgba(124,58,237,0.15)] hover:shadow-[0_0_60px_rgba(124,58,237,0.25)] transition-all duration-300"
+            >
+              <div className="absolute top-0 right-6 -translate-y-1/2 bg-primary text-white font-extrabold text-[8px] uppercase tracking-widest px-3 py-1 rounded-full shadow-md shadow-primary/20">
                 MAIS POPULAR
               </div>
               <div>
                 <span className="text-[9px] font-bold text-primary uppercase tracking-widest block mb-1">Aceleração</span>
                 <h3 className="text-lg font-extrabold text-white">Plano Pro</h3>
-                <p className="text-slate-400 text-[10.5px] mt-2 font-medium">Perfeito para empresas comerciais em expansão que querem vendas automáticas.</p>
+                <p className="text-slate-350 text-[10.5px] mt-2 font-medium">Perfeito para empresas comerciais em expansão que querem vendas automáticas.</p>
                 <div className="my-6">
                   <span className="text-3xl font-black text-white font-mono">
                     R$ {billingPeriod === 'monthly' ? '349' : '279'}
                   </span>
                   <span className="text-[10px] text-slate-400 font-bold">/mês</span>
                 </div>
-                <hr className="border-slate-900/60 my-4" />
-                <ul className="space-y-2.5 text-[10.5px] font-semibold text-slate-300">
+                <hr className="border-white/5 my-4" />
+                <ul className="space-y-3 text-[10.5px] font-semibold text-slate-300">
                   <li className="flex items-center gap-2"><Check size={12} className="text-emerald-500" /> 2 Canais de WhatsApp</li>
                   <li className="flex items-center gap-2"><Check size={12} className="text-emerald-500" /> 10 Atendentes Humanos</li>
                   <li className="flex items-center gap-2 font-extrabold text-white"><Check size={12} className="text-emerald-500" /> Agente SDR & Cobrança (IA)</li>
@@ -653,13 +734,21 @@ export default function LandingPage() {
                   <li className="flex items-center gap-2 text-slate-550"><X size={12} className="text-rose-500" /> Supervisor & Co-piloto</li>
                 </ul>
               </div>
-              <button onClick={() => router.push('/login')} className="mt-8 bg-primary hover:bg-primary-hover text-white text-xs font-bold py-3.5 rounded-xl transition-all shadow shadow-primary/25 cursor-pointer">
+              <motion.button
+                whileHover={{ scale: 1.02, boxShadow: '0 0 25px rgba(124, 58, 237, 0.4)' }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => router.push('/login')}
+                className="mt-8 bg-primary hover:bg-primary-hover text-white text-xs font-bold py-3.5 rounded-xl transition-all shadow shadow-primary/25 cursor-pointer"
+              >
                 Começar Teste
-              </button>
-            </div>
+              </motion.button>
+            </motion.div>
 
             {/* Enterprise Plan */}
-            <div className="bg-slate-950 border border-slate-850 rounded-3xl p-6 flex flex-col justify-between hover:border-slate-800 transition-all">
+            <motion.div
+              whileHover={{ y: -5 }}
+              className="bg-gradient-to-b from-slate-900/40 to-slate-950/60 border border-white/5 rounded-3xl p-7 flex flex-col justify-between transition-all duration-300 shadow-xl backdrop-blur-md"
+            >
               <div>
                 <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block mb-1">Escala Máxima</span>
                 <h3 className="text-lg font-extrabold text-white">Plano Enterprise</h3>
@@ -670,8 +759,8 @@ export default function LandingPage() {
                   </span>
                   <span className="text-[10px] text-slate-500 font-bold">/mês</span>
                 </div>
-                <hr className="border-slate-900/60 my-4" />
-                <ul className="space-y-2.5 text-[10.5px] font-semibold text-slate-350">
+                <hr className="border-white/5 my-4" />
+                <ul className="space-y-3 text-[10.5px] font-semibold text-slate-350">
                   <li className="flex items-center gap-2"><Check size={12} className="text-emerald-500" /> Canais Ilimitados</li>
                   <li className="flex items-center gap-2"><Check size={12} className="text-emerald-500" /> Atendentes Ilimitados</li>
                   <li className="flex items-center gap-2"><Check size={12} className="text-emerald-500" /> Supervisor, Coach & Copilot IA</li>
@@ -679,24 +768,24 @@ export default function LandingPage() {
                   <li className="flex items-center gap-2"><Check size={12} className="text-emerald-500" /> Suporte VIP & SLA Garantido</li>
                 </ul>
               </div>
-              <button onClick={() => router.push('/login')} className="mt-8 bg-slate-900 hover:bg-slate-850 border border-slate-800 text-slate-200 hover:text-white text-xs font-bold py-3 rounded-xl transition-all cursor-pointer">
+              <button onClick={() => router.push('/login')} className="mt-8 bg-slate-900/60 hover:bg-slate-900 border border-white/5 text-slate-200 hover:text-white text-xs font-bold py-3 rounded-xl transition-all cursor-pointer">
                 Começar Teste
               </button>
-            </div>
+            </motion.div>
 
           </div>
         </div>
       </section>
 
-      {/* FAQ SECTION */}
-      <section className="py-20 border-t border-slate-900 px-6">
+      {/* FAQ SECTION (Minimalist Frameless Redesign) */}
+      <section className="py-24 border-t border-white/5 px-6">
         <div className="max-w-3xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-extrabold text-white">Perguntas Frequentes</h2>
-            <p className="text-slate-400 text-xs mt-2 font-medium">Esclareça suas dúvidas rápidas sobre a integração da força de trabalho de IA no WhatsApp:</p>
+          <div className="text-center mb-14">
+            <h2 className="text-2xl md:text-4xl font-extrabold text-white">Perguntas Frequentes</h2>
+            <p className="text-slate-400 text-xs mt-3 font-medium">Esclareça suas dúvidas rápidas sobre a integração da força de trabalho de IA no WhatsApp:</p>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-1">
             {[
               {
                 q: 'Como os agentes de IA se integram ao WhatsApp?',
@@ -717,13 +806,13 @@ export default function LandingPage() {
             ].map((faq, idx) => {
               const isOpen = openFaq === idx;
               return (
-                <div key={idx} className="bg-slate-950 border border-slate-850 rounded-2xl overflow-hidden transition-all">
+                <div key={idx} className="border-b border-white/5 overflow-hidden transition-all duration-300">
                   <button
                     onClick={() => setOpenFaq(isOpen ? null : idx)}
-                    className="w-full p-4 text-left font-bold text-white text-xs md:text-sm flex justify-between items-center outline-none cursor-pointer"
+                    className="w-full py-5 text-left font-bold text-white text-xs md:text-sm flex justify-between items-center outline-none cursor-pointer hover:text-primary transition-colors duration-200"
                   >
                     <span>{faq.q}</span>
-                    <ChevronDown size={14} className={`text-slate-450 transition-transform duration-300 ${isOpen ? 'rotate-180' : 'rotate-0'}`} />
+                    <ChevronDown size={14} className={`text-slate-500 transition-transform duration-300 ${isOpen ? 'rotate-180 text-primary' : 'rotate-0'}`} />
                   </button>
                   <AnimatePresence>
                     {isOpen && (
@@ -731,9 +820,9 @@ export default function LandingPage() {
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
+                        transition={{ duration: 0.25, ease: 'easeInOut' }}
                       >
-                        <div className="p-4 pt-0 text-[10.5px] md:text-xs text-slate-450 font-medium leading-relaxed border-t border-slate-900/40">
+                        <div className="pb-5 text-[10.5px] md:text-xs text-slate-400 font-medium leading-relaxed">
                           {faq.a}
                         </div>
                       </motion.div>
@@ -747,7 +836,7 @@ export default function LandingPage() {
       </section>
 
       {/* FOOTER */}
-      <footer className="py-12 border-t border-slate-900 bg-slate-950 text-center text-[10px] text-slate-550 font-bold uppercase tracking-wider">
+      <footer className="py-14 border-t border-white/5 bg-slate-950 text-center text-[10px] text-slate-500 font-bold uppercase tracking-widest">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-5 object-contain" />
