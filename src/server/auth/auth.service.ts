@@ -26,6 +26,14 @@ export interface AuthResult {
   refreshToken: string;
 }
 
+export interface RegisterTrialData {
+  companyName: string;
+  cnpj: string;
+  email: string;
+  phone: string;
+  userName: string;
+}
+
 export class AuthService {
   static async login(credentials: LoginCredentials): Promise<AuthResult> {
     const { email, password, tenantSlug } = credentials;
@@ -260,6 +268,173 @@ export class AuthService {
       tenant,
       accessToken,
       refreshToken,
+    };
+  }
+
+  static async registerTrial(data: RegisterTrialData): Promise<any> {
+    const { companyName, cnpj, email, phone, userName } = data;
+
+    // 1. Normalize fields for comparison and uniqueness checking
+    const cleanPhone = phone.replace(/\D/g, '');
+    const cleanCnpj = cnpj.replace(/\D/g, '');
+    const cleanEmail = email.toLowerCase().trim();
+
+    if (!cleanPhone || !cleanCnpj || !cleanEmail || !companyName || !userName) {
+      throw new Error('Todos os campos obrigatórios devem ser preenchidos');
+    }
+
+    // 2. Validate uniqueness of phone
+    const existingPhone = await prisma.tenant.findFirst({
+      where: { phone: cleanPhone }
+    });
+    if (existingPhone) {
+      throw new Error('telefone já foi utilizado');
+    }
+
+    // 3. Validate uniqueness of CNPJ
+    const existingCnpj = await prisma.tenant.findFirst({
+      where: { document: cleanCnpj }
+    });
+    if (existingCnpj) {
+      throw new Error('cnpj já foi utilizado');
+    }
+
+    // 4. Validate uniqueness of Email
+    const existingEmailTenant = await prisma.tenant.findFirst({
+      where: { email: cleanEmail }
+    });
+    const existingEmailUser = await prisma.user.findUnique({
+      where: { email: cleanEmail }
+    });
+    if (existingEmailTenant || existingEmailUser) {
+      throw new Error('email principal já foi utilizado');
+    }
+
+    // 5. Generate unique tenant slug
+    const normalizedCompany = companyName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    const tenantSlug = `${normalizedCompany || 'trial'}-${Date.now()}`;
+
+    // 6. Generate Login Email: firstlast@hbflow.com
+    const normalizedName = userName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .trim();
+    const nameParts = normalizedName.split(/\s+/).filter(Boolean);
+    const firstName = nameParts[0] || 'user';
+    const lastSurname = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+    
+    let baseLoginEmail = lastSurname ? `${firstName}${lastSurname}` : firstName;
+    baseLoginEmail = baseLoginEmail.replace(/[^a-z0-9]/g, '');
+    let loginEmail = `${baseLoginEmail}@hbflow.com`;
+
+    // Ensure user email is unique
+    const existingUser = await prisma.user.findUnique({ where: { email: loginEmail } });
+    if (existingUser) {
+      let suffix = 1;
+      while (true) {
+        const candidate = `${baseLoginEmail}${suffix}@hbflow.com`;
+        const check = await prisma.user.findUnique({ where: { email: candidate } });
+        if (!check) {
+          loginEmail = candidate;
+          break;
+        }
+        suffix++;
+      }
+    }
+
+    // 7. Generate password: DDMMhbflow
+    const now = new Date();
+    const day = String(now.getDate()).padStart(2, '0');
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const rawPassword = `${day}${month}hbflow`;
+    const passwordHash = await PasswordService.hash(rawPassword);
+
+    // 8. Create database records in a transaction
+    const transactionResult = await prisma.$transaction(async (tx) => {
+      // Create tenant
+      const tenant = await tx.tenant.create({
+        data: {
+          name: companyName,
+          slug: tenantSlug,
+          plan: 'starter',
+          status: 'trial',
+          email: cleanEmail,
+          phone: cleanPhone,
+          document: cleanCnpj,
+          isActive: true,
+        },
+      });
+
+      // Create Admin Role
+      const adminRole = await tx.role.create({
+        data: {
+          tenantId: tenant.id,
+          name: 'Admin',
+          description: 'Administrador com acesso total',
+        },
+      });
+
+      // Create User
+      const user = await tx.user.create({
+        data: {
+          tenantId: tenant.id,
+          name: userName,
+          email: loginEmail,
+          passwordHash,
+          phone: cleanPhone,
+          roleId: adminRole.id,
+          isActive: true,
+        },
+      });
+
+      // Create Settings
+      await tx.tenantSettings.create({
+        data: {
+          tenantId: tenant.id,
+        },
+      });
+
+      // Create Cost governance
+      await tx.tenantAICost.create({
+        data: {
+          tenantId: tenant.id,
+          monthlyLimit: 100.0,
+          monthlySpent: 0.0,
+        },
+      });
+
+      // Create Billing trial entry ending in 3 days
+      await tx.tenantBilling.create({
+        data: {
+          tenantId: tenant.id,
+          currentPeriodStart: new Date(),
+          currentPeriodEnd: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days
+        },
+      });
+
+      return { tenant, user, loginEmail, rawPassword, adminRoleId: adminRole.id };
+    });
+
+    // Run bootstrap RBAC outside Prisma transaction but using the same connection context
+    await RBACBootstrapService.bootstrapTenantRBAC(transactionResult.tenant.id, transactionResult.adminRoleId);
+    
+    const trialEndsAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
+
+    return {
+      tenantId: transactionResult.tenant.id,
+      userId: transactionResult.user.id,
+      companyName: transactionResult.tenant.name,
+      userName: transactionResult.user.name,
+      loginEmail: transactionResult.loginEmail,
+      password: transactionResult.rawPassword,
+      trialEndsAt,
     };
   }
 
