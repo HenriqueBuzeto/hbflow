@@ -1,4 +1,4 @@
-const fetch = (...args: any[]) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const fetch = (url: any, init?: any) => import('node-fetch').then(({default: fetch}) => fetch(url, init));
 
 const BASE_URL_CONCURRENCY = process.env.BASE_URL || 'http://localhost:3000';
 
@@ -29,7 +29,7 @@ async function testConcurrencyScenarios(): Promise<TestResult[]> {
     
     console.log(`Registration response status: ${response.status}`);
     
-    const result = await response.json();
+    const result = await response.json() as any;
     console.log('Registration result:', JSON.stringify(result, null, 2));
     
     if (!response.ok) {
@@ -95,7 +95,7 @@ async function testConcurrencyScenarios(): Promise<TestResult[]> {
       throw new Error(`Failed to create contact: ${response.status} - ${errorText}`);
     }
 
-    const result = await response.json();
+    const result = await response.json() as any;
     return result.data;
   }
 
@@ -119,7 +119,7 @@ async function testConcurrencyScenarios(): Promise<TestResult[]> {
       throw new Error(`Failed to create conversation: ${response.status} - ${errorText}`);
     }
 
-    const result = await response.json();
+    const result = await response.json() as any;
     return result.data;
   }
 
@@ -159,7 +159,7 @@ async function testConcurrencyScenarios(): Promise<TestResult[]> {
     
     let userId = '';
     if (userInfoResponse.ok) {
-      const userInfo = await userInfoResponse.json();
+      const userInfo = await userInfoResponse.json() as any;
       userId = userInfo.user?.id || '';
       console.log(`User ID for claim: ${userId}`);
     }
@@ -201,7 +201,7 @@ async function testConcurrencyScenarios(): Promise<TestResult[]> {
         
         let responseData;
         try {
-          responseData = await response.json();
+          responseData = await response.json() as any;
         } catch (jsonError) {
           const responseText = await response.text();
           console.log(`Claim response text (first 200 chars):`, responseText.substring(0, 200));
@@ -254,7 +254,7 @@ async function testConcurrencyScenarios(): Promise<TestResult[]> {
     });
 
     if (conversationCheckResponse.ok) {
-      const conversationData = await conversationCheckResponse.json();
+      const conversationData = await conversationCheckResponse.json() as any;
       const assignedUserId = conversationData.data?.responsibleUserId;
       const hasAssignment = !!assignedUserId;
       
@@ -432,3 +432,5 @@ async function main() {
 }
 
 main().catch(console.error);
+
+export {};

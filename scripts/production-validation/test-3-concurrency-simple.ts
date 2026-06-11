@@ -1,4 +1,4 @@
-const fetch = (...args: any[]) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const fetch = (url: any, init?: any) => import('node-fetch').then(({default: fetch}) => fetch(url, init));
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
@@ -41,7 +41,7 @@ async function testConcurrencySimple(): Promise<TestResult[]> {
       throw new Error(`Registration failed: ${registerResponse.status}`);
     }
 
-    const registerResult = await registerResponse.json();
+    const registerResult = await registerResponse.json() as any;
     const userId = registerResult.user.id;
     console.log(`✅ User created: ${userId}`);
 
@@ -84,7 +84,7 @@ async function testConcurrencySimple(): Promise<TestResult[]> {
       });
 
       if (contactResponse.ok) {
-        const contactResult = await contactResponse.json();
+        const contactResult = await contactResponse.json() as any;
         contactId = contactResult.data.id;
         console.log(`✅ Contact created: ${contactId}`);
       } else {
@@ -112,7 +112,7 @@ async function testConcurrencySimple(): Promise<TestResult[]> {
       });
 
       if (conversationResponse.ok) {
-        const conversationResult = await conversationResponse.json();
+        const conversationResult = await conversationResponse.json() as any;
         conversationId = conversationResult.data.id;
         console.log(`✅ Conversation created: ${conversationId}`);
       } else {
@@ -166,7 +166,7 @@ async function testConcurrencySimple(): Promise<TestResult[]> {
         if (response.status === 200) {
           successCount++;
           try {
-            const responseData = await response.json();
+            const responseData = await response.json() as any;
             claimResultsData.push({
               status: response.status,
               data: responseData,
@@ -180,7 +180,7 @@ async function testConcurrencySimple(): Promise<TestResult[]> {
         } else if (response.status === 409) {
           conflictCount++;
           try {
-            const responseData = await response.json();
+            const responseData = await response.json() as any;
             claimResultsData.push({
               status: response.status,
               data: responseData,
@@ -242,7 +242,7 @@ async function testConcurrencySimple(): Promise<TestResult[]> {
       });
 
       if (getResponse.ok) {
-        const conversationData = await getResponse.json();
+        const conversationData = await getResponse.json() as any;
         const version = conversationData.data?.version;
         console.log(`Conversation version after claim: ${version}`);
         
@@ -301,3 +301,5 @@ async function main() {
 }
 
 main().catch(console.error);
+
+export {};

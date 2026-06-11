@@ -1,4 +1,4 @@
-const fetch = (...args: any[]) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const fetch = (url: any, init?: any) => import('node-fetch').then(({default: fetch}) => fetch(url, init));
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
 
@@ -41,7 +41,7 @@ async function testConcurrencyApiTest(): Promise<TestResult[]> {
       throw new Error(`Registration failed: ${registerResponse.status}`);
     }
 
-    const registerResult = await registerResponse.json();
+    const registerResult = await registerResponse.json() as any;
     const userId = registerResult.user.id;
     const tenantId = registerResult.tenant.id;
     console.log(`✅ User created: ${userId}`);
@@ -79,7 +79,7 @@ async function testConcurrencyApiTest(): Promise<TestResult[]> {
     });
 
     if (listResponse.ok) {
-      const listResult = await listResponse.json();
+      const listResult = await listResponse.json() as any;
       if (listResult.data && listResult.data.length > 0) {
         // Use existing conversation
         conversationId = listResult.data[0].id;
@@ -106,7 +106,7 @@ async function testConcurrencyApiTest(): Promise<TestResult[]> {
       });
 
       if (createResponse.ok) {
-        const createResult = await createResponse.json();
+        const createResult = await createResponse.json() as any;
         conversationId = createResult.data.id;
         console.log(`✅ Created conversation: ${conversationId}`);
       } else {
@@ -158,7 +158,7 @@ async function testConcurrencyApiTest(): Promise<TestResult[]> {
         if (response.status === 200) {
           successCount++;
           try {
-            const responseData = await response.json();
+            const responseData = await response.json() as any;
             claimResultsData.push({
               status: response.status,
               data: responseData,
@@ -172,7 +172,7 @@ async function testConcurrencyApiTest(): Promise<TestResult[]> {
         } else if (response.status === 409) {
           conflictCount++;
           try {
-            const responseData = await response.json();
+            const responseData = await response.json() as any;
             claimResultsData.push({
               status: response.status,
               data: responseData,
@@ -354,3 +354,5 @@ async function main() {
 }
 
 main().catch(console.error);
+
+export {};

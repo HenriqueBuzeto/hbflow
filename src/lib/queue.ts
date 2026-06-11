@@ -15,6 +15,12 @@ export interface QueueJob<T = any> {
 
 export type JobHandler<T = any> = (job: QueueJob<T>) => Promise<void>;
 
+function getBullmqPackageName(): string {
+  // Construct package name dynamically to bypass static analysis of bundlers (e.g. Next.js Turbopack)
+  const parts = ['bu', 'll', 'mq'];
+  return parts.join('');
+}
+
 class AIWorkforceQueueManager {
   private queues: Map<string, Array<{ job: QueueJob; handler: JobHandler }>> = new Map();
   private redisConnected: boolean = false;
@@ -28,7 +34,8 @@ class AIWorkforceQueueManager {
   private async detectRedis() {
     try {
       // Exemplo de importação dinâmica para evitar erros caso os pacotes não estejam instalados
-      const { Queue, Worker } = await import('bullmq');
+      const bullmqPackage = getBullmqPackageName();
+      const { Queue, Worker } = await import(bullmqPackage);
       // Conexão fictícia ou real baseada em variáveis de ambiente
       const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
       
@@ -99,7 +106,8 @@ class AIWorkforceQueueManager {
     // Em produção real com BullMQ, criaríamos o Worker correspondente:
     if (this.redisConnected) {
       try {
-        import('bullmq').then(({ Worker }) => {
+        const bullmqPackage = getBullmqPackageName();
+        import(bullmqPackage).then(({ Worker }) => {
           new Worker(
             queueName,
             async (bullJob) => {

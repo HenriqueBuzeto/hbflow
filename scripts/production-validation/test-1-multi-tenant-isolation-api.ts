@@ -17,13 +17,13 @@ async function testMultiTenantIsolation(): Promise<TestResult[]> {
   console.log('=== TEST 1: MULTI-TENANT ISOLATION ===\n');
   console.log('Approach: Direct API validation\n');
 
-  let tenantAId: string;
-  let tenantBId: string;
-  let userAId: string;
-  let userBId: string;
-  let contactAId: string;
-  let tokenA: string;
-  let tokenB: string;
+  let tenantAId: string = '';
+  let tenantBId: string = '';
+  let userAId: string = '';
+  let userBId: string = '';
+  let contactAId: string = '';
+  let tokenA: string = '';
+  let tokenB: string = '';
 
   try {
     // Setup: Create two test users (register creates tenant automatically)
@@ -473,3 +473,5 @@ async function main() {
 }
 
 main().catch(console.error);
+
+export {};

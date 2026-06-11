@@ -1,4 +1,4 @@
-const fetch = (...args: any[]) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const fetch = (url: any, init?: any) => import('node-fetch').then(({default: fetch}) => fetch(url, init));
 
 const BASE_URL_RBAC = process.env.BASE_URL || 'http://localhost:3000';
 
@@ -29,7 +29,7 @@ async function testRBACEnforcement(): Promise<TestResult[]> {
     
     console.log(`Registration response status: ${response.status}`);
     
-    const result = await response.json();
+    const result = await response.json() as any;
     console.log('Registration result:', JSON.stringify(result, null, 2));
     
     if (!response.ok) {
@@ -95,7 +95,7 @@ async function testRBACEnforcement(): Promise<TestResult[]> {
       throw new Error(`Failed to register limited user: ${registrationResponse.status}`);
     }
     
-    const registrationResult = await registrationResponse.json();
+    const registrationResult = await registrationResponse.json() as any;
     console.log(`Limited user registered: ${registrationResult.user.name}`);
     
     // Login to get token
@@ -176,7 +176,7 @@ async function testRBACEnforcement(): Promise<TestResult[]> {
     // Get created contact ID for later tests
     let contactId = '';
     if (createContactResponse.ok) {
-      const contactData = await createContactResponse.json();
+      const contactData = await createContactResponse.json() as any;
       contactId = contactData.data?.id || '';
     }
 
@@ -340,3 +340,5 @@ async function main() {
 }
 
 main().catch(console.error);
+
+export {};
