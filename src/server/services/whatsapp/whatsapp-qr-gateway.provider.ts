@@ -178,7 +178,15 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
         instanceName,
         token: apiKey,
         qrcode: true,
-        webhook: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/webhooks/whatsapp/qr`,
+        integration: 'WHATSAPP-BAILEYS',
+        // Structure for v2 (nested settings and webhooks)
+        webhook: {
+          enabled: true,
+          url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/webhooks/whatsapp/qr`,
+          byEvents: true,
+          events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE', 'QRCODE_UPDATED']
+        },
+        // Structure for v1 (legacy compatibility)
         events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE', 'QRCODE_UPDATED']
       })
     });

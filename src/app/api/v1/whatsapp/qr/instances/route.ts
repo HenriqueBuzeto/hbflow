@@ -67,6 +67,15 @@ export async function POST(request: NextRequest) {
     const qrProvider = new WhatsAppQrGatewayProvider();
     const result = await qrProvider.createInstance(instanceName);
 
+    // Check if Evolution API returned an error
+    const hasError = result.error || result.status >= 400 || (result.response && result.response.message);
+    if (hasError) {
+      // Clean up connection record from database
+      await prisma.whatsappConnection.delete({ where: { id: connection.id } });
+      const errMsg = result.error || result.message || (result.response && JSON.stringify(result.response)) || 'Erro ao criar instância no gateway';
+      return NextResponse.json({ success: false, error: errMsg, result }, { status: 400 });
+    }
+
     // Write audit log
     await AuditService.log({
       tenantId,

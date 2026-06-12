@@ -188,6 +188,11 @@ export default function ConexaoPage() {
       });
 
       const createData = await createRes.json();
+      setTestLog((prev) => [
+        ...prev,
+        `[${new Date().toLocaleTimeString()}] Resposta de criação: ${JSON.stringify(createData.result || createData)}`
+      ]);
+
       if (!createRes.ok || !createData.success) {
         throw new Error(createData.error || 'Erro ao criar conexão');
       }
