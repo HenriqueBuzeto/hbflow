@@ -212,10 +212,13 @@ export default function ConexaoPage() {
         throw new Error(qrData.error || 'Erro ao obter QR Code');
       }
 
-      setQrCodeBase64(qrData.qrCode || qrData.qrcode);
+      const base64 = qrData.qrCode || qrData.qrcode;
+      setQrCodeBase64(base64);
       setQrStatus('connecting');
       setTestLog((prev) => [
         ...prev,
+        `[${new Date().toLocaleTimeString()}] QR Code Base64 Length: ${base64 ? base64.length : 'null/undefined'}`,
+        `[${new Date().toLocaleTimeString()}] Detalhes do gateway: ${JSON.stringify(qrData.result || qrData)}`,
         `[${new Date().toLocaleTimeString()}] QR Code gerado com sucesso. Leia usando o seu WhatsApp.`
       ]);
     } catch (err: any) {
