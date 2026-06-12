@@ -289,7 +289,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md z-10">
         {/* Brand logo header */}
         <div className="text-center mb-8 flex flex-col items-center justify-center">
-          <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-14 object-contain mb-4" />
+          <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-[280px] w-auto object-contain my-[-115px] mx-[-95px] mb-[-85px]" />
           <p className="text-sm text-slate-400 mt-2">
             Gestão de WhatsApp + CRM Omnichannel Multi-tenant
           </p>

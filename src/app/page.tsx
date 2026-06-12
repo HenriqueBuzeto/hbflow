@@ -184,7 +184,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
           {/* Logo */}
           <div className="flex items-center gap-2.5 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-11 object-contain" />
+            <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-[250px] sm:h-[300px] w-auto object-contain my-[-110px] sm:my-[-130px] mx-[-90px] sm:mx-[-110px]" />
           </div>
 
           {/* Nav Links */}
@@ -839,7 +839,7 @@ export default function LandingPage() {
       <footer className="py-14 border-t border-white/5 bg-slate-950 text-center text-[10px] text-slate-500 font-bold uppercase tracking-widest">
         <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-8 object-contain" />
+            <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-[160px] w-auto object-contain my-[-70px] mx-[-60px]" />
           </div>
           <span>© {currentYear} HBFlow Layer. Todos os direitos reservados.</span>
           <div className="flex gap-4">

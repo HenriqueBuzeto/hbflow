@@ -36,7 +36,7 @@ export default function RenovarPage() {
 
       <div className="max-w-md w-full bg-slate-950/80 border border-slate-800 rounded-3xl p-8 shadow-2xl relative z-10 space-y-6">
         <div className="flex flex-col items-center text-center space-y-2">
-          <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-10 object-contain mb-2" />
+          <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-[200px] w-auto object-contain my-[-85px] mx-[-75px] mb-[-60px]" />
           <h2 className="text-xl font-bold tracking-tight text-white">Status da Assinatura</h2>
           <p className="text-xs text-slate-400 font-medium">{currentTenant.name}</p>
         </div>

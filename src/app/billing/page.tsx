@@ -266,7 +266,7 @@ export default function BillingPage() {
       {/* Header */}
       <header className="max-w-6xl mx-auto w-full z-10 flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
         <div className="flex items-center gap-3">
-          <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-10 object-contain" />
+          <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-[200px] w-auto object-contain my-[-90px] mx-[-75px]" />
           <span className="text-slate-500 text-sm font-semibold">|</span>
           <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Planos e Assinatura</span>
         </div>

@@ -16,6 +16,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "HBFlow - WhatsApp CRM & Multiatendimento",
   description: "Plataforma de atendimento omnichannel e CRM integrada ao WhatsApp",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
