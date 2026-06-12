@@ -22,14 +22,9 @@ import {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { tenants, users, currentUserId, setCurrentUserId, currentTenantId, setCurrentTenantId } = useStore();
   
   // Navigation tab state
-  const [activeTab, setActiveTab] = useState<'simulacao' | 'real' | 'trial'>('simulacao');
-
-  // Simulation tab state
-  const [simPassword, setSimPassword] = useState('********');
-  const [simError, setSimError] = useState('');
+  const [activeTab, setActiveTab] = useState<'real' | 'trial'>('real');
 
   // Real Login tab state
   const [realEmail, setRealEmail] = useState('');
@@ -94,20 +89,6 @@ export default function LoginPage() {
   };
 
   // Handlers
-  const handleSimulatedLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setSimError('');
-    const selectedUser = users.find(u => u.id === currentUserId) || users[0];
-    if (!selectedUser) {
-      setSimError('Selecione um usuário para simular.');
-      return;
-    }
-    // Set demo mode to true
-    useStore.getState().setDemoModeEnabled(true);
-    // Redirect directly (mock database sync is already active)
-    router.push('/dashboard');
-  };
-
   const handleRealLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setRealError('');
@@ -281,8 +262,6 @@ export default function LoginPage() {
     }
   };
 
-  const selectedUser = users.find(u => u.id === currentUserId) || users[0] || { email: '', name: '', role: '' };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4 py-12 relative overflow-hidden always-dark">
       {/* Back to Home Button */}
@@ -314,17 +293,6 @@ export default function LoginPage() {
           <div className="flex bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800/80 mb-6">
             <button
               type="button"
-              onClick={() => setActiveTab('simulacao')}
-              className={`flex-1 text-center py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
-                activeTab === 'simulacao'
-                  ? 'bg-slate-800 text-white shadow-md border border-slate-700/30'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              Simulação
-            </button>
-            <button
-              type="button"
               onClick={() => setActiveTab('real')}
               className={`flex-1 text-center py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
                 activeTab === 'real'
@@ -346,83 +314,6 @@ export default function LoginPage() {
               Teste Grátis
             </button>
           </div>
-
-          {/* TAB 1: Simulation */}
-          {activeTab === 'simulacao' && (
-            <form onSubmit={handleSimulatedLogin} className="space-y-5">
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                  Empresa (Tenant ID)
-                </label>
-                <select
-                  value={currentTenantId}
-                  onChange={(e) => setCurrentTenantId(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl py-3 px-4 text-sm text-slate-200 outline-none focus:border-primary transition-all cursor-pointer font-medium"
-                >
-                  {tenants.map((t) => (
-                    <option key={t.id} value={t.id}>
-                      {t.name} ({t.slug.toUpperCase()})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                  Perfil de Atendente (Simulação)
-                </label>
-                <select
-                  value={currentUserId}
-                  onChange={(e) => setCurrentUserId(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl py-3 px-4 text-sm text-slate-200 outline-none focus:border-primary transition-all cursor-pointer font-medium"
-                >
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} — {u.role}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                  E-mail do Usuário
-                </label>
-                <input
-                  type="email"
-                  value={selectedUser.email}
-                  disabled
-                  className="w-full bg-slate-900/50 border border-slate-800 rounded-xl py-3 px-4 text-sm text-slate-500 cursor-not-allowed outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                  Senha
-                </label>
-                <input
-                  type="password"
-                  value={simPassword}
-                  onChange={(e) => setSimPassword(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-xl py-3 px-4 text-sm text-slate-200 outline-none focus:border-primary transition-all"
-                />
-              </div>
-
-              {simError && (
-                <p className="text-xs text-rose-500 font-semibold bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">
-                  {simError}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                className="w-full bg-primary hover:bg-primary-hover text-white py-3.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-primary/20 hover:shadow-primary/35 flex items-center justify-center gap-2 group active:scale-[0.98] cursor-pointer"
-              >
-                <span>Simular Acesso</span>
-                <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-              </button>
-            </form>
-          )}
 
           {/* TAB 2: Real Login */}
           {activeTab === 'real' && (
@@ -610,13 +501,7 @@ export default function LoginPage() {
             </form>
           )}
 
-          {/* Quick Notice */}
-          <div className="mt-6 flex items-start gap-2.5 bg-slate-900/40 rounded-xl p-3 border border-slate-800/60">
-            <ShieldCheck size={16} className="text-emerald-500 shrink-0 mt-0.5" />
-            <p className="text-[10px] text-slate-400 leading-relaxed">
-              <strong>Isolamento Multi-tenant Ativo:</strong> Cada tenant possui isolamento estrito no banco. Atendentes não visualizam conexões ou oportunidades de outros tenants.
-            </p>
-          </div>
+
         </div>
 
         {/* Footer info */}

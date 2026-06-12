@@ -506,29 +506,40 @@ const initialFlows: Flow[] = [
 ];
 
 export const useStore = create<State & Actions>((set, get) => ({
-  tenants: initialTenants,
-  currentTenantId: 'tenant-1',
-  users: initialUsers,
-  currentUserId: 'user-1',
-  whatsappConnection: initialWhatsapp,
-  contacts: initialContacts,
-  conversations: initialConversations,
-  quickReplies: initialQuickReplies,
-  templates: initialTemplates,
+  tenants: [],
+  currentTenantId: '',
+  users: [],
+  currentUserId: '',
+  whatsappConnection: {
+    name: '',
+    provider: 'cloud_api',
+    phoneNumber: '',
+    phoneId: '',
+    wabaId: '',
+    accessToken: '',
+    verifyToken: '',
+    status: 'disconnected',
+    lastSyncedAt: ''
+  },
+  contacts: [],
+  conversations: [],
+  quickReplies: [
+    { id: 'q-1', shortcut: '/saudacao', message: 'Olá! Como posso ajudar você hoje?' },
+    { id: 'q-3', shortcut: '/obrigado', message: 'Obrigado pelo contato! Se precisar de algo mais, estou à disposição.' }
+  ],
+  templates: [],
   stages: initialStages,
-  deals: initialDeals,
-  tasks: initialTasks,
-  departments: initialDepartments,
-  flows: initialFlows,
+  deals: [],
+  tasks: [],
+  departments: [],
+  flows: [],
   flowSessions: [],
   routingLogs: [],
-  notifications: [
-    { id: 'not-1', title: 'Novo Chamado Recebido', message: 'O cliente Ana Costa enviou mensagem na fila Financeiro.', type: 'system', isRead: false, createdAt: new Date().toISOString() }
-  ],
+  notifications: [],
   darkMode: typeof window !== 'undefined' ? localStorage.getItem('hbflow-dark-mode') === 'true' : false,
   agentLogs: [],
   enabledAgentIds: ['triage-agent', 'faq-agent', 'summary-agent', 'sdr-agent', 'sales-agent', 'sentiment-agent', 'supervisor-agent', 'attendant-copilot-agent'],
-  demo_mode_enabled: true,
+  demo_mode_enabled: false,
 
   // Setters
   toggleDarkMode: () => {

@@ -7,7 +7,7 @@ import { Building2, Plus, ShieldCheck, CheckCircle2, AlertCircle, Sparkles } fro
 export default function EmpresasPage() {
   const { tenants, currentTenantId, setCurrentTenantId } = useStore();
 
-  const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0];
+  const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0] || { id: '', name: 'Empresa', slug: '', plan: 'starter' };
 
   return (
     <div className="space-y-6 max-w-4xl">

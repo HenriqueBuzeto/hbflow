@@ -31,9 +31,9 @@ import {
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
-  const { users, currentUserId, setCurrentUserId, conversations, demo_mode_enabled } = useStore();
+  const { users, currentUserId, conversations } = useStore();
 
-  const currentUser = users.find((u) => u.id === currentUserId) || users[0];
+  const currentUser = users.find((u) => u.id === currentUserId) || users[0] || { id: '', name: 'Usuário', email: '', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces', role: 'Atendente', presence: 'offline' };
   const unreadCount = conversations.reduce((acc, c) => acc + (c.unreadCount > 0 ? 1 : 0), 0);
 
   const operationalMenu = [
@@ -150,25 +150,7 @@ export default function Sidebar() {
                 </span>
               </div>
             </div>
-            
-            {demo_mode_enabled && (
-              <div>
-                <label className="text-[8px] uppercase font-bold tracking-wider text-zinc-500 block mb-1">
-                  Simular Agente
-                </label>
-                <select
-                  value={currentUserId}
-                  onChange={(e) => setCurrentUserId(e.target.value)}
-                  className="w-full bg-zinc-900 border border-zinc-800 rounded-lg text-[10.5px] py-1 px-1.5 text-zinc-200 outline-none focus:border-primary cursor-pointer font-medium"
-                >
-                  {users.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.name} ({u.role.slice(0, 10)})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+
           </div>
         ) : (
           <div className="flex justify-center relative" title={`Perfil: ${currentUser.name} (${currentUser.presence})`}>

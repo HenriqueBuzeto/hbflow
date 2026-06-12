@@ -14,7 +14,7 @@ export default function FluxosPage() {
   const [editingNodeDept, setEditingNodeDept] = useState('');
   const [editingNodeTag, setEditingNodeTag] = useState('');
 
-  const currentFlow = flows.find((f) => f.id === activeFlowId) || flows[0];
+  const currentFlow = flows.find((f) => f.id === activeFlowId) || flows[0] || { id: '', name: 'Fluxo Principal', nodes: [], edges: [] };
 
   const handleSelectNode = (node: FlowNode) => {
     setSelectedNodeId(node.id);

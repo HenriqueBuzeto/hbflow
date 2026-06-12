@@ -38,11 +38,11 @@ async function getOrCreateRole(tenantId: string, roleName: string) {
 
   let allowedNames: string[] = [];
   if (roleName === 'Admin') {
-    allowedNames = permissionsList.map(p => p.name);
+    allowedNames = permissionsList.map((p: any) => p.name);
   } else if (roleName === 'Gestor') {
     allowedNames = permissionsList
-      .filter(p => !p.name.includes('billing') && p.name !== 'health.read')
-      .map(p => p.name);
+      .filter((p: any) => !p.name.includes('billing') && p.name !== 'health.read')
+      .map((p: any) => p.name);
   } else if (roleName === 'Comercial' || roleName === 'Atendente') {
     const atendentePerms = [
       'contacts.read', 'contacts.create', 'contacts.update',
@@ -62,8 +62,8 @@ async function getOrCreateRole(tenantId: string, roleName: string) {
   }
 
   const rolePermissionsToCreate = permissionsList
-    .filter(p => allowedNames.includes(p.name))
-    .map(p => ({
+    .filter((p: any) => allowedNames.includes(p.name))
+    .map((p: any) => ({
       roleId: role!.id,
       permissionId: p.id
     }));
@@ -254,7 +254,7 @@ export async function POST(request: NextRequest) {
       data: {
         userId: user.id,
         tenantId,
-        status: 'offline'
+        presence: 'offline'
       }
     });
 

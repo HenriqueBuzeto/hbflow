@@ -20,7 +20,7 @@ export default function AgentesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPlan, setFilterPlan] = useState<'all' | 'starter' | 'pro' | 'enterprise'>('all');
 
-  const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0];
+  const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0] || { id: '', name: 'Empresa', slug: '', plan: 'starter' };
   const tenantPlan = (activeTenant?.plan || 'starter') as any;
 
   // Grouped stats

@@ -25,7 +25,7 @@ export default function AgentDetailPage({ params }: PageProps) {
   } = useStore();
 
   const agent = agentRegistry.find((a) => a.id === agentId);
-  const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0];
+  const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0] || { id: '', name: 'Empresa', slug: '', plan: 'starter' };
   const tenantPlan = (activeTenant?.plan || 'starter') as any;
 
   // Playground states
