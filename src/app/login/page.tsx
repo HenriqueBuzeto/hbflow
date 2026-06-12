@@ -7,6 +7,7 @@ import {
   ShieldCheck, 
   HelpCircle, 
   ArrowRight, 
+  ArrowLeft,
   User, 
   Building, 
   CreditCard, 
@@ -282,6 +283,15 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4 py-12 relative overflow-hidden always-dark">
+      {/* Back to Home Button */}
+      <button
+        onClick={() => router.push('/')}
+        className="absolute top-6 left-6 flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-white bg-slate-950/40 hover:bg-slate-950 border border-white/5 hover:border-white/10 px-4.5 py-2.5 rounded-2xl transition-all shadow-md cursor-pointer z-20"
+      >
+        <ArrowLeft size={14} />
+        <span>Voltar ao Site</span>
+      </button>
+
       {/* Background gradients */}
       <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px]" />
       <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-emerald-500/10 rounded-full blur-[120px]" />
