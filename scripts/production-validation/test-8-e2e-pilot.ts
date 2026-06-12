@@ -52,7 +52,7 @@ async function runE2EPilotFlow(): Promise<TestResult[]> {
     );
 
     // Verificar se o trial dá acesso ativo (testa nossa nova lógica de Subscription em registerTrial)
-    const initialAccess = await SubscriptionAccessService.checkAccess(tenantId);
+    const initialAccess = await SubscriptionAccessService.checkAccess(tenantId!);
     assert(
       'Phase 1.2 - Newly registered trial tenant has active access (status: trialing)',
       initialAccess.hasAccess === true && initialAccess.status === 'trialing',

@@ -33,7 +33,7 @@ export async function POST(
     }
 
     const qrProvider = new WhatsAppQrGatewayProvider();
-    const result = await qrProvider.disconnect(connection.instanceName);
+    const result = await qrProvider.logoutInstance(connection.instanceName);
 
     const updated = await prisma.whatsappConnection.update({
       where: { id: connectionId },

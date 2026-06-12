@@ -622,7 +622,11 @@ export default function ConexaoPage() {
                     Salvar Configuração
                   </button>
                 </div>
-                     {/* PROVIDER 2: QR Code / Evolution API */}
+              </form>
+            </div>
+          )}
+
+          {/* PROVIDER 2: QR Code / Evolution API */}
           {activeProvider === 'qr_gateway' && (
             <div className="space-y-6">
               
