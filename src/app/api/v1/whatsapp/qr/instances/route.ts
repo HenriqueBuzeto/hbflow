@@ -12,7 +12,8 @@ export async function GET(request: NextRequest) {
     const tenantId = await requireActiveSubscription();
 
     const connection = await prisma.whatsappConnection.findFirst({
-      where: { tenantId, deletedAt: null }
+      where: { tenantId, deletedAt: null },
+      orderBy: { createdAt: 'desc' }
     });
 
     return NextResponse.json({ success: true, connection }, { status: 200 });
@@ -52,7 +53,13 @@ export async function POST(request: NextRequest) {
     // 4. Create unique instance name
     const instanceName = `inst-${tenantId.substring(0, 8)}-${Date.now()}`;
 
-    // 5. Save WhatsappConnection record
+    // 5. Soft-delete any existing active connections for the tenant to ensure only one is active at a time
+    await prisma.whatsappConnection.updateMany({
+      where: { tenantId, deletedAt: null },
+      data: { deletedAt: new Date() }
+    });
+
+    // 6. Save WhatsappConnection record
     const connection = await prisma.whatsappConnection.create({
       data: {
         tenantId,
