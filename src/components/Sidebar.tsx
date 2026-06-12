@@ -106,7 +106,7 @@ export default function Sidebar() {
       <div className="h-16 flex items-center justify-center border-b border-zinc-800 shrink-0 relative px-4">
         {!isCollapsed && (
           <div className="flex items-center justify-center h-full">
-            <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-[450px] w-auto object-contain my-[-200px] ml-[-155px] mr-[-175px]" />
+            <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-[450px] w-auto object-contain my-[-200px] ml-[-170px] mr-[-160px]" />
           </div>
         )}
         

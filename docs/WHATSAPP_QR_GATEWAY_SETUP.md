@@ -11,7 +11,7 @@ The WhatsApp QR Code connection uses the **Evolution API**, which interfaces dir
 ```
                         +----------------------+
                         |    Evolution API     |
-                        | (Docker / port 8080) |
+                        | (Docker / port 8085) |
                         +----------+-----------+
                                    ^
                                    | HTTP REST API calls
@@ -43,11 +43,11 @@ services:
     image: atendare/evolution-api:latest
     container_name: evolution_api
     ports:
-      - "8080:8080"
+      - "8085:8080"
     environment:
       - SERVER_PORT=8080
       - SERVER_TYPE=http
-      - SERVER_URL=http://localhost:8080
+      - SERVER_URL=http://localhost:8085
       # API Key authentication to protect the gateway
       - AUTHENTICATION_TYPE=apikey
       - AUTHENTICATION_API_KEY=evolution_gateway_api_key_secret_123
@@ -92,7 +92,7 @@ Update your root `.env` or `.env.local` to enable the QR gateway integration:
 WHATSAPP_QR_GATEWAY_ENABLED=true
 
 # Gateway Target URL
-WHATSAPP_QR_GATEWAY_URL=http://localhost:8080
+WHATSAPP_QR_GATEWAY_BASE_URL=http://localhost:8085
 
 # The API Authentication key matching Evolution's AUTHENTICATION_API_KEY
 WHATSAPP_QR_GATEWAY_API_KEY=evolution_gateway_api_key_secret_123
