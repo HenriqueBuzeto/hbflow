@@ -36,12 +36,20 @@ export async function POST(request: NextRequest) {
     const event = bodyJson.event || '';
 
     // 1. Validar webhook secret/auth se enviado ou configurado
-    const authHeader = headers['webhook-authorization'] || headers['apikey'] || headers['authorization'];
-    const expectedToken = connection.verifyToken || process.env.WHATSAPP_QR_GATEWAY_WEBHOOK_SECRET || 'hbflow_qr_webhook_secret';
-    if (authHeader && expectedToken) {
-      const cleanHeader = authHeader.replace(/^Bearer\s+/i, '');
-      if (cleanHeader !== expectedToken) {
-        return NextResponse.json({ error: 'Webhook não autorizado' }, { status: 401 });
+    const webhookAuth = headers['webhook-authorization'] || headers['authorization'];
+    const apiKeyAuth = headers['apikey'];
+
+    const expectedWebhookSecret = connection.verifyToken || process.env.WHATSAPP_QR_GATEWAY_WEBHOOK_SECRET || 'hbflow_qr_webhook_secret';
+    const expectedApiKey = process.env.WHATSAPP_QR_GATEWAY_API_KEY || 'global_key';
+
+    if (webhookAuth) {
+      const cleanHeader = webhookAuth.replace(/^Bearer\s+/i, '');
+      if (cleanHeader !== expectedWebhookSecret) {
+        return NextResponse.json({ error: 'Webhook não autorizado (Secret inválido)' }, { status: 401 });
+      }
+    } else if (apiKeyAuth) {
+      if (apiKeyAuth !== expectedApiKey && apiKeyAuth !== expectedWebhookSecret) {
+        return NextResponse.json({ error: 'Webhook não autorizado (Chave inválida)' }, { status: 401 });
       }
     }
 
