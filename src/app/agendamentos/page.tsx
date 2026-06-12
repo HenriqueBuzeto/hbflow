@@ -14,11 +14,17 @@ interface ScheduledItem {
 }
 
 export default function AgendamentosPage() {
-  const { contacts } = useStore();
+  const { contacts, demo_mode_enabled } = useStore();
   const [scheduledList, setScheduledList] = useState<ScheduledItem[]>([
     { id: '1', contactName: 'Mateus Oliveira', phone: '+55 11 98888-7777', message: 'Olá Mateus, passamos para lembrar do seu orçamento de óculos.', sendAt: '2026-06-10T10:00', status: 'pending' },
     { id: '2', contactName: 'Ana Costa', phone: '+55 21 97777-6666', message: 'Seu boleto da mensalidade foi emitido com sucesso.', sendAt: '2026-06-05T09:00', status: 'sent' }
   ]);
+
+  React.useEffect(() => {
+    if (!demo_mode_enabled) {
+      setScheduledList([]);
+    }
+  }, [demo_mode_enabled]);
 
   const [showForm, setShowForm] = useState(false);
   const [targetContactId, setTargetContactId] = useState('');
@@ -84,7 +90,15 @@ export default function AgendamentosPage() {
 
             <div className="divide-y divide-slate-100">
               {scheduledList.length === 0 ? (
-                <div className="p-8 text-center text-xs text-slate-400">Nenhum agendamento programado.</div>
+                <div className="text-center py-12 flex flex-col items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400">
+                    <Clock size={22} />
+                  </div>
+                  <h4 className="text-xs font-bold text-slate-800">Nenhum agendamento programado.</h4>
+                  <p className="text-[10px] text-slate-500 max-w-xs leading-relaxed">
+                    Programe mensagens para serem disparadas no futuro para seus clientes de forma automatizada.
+                  </p>
+                </div>
               ) : (
                 scheduledList.map((item) => (
                   <div key={item.id} className="p-4 hover:bg-slate-50/50 transition-colors flex flex-col sm:flex-row justify-between gap-4 sm:items-center text-xs font-medium">

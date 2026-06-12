@@ -100,6 +100,8 @@ export default function LoginPage() {
       setSimError('Selecione um usuário para simular.');
       return;
     }
+    // Set demo mode to true
+    useStore.getState().setDemoModeEnabled(true);
     // Redirect directly (mock database sync is already active)
     router.push('/dashboard');
   };
@@ -153,14 +155,11 @@ export default function LoginPage() {
         plan: data.tenant.plan || 'starter'
       };
 
-      const currentTenants = useStore.getState().tenants;
-      const currentUsers = useStore.getState().users;
-      const tenantExists = currentTenants.some(t => t.id === newTenant.id);
-      const userExists = currentUsers.some(u => u.id === newUser.id);
-
+      // Clear mock lists and disable demo mode
+      useStore.getState().setDemoModeEnabled(false);
       useStore.setState({
-        tenants: tenantExists ? currentTenants : [...currentTenants, newTenant],
-        users: userExists ? currentUsers : [...currentUsers, newUser],
+        tenants: [newTenant],
+        users: [newUser],
         currentTenantId: newTenant.id,
         currentUserId: newUser.id
       });
@@ -259,14 +258,11 @@ export default function LoginPage() {
         plan: data.tenant.plan || 'starter'
       };
 
-      const currentTenants = useStore.getState().tenants;
-      const currentUsers = useStore.getState().users;
-      const tenantExists = currentTenants.some(t => t.id === newTenant.id);
-      const userExists = currentUsers.some(u => u.id === newUser.id);
-
+      // Clear mock lists and disable demo mode
+      useStore.getState().setDemoModeEnabled(false);
       useStore.setState({
-        tenants: tenantExists ? currentTenants : [...currentTenants, newTenant],
-        users: userExists ? currentUsers : [...currentUsers, newUser],
+        tenants: [newTenant],
+        users: [newUser],
         currentTenantId: newTenant.id,
         currentUserId: newUser.id
       });

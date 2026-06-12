@@ -17,7 +17,8 @@ export default function Header() {
     toggleDarkMode,
     users,
     currentUserId,
-    setUserPresence
+    setUserPresence,
+    demo_mode_enabled
   } = useStore();
 
   const [showNotifications, setShowNotifications] = useState(false);
@@ -110,41 +111,43 @@ export default function Header() {
       {/* Right: Actions, Notifications, Simulator */}
       <div className="flex items-center gap-3">
         {/* Simulator Button */}
-        <div className="relative">
-          <button
-            onClick={() => setShowSimulator(!showSimulator)}
-            className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer"
-          >
-            <MessageSquarePlus size={14} />
-            <span>Simulador WhatsApp</span>
-          </button>
+        {demo_mode_enabled && (
+          <div className="relative">
+            <button
+              onClick={() => setShowSimulator(!showSimulator)}
+              className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-md shadow-emerald-500/20 active:scale-95 cursor-pointer"
+            >
+              <MessageSquarePlus size={14} />
+              <span>Simulador WhatsApp</span>
+            </button>
 
-          {showSimulator && (
-            <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl p-4 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
-              <h4 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <Play size={12} className="text-emerald-500" />
-                Simular Mensagem de Cliente
-              </h4>
-              <p className="text-[11px] text-slate-500 mb-3">
-                Dispare uma mensagem de teste para verificar as regras de roteamento inteligente e automações:
-              </p>
-              <div className="space-y-1.5">
-                {simulationScenarios.map((scen, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => triggerSimulation(scen)}
-                    className="w-full text-left bg-slate-50 dark:bg-slate-800/40 hover:bg-primary/5 hover:text-primary dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-850 hover:border-primary/20 dark:hover:border-primary/20 rounded-xl p-2 transition-all flex flex-col cursor-pointer"
-                  >
-                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-250">{scen.label}</span>
-                    <span className="text-[10px] text-slate-500 italic truncate w-full">
-                      &quot;{scen.body}&quot;
-                    </span>
-                  </button>
-                ))}
+            {showSimulator && (
+              <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xl p-4 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
+                <h4 className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                  <Play size={12} className="text-emerald-500" />
+                  Simular Mensagem de Cliente
+                </h4>
+                <p className="text-[11px] text-slate-500 mb-3">
+                  Dispare uma mensagem de teste para verificar as regras de roteamento inteligente e automações:
+                </p>
+                <div className="space-y-1.5">
+                  {simulationScenarios.map((scen, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => triggerSimulation(scen)}
+                      className="w-full text-left bg-slate-50 dark:bg-slate-800/40 hover:bg-primary/5 hover:text-primary dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-850 hover:border-primary/20 dark:hover:border-primary/20 rounded-xl p-2 transition-all flex flex-col cursor-pointer"
+                    >
+                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-250">{scen.label}</span>
+                      <span className="text-[10px] text-slate-500 italic truncate w-full">
+                        &quot;{scen.body}&quot;
+                      </span>
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
 
         {/* Notifications Dropdown */}
         <div className="relative">

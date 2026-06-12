@@ -28,8 +28,37 @@ import {
 } from 'recharts';
 
 export default function DashboardPage() {
-  const { conversations, contacts, deals, tasks, users, departments } = useStore();
+  const { conversations, contacts, deals, tasks, users, departments, demo_mode_enabled } = useStore();
   const [nowTimestamp] = React.useState(() => Date.now());
+
+  // Render empty state if there are no conversations
+  if (conversations.length === 0) {
+    return (
+      <div className="space-y-6">
+        {/* Welcome Banner */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Painel de Controle</h1>
+            <p className="text-xs text-slate-500 mt-1">
+              Veja as estatísticas de conversação, atendimento e performance comercial do HBFlow em tempo real.
+            </p>
+          </div>
+        </div>
+
+        {/* Professional Empty State */}
+        <div className="bg-white border border-slate-200 rounded-3xl p-12 shadow-sm text-center flex flex-col items-center justify-center gap-4 relative overflow-hidden min-h-[400px]">
+          <div className="absolute top-[-50%] right-[-10%] w-[40%] h-[150%] bg-primary/5 rounded-full blur-[80px] pointer-events-none" />
+          <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 shadow-sm shrink-0">
+            <MessageSquare size={32} />
+          </div>
+          <h2 className="text-lg font-bold text-slate-800">Nenhuma atividade registrada ainda.</h2>
+          <p className="text-xs text-slate-500 max-w-sm leading-relaxed">
+            Acompanhe o progresso da sua empresa à medida que novas interações forem criadas.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // 1. Metric Calculations
   const totalConversations = conversations.length;
@@ -72,7 +101,7 @@ export default function DashboardPage() {
     }
   });
 
-  const avgWaitMin = waitCount > 0 ? (totalWaitMs / waitCount / 60000).toFixed(1) : '3.2';
+  const avgWaitMin = waitCount > 0 ? (totalWaitMs / waitCount / 60000).toFixed(1) : (demo_mode_enabled ? '3.2' : '0.0');
 
   let totalAttendMs = 0;
   let attendCount = 0;
@@ -87,11 +116,48 @@ export default function DashboardPage() {
     }
   });
 
-  const avgAttendMin = attendCount > 0 ? (totalAttendMs / attendCount / 60000).toFixed(1) : '8.5';
+  const avgAttendMin = attendCount > 0 ? (totalAttendMs / attendCount / 60000).toFixed(1) : (demo_mode_enabled ? '8.5' : '0.0');
+
+  // Helper to get real traffic data from conversations
+  const getRealTrafficData = () => {
+    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const data = [];
+    const now = new Date();
+    
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      const dayName = days[d.getDay()];
+      
+      const startOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0);
+      const endOfDay = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59);
+      
+      const dayConvs = conversations.filter(c => {
+        const cDate = new Date(c.createdAt);
+        return cDate >= startOfDay && cDate <= endOfDay;
+      });
+      
+      let dayMsgs = 0;
+      conversations.forEach(c => {
+        const msgs = c.messages.filter(m => {
+          const mDate = new Date(m.createdAt);
+          return mDate >= startOfDay && mDate <= endOfDay;
+        });
+        dayMsgs += msgs.length;
+      });
+      
+      data.push({
+        name: dayName,
+        mensagens: dayMsgs,
+        contatos: dayConvs.length
+      });
+    }
+    return data;
+  };
 
   // 2. Charts Data
-  // Message volume trend (Last 7 days mock)
-  const trafficData = [
+  // Message volume trend
+  const trafficData = demo_mode_enabled ? [
     { name: 'Seg', mensagens: 420, contatos: 85 },
     { name: 'Ter', mensagens: 580, contatos: 120 },
     { name: 'Qua', mensagens: 690, contatos: 145 },
@@ -99,7 +165,7 @@ export default function DashboardPage() {
     { name: 'Sex', mensagens: 780, contatos: 160 },
     { name: 'Sáb', mensagens: 320, contatos: 65 },
     { name: 'Dom', mensagens: 180, contatos: 30 }
-  ];
+  ] : getRealTrafficData();
 
   // Pipeline stage counts
   const stageData = [
@@ -116,8 +182,8 @@ export default function DashboardPage() {
   const agentPerformance = users.map((u) => {
     // Mocking some sales closed won
     const wonCount = deals.filter((d) => d.assignedUserId === u.id && d.status === 'won').length;
-    const totalCount = deals.filter((d) => d.assignedUserId === u.id).length || 1;
-    const conversion = Math.round((wonCount / totalCount) * 100) || 20; // fallback default
+    const totalCount = deals.filter((d) => d.assignedUserId === u.id).length;
+    const conversion = totalCount > 0 ? Math.round((wonCount / totalCount) * 100) : (demo_mode_enabled ? 20 : 0);
     return {
       name: u.name,
       value: conversion

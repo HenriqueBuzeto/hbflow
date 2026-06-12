@@ -113,114 +113,127 @@ export default function ClientesPage() {
       </div>
 
       {/* Contacts Table Card */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs divide-y divide-slate-200">
-            <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
-              <tr>
-                <th className="px-6 py-4">Nome do Cliente</th>
-                <th className="px-6 py-4">Contato</th>
-                <th className="px-6 py-4">Cidade / UF</th>
-                <th className="px-6 py-4 text-center">Score</th>
-                <th className="px-6 py-4">Tags</th>
-                <th className="px-6 py-4 text-right">Faturamento</th>
-                <th className="px-6 py-4 text-center">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              {filteredContacts.length === 0 ? (
+      {contacts.length === 0 ? (
+        <div className="bg-white border border-slate-200 rounded-3xl p-12 shadow-sm text-center flex flex-col items-center justify-center gap-4 relative overflow-hidden min-h-[300px]">
+          <div className="absolute top-[-50%] right-[-10%] w-[40%] h-[150%] bg-primary/5 rounded-full blur-[80px] pointer-events-none" />
+          <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400 shadow-sm shrink-0">
+            <Users size={32} />
+          </div>
+          <h2 className="text-lg font-bold text-slate-800">Nenhum cliente cadastrado ainda.</h2>
+          <p className="text-xs text-slate-500 max-w-sm leading-relaxed">
+            Cadastre um novo cliente manualmente ou receba contatos automaticamente via WhatsApp para começar.
+          </p>
+        </div>
+      ) : (
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs divide-y divide-slate-200">
+              <thead className="bg-slate-50 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
                 <tr>
-                  <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
-                    Nenhum cliente cadastrado ou encontrado.
-                  </td>
+                  <th className="px-6 py-4">Nome do Cliente</th>
+                  <th className="px-6 py-4">Contato</th>
+                  <th className="px-6 py-4">Cidade / UF</th>
+                  <th className="px-6 py-4 text-center">Score</th>
+                  <th className="px-6 py-4">Tags</th>
+                  <th className="px-6 py-4 text-right">Faturamento</th>
+                  <th className="px-6 py-4 text-center">Ações</th>
                 </tr>
-              ) : (
-                filteredContacts.map((contact) => (
-                  <tr
-                    key={contact.id}
-                    onClick={() => router.push(`/clientes/${contact.id}`)}
-                    className="hover:bg-slate-50/60 transition-colors cursor-pointer group"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
-                          {contact.name.charAt(0)}
-                        </div>
-                        <div>
-                          <span className="font-bold text-slate-800 group-hover:text-primary transition-colors">
-                            {contact.name}
-                          </span>
-                          <span className="text-[10px] text-slate-400 block mt-0.5">
-                            Doc: {contact.document || 'Não informado'}
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <div className="space-y-0.5">
-                        <span className="text-slate-700 font-mono flex items-center gap-1">
-                          <Phone size={10} className="text-slate-400" />
-                          {contact.phone}
-                        </span>
-                        {contact.email && <span className="text-[10px] text-slate-400 block">{contact.email}</span>}
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4">
-                      {contact.city ? (
-                        <span className="text-slate-600 flex items-center gap-1">
-                          <MapPin size={11} className="text-slate-400" />
-                          {contact.city} - {contact.state}
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 italic">Não informado</span>
-                      )}
-                    </td>
-
-                    <td className="px-6 py-4 text-center">
-                      <div className="inline-flex items-center gap-1 bg-slate-50 border px-2 py-0.5 rounded-full font-bold">
-                        <Award size={11} className="text-amber-500" />
-                        <span>{contact.score}/100</span>
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1 max-w-[200px]">
-                        {contact.tags.map((t) => (
-                          <span
-                            key={t}
-                            className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded capitalize font-semibold"
-                          >
-                            {t}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-
-                    <td className="px-6 py-4 text-right font-bold text-slate-800 font-mono">
-                      {contact.totalPurchased.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                    </td>
-
-                    <td className="px-6 py-4 text-center">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/clientes/${contact.id}`);
-                        }}
-                        className="text-primary hover:text-primary-hover font-bold inline-flex items-center gap-0.5"
-                      >
-                        <span>Dossiê</span>
-                        <ArrowUpRight size={14} />
-                      </button>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {filteredContacts.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
+                      Nenhum cliente cadastrado ou encontrado.
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ) : (
+                  filteredContacts.map((contact) => (
+                    <tr
+                      key={contact.id}
+                      onClick={() => router.push(`/clientes/${contact.id}`)}
+                      className="hover:bg-slate-50/60 transition-colors cursor-pointer group"
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                            {contact.name.charAt(0)}
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-800 group-hover:text-primary transition-colors">
+                              {contact.name}
+                            </span>
+                            <span className="text-[10px] text-slate-400 block mt-0.5">
+                              Doc: {contact.document || 'Não informado'}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="space-y-0.5">
+                          <span className="text-slate-700 font-mono flex items-center gap-1">
+                            <Phone size={10} className="text-slate-400" />
+                            {contact.phone}
+                          </span>
+                          {contact.email && <span className="text-[10px] text-slate-400 block">{contact.email}</span>}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        {contact.city ? (
+                          <span className="text-slate-600 flex items-center gap-1">
+                            <MapPin size={11} className="text-slate-400" />
+                            {contact.city} - {contact.state}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 italic">Não informado</span>
+                        )}
+                      </td>
+
+                      <td className="px-6 py-4 text-center">
+                        <div className="inline-flex items-center gap-1 bg-slate-50 border px-2 py-0.5 rounded-full font-bold">
+                          <Award size={11} className="text-amber-500" />
+                          <span>{contact.score}/100</span>
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-1 max-w-[200px]">
+                          {contact.tags.map((t) => (
+                            <span
+                              key={t}
+                              className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded capitalize font-semibold"
+                            >
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+
+                      <td className="px-6 py-4 text-right font-bold text-slate-800 font-mono">
+                        {contact.totalPurchased.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                      </td>
+
+                      <td className="px-6 py-4 text-center">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            router.push(`/clientes/${contact.id}`);
+                          }}
+                          className="text-primary hover:text-primary-hover font-bold inline-flex items-center gap-0.5"
+                        >
+                          <span>Dossiê</span>
+                          <ArrowUpRight size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* CREATE CONTACT MODAL */}
       {showAddModal && (

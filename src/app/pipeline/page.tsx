@@ -211,6 +211,21 @@ export default function PipelinePage() {
         </form>
       )}
 
+      {/* Banner when no deals exist */}
+      {deals.length === 0 && (
+        <div className="bg-gradient-to-r from-primary/5 to-indigo-50/50 border border-slate-200 rounded-2xl p-4 flex items-center gap-3 animate-in fade-in duration-200">
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
+            <Layers size={16} />
+          </div>
+          <div>
+            <h4 className="text-xs font-bold text-slate-800">Nenhum negócio criado ainda.</h4>
+            <p className="text-[10px] text-slate-500 mt-0.5">
+              Crie uma oportunidade de vendas a partir do chat ou clique no botão &quot;Criar Negócio&quot; acima.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Kanban Board Container */}
       <div className="flex-1 overflow-x-auto pb-4 flex gap-4 select-none items-start min-h-[480px]">
         {stages.map((stage) => {
@@ -252,7 +267,7 @@ export default function PipelinePage() {
               <div className="space-y-2.5 flex-1 min-h-[250px]">
                 {displayedDeals.length === 0 ? (
                   <div className="h-full border border-dashed border-slate-300 rounded-xl flex items-center justify-center p-6 text-center text-[10px] text-slate-400">
-                    Solte cartões aqui
+                    {deals.length === 0 ? 'Nenhum negócio criado ainda.' : 'Solte cartões aqui'}
                   </div>
                 ) : (
                   displayedDeals.map((deal) => {

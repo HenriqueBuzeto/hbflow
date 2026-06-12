@@ -17,11 +17,17 @@ interface Campaign {
 }
 
 export default function CampanhasPage() {
-  const { templates } = useStore();
+  const { templates, demo_mode_enabled } = useStore();
   const [campaignList, setCampaignList] = useState<Campaign[]>([
     { id: '1', name: 'Campanha Reengajamento Junho', templateName: 'lembrete_proposta', targetTag: 'vendas', totalTargets: 140, sentCount: 112, readCount: 88, status: 'sending', scheduledAt: '2026-06-08T18:00' },
     { id: '2', name: 'Confirmação Cobrança PIX', templateName: 'confirmacao_pagamento', targetTag: 'financeiro', totalTargets: 54, sentCount: 54, readCount: 50, status: 'completed', scheduledAt: '2026-06-05T09:00' }
   ]);
+
+  React.useEffect(() => {
+    if (!demo_mode_enabled) {
+      setCampaignList([]);
+    }
+  }, [demo_mode_enabled]);
 
   const [showModal, setShowModal] = useState(false);
   const [name, setName] = useState('');
@@ -83,61 +89,73 @@ export default function CampanhasPage() {
           <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm">
             <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4">Campanhas Registradas</h3>
 
-            <div className="space-y-4">
-              {campaignList.map((camp) => {
-                const percentSent = Math.round((camp.sentCount / camp.totalTargets) * 100) || 0;
-                const percentRead = Math.round((camp.readCount / camp.sentCount) * 100) || 0;
+            {campaignList.length === 0 ? (
+              <div className="text-center py-12 flex flex-col items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center text-slate-400">
+                  <Megaphone size={22} />
+                </div>
+                <h4 className="text-xs font-bold text-slate-800">Nenhuma campanha criada ainda.</h4>
+                <p className="text-[10px] text-slate-500 max-w-xs leading-relaxed">
+                  Crie campanhas de disparo em massa para seus clientes e acompanhe as métricas de leitura e entrega aqui.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {campaignList.map((camp) => {
+                  const percentSent = Math.round((camp.sentCount / camp.totalTargets) * 100) || 0;
+                  const percentRead = Math.round((camp.readCount / camp.sentCount) * 100) || 0;
 
-                return (
-                  <div key={camp.id} className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 flex flex-col gap-3 text-xs font-medium">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <strong className="text-slate-800 text-sm block leading-tight">{camp.name}</strong>
-                        <span className="text-[10px] text-slate-400 mt-1 block">
-                          Template: <code className="bg-slate-200/60 px-1 rounded">{camp.templateName}</code> • Tag Alvo: <span className="font-bold text-slate-600">#{camp.targetTag}</span>
-                        </span>
+                  return (
+                    <div key={camp.id} className="border border-slate-100 rounded-2xl p-4 bg-slate-50/50 flex flex-col gap-3 text-xs font-medium">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <strong className="text-slate-800 text-sm block leading-tight">{camp.name}</strong>
+                          <span className="text-[10px] text-slate-400 mt-1 block">
+                            Template: <code className="bg-slate-200/60 px-1 rounded">{camp.templateName}</code> • Tag Alvo: <span className="font-bold text-slate-600">#{camp.targetTag}</span>
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[8.5px] font-black uppercase px-2 py-0.5 rounded ${
+                            camp.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : camp.status === 'sending' ? 'bg-primary/10 text-primary animate-pulse' : 'bg-slate-100 text-slate-500'
+                          }`}>
+                            {camp.status === 'completed' ? 'Completo' : camp.status === 'sending' ? 'Disparando' : 'Rascunho'}
+                          </span>
+                          <button onClick={() => handleDelete(camp.id)} className="text-slate-400 hover:text-rose-500">
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`text-[8.5px] font-black uppercase px-2 py-0.5 rounded ${
-                          camp.status === 'completed' ? 'bg-emerald-100 text-emerald-700' : camp.status === 'sending' ? 'bg-primary/10 text-primary animate-pulse' : 'bg-slate-100 text-slate-500'
-                        }`}>
-                          {camp.status === 'completed' ? 'Completo' : camp.status === 'sending' ? 'Disparando' : 'Rascunho'}
-                        </span>
-                        <button onClick={() => handleDelete(camp.id)} className="text-slate-400 hover:text-rose-500">
-                          <Trash2 size={13} />
-                        </button>
+
+                      {/* Progress Bar */}
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] text-slate-400 font-bold">
+                          <span>Progresso de Envio</span>
+                          <span>{camp.sentCount} de {camp.totalTargets} contatos ({percentSent}%)</span>
+                        </div>
+                        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                          <div
+                            className="bg-primary h-full transition-all duration-300"
+                            style={{ width: `${percentSent}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Delivery metrics */}
+                      <div className="grid grid-cols-2 gap-4 mt-1 text-[10px] text-slate-500 font-bold pt-2 border-t border-dashed border-slate-200">
+                        <div className="flex items-center gap-1.5">
+                          <Percent size={12} className="text-primary" />
+                          <span>Taxa de Leitura: <strong className="text-slate-700">{percentRead}%</strong> ({camp.readCount} aberturas)</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Calendar size={12} className="text-slate-400" />
+                          <span>Agendado: <strong className="text-slate-700">{new Date(camp.scheduledAt).toLocaleString()}</strong></span>
+                        </div>
                       </div>
                     </div>
-
-                    {/* Progress Bar */}
-                    <div className="space-y-1">
-                      <div className="flex justify-between text-[10px] text-slate-400 font-bold">
-                        <span>Progresso de Envio</span>
-                        <span>{camp.sentCount} de {camp.totalTargets} contatos ({percentSent}%)</span>
-                      </div>
-                      <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                        <div
-                          className="bg-primary h-full transition-all duration-300"
-                          style={{ width: `${percentSent}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Delivery metrics */}
-                    <div className="grid grid-cols-2 gap-4 mt-1 text-[10px] text-slate-500 font-bold pt-2 border-t border-dashed border-slate-200">
-                      <div className="flex items-center gap-1.5">
-                        <Percent size={12} className="text-primary" />
-                        <span>Taxa de Leitura: <strong className="text-slate-700">{percentRead}%</strong> ({camp.readCount} aberturas)</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Calendar size={12} className="text-slate-400" />
-                        <span>Agendado: <strong className="text-slate-700">{new Date(camp.scheduledAt).toLocaleString()}</strong></span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 

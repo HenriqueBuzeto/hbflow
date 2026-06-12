@@ -50,7 +50,8 @@ export default function InboxPage() {
     resolveConversation,
     addDeal,
     addTask,
-    routingLogs
+    routingLogs,
+    demo_mode_enabled
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<'new' | 'meus' | 'pending' | 'closed' | 'sector'>('new');
@@ -969,6 +970,17 @@ export default function InboxPage() {
               </div>
             )}
           </>
+        ) : conversations.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-slate-50 relative overflow-hidden min-h-[400px]">
+            <div className="absolute top-[-50%] right-[-10%] w-[40%] h-[150%] bg-primary/5 rounded-full blur-[80px] pointer-events-none" />
+            <div className="w-16 h-16 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 shadow-sm shrink-0 mb-4">
+              <MessageSquare size={32} />
+            </div>
+            <h2 className="text-lg font-bold text-slate-800">Nenhum atendimento iniciado.</h2>
+            <p className="text-xs text-slate-500 max-w-sm leading-relaxed">
+              Conecte seu WhatsApp para começar.
+            </p>
+          </div>
         ) : (
           /* RICH TRIAGEM WORKSPACE DASHBOARD */
           <div className="flex-1 overflow-y-auto p-8 space-y-6">

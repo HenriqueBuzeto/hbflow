@@ -281,6 +281,7 @@ interface State {
   darkMode: boolean;
   agentLogs: AgentLog[];
   enabledAgentIds: string[];
+  demo_mode_enabled: boolean;
 }
 
 interface Actions {
@@ -332,6 +333,7 @@ interface Actions {
   clearAgentLogs: () => void;
   runAgentManually: (agentId: string, input: any) => Promise<any>;
   triggerAgentOrchestrator: (trigger: AgentTrigger, input: any, conversationId?: string, contactId?: string, dealId?: string) => Promise<void>;
+  setDemoModeEnabled: (enabled: boolean) => void;
 }
 
 // Zod schemas for validation
@@ -525,6 +527,7 @@ export const useStore = create<State & Actions>((set, get) => ({
   darkMode: typeof window !== 'undefined' ? localStorage.getItem('hbflow-dark-mode') === 'true' : false,
   agentLogs: [],
   enabledAgentIds: ['triage-agent', 'faq-agent', 'summary-agent', 'sdr-agent', 'sales-agent', 'sentiment-agent', 'supervisor-agent', 'attendant-copilot-agent'],
+  demo_mode_enabled: true,
 
   // Setters
   toggleDarkMode: () => {
@@ -542,6 +545,47 @@ export const useStore = create<State & Actions>((set, get) => ({
   updateWhatsappConnection: (config) => set((state) => ({
     whatsappConnection: { ...state.whatsappConnection, ...config }
   })),
+  setDemoModeEnabled: (enabled) => {
+    if (!enabled) {
+      set({
+        demo_mode_enabled: false,
+        contacts: [],
+        conversations: [],
+        deals: [],
+        tasks: [],
+        whatsappConnection: {
+          name: '',
+          phoneNumber: '',
+          phoneId: '',
+          wabaId: '',
+          accessToken: '',
+          verifyToken: '',
+          status: 'disconnected',
+          lastSyncedAt: ''
+        },
+        notifications: [],
+        routingLogs: [],
+        quickReplies: [
+          { id: 'q-1', shortcut: '/saudacao', message: 'Olá! Como posso ajudar você hoje?' },
+          { id: 'q-3', shortcut: '/obrigado', message: 'Obrigado pelo contato! Se precisar de algo mais, estou à disposição.' }
+        ]
+      });
+    } else {
+      set({
+        demo_mode_enabled: true,
+        contacts: initialContacts,
+        conversations: initialConversations,
+        deals: initialDeals,
+        tasks: initialTasks,
+        whatsappConnection: initialWhatsapp,
+        notifications: [
+          { id: 'not-1', title: 'Novo Chamado Recebido', message: 'O cliente Ana Costa enviou mensagem na fila Financeiro.', type: 'system', isRead: false, createdAt: new Date().toISOString() }
+        ],
+        routingLogs: [],
+        quickReplies: initialQuickReplies
+      });
+    }
+  },
 
   // Messaging & Claiming
   sendMessage: (conversationId, body, senderType) => {
