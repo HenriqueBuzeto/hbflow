@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useStore } from '@/store/useStore';
-import { Bell, HelpCircle, Check, Play, MessageSquarePlus, Building2, Sun, Moon, ChevronDown } from 'lucide-react';
+import { Bell, HelpCircle, Check, Play, MessageSquarePlus, Building2, Sun, Moon, ChevronDown, LogOut } from 'lucide-react';
 
 export default function Header() {
+  const router = useRouter();
   const {
     tenants,
     currentTenantId,
@@ -25,6 +27,18 @@ export default function Header() {
   const [showSimulator, setShowSimulator] = useState(false);
   const [showTenantDropdown, setShowTenantDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+      });
+      router.push('/login');
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error);
+      router.push('/login');
+    }
+  };
 
   const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0];
   const unreadNotifications = notifications.filter((n) => !n.isRead);
@@ -308,6 +322,17 @@ export default function Header() {
                     </button>
                   );
                 })}
+
+                {/* Botão de Sair */}
+                <div className="border-t border-slate-100 dark:border-slate-800/60 mt-1.5 pt-1.5">
+                  <button
+                    onClick={handleLogout}
+                    className="w-full text-left text-xs px-2.5 py-2 rounded-xl transition-all flex items-center gap-2 font-bold cursor-pointer text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20"
+                  >
+                    <LogOut size={14} className="shrink-0" />
+                    <span>Sair da Conta</span>
+                  </button>
+                </div>
               </div>
             </>
           )}

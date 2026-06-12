@@ -103,10 +103,10 @@ export default function Sidebar() {
       } shrink-0 h-screen sticky top-0 z-30`}
     >
       {/* Brand Header */}
-      <div className="h-14 flex items-center justify-center border-b border-zinc-800 shrink-0 relative px-4">
+      <div className="h-16 flex items-center justify-center border-b border-zinc-800 shrink-0 relative px-4">
         {!isCollapsed && (
-          <div className="flex items-center justify-center h-full">
-            <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-[300px] w-auto object-contain my-[-135px] mx-[-110px]" />
+          <div className="flex items-center justify-center h-full relative overflow-visible">
+            <img src="/logo hbflow.png" alt="HBFlow Logo" className="absolute h-[380px] w-auto object-contain" />
           </div>
         )}
         
