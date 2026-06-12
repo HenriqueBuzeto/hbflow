@@ -103,18 +103,18 @@ export default function Sidebar() {
       } shrink-0 h-screen sticky top-0 z-30`}
     >
       {/* Brand Header */}
-      <div className="h-14 flex items-center justify-between px-4 border-b border-zinc-800 shrink-0">
+      <div className="h-14 flex items-center justify-center border-b border-zinc-800 shrink-0 relative px-4">
         {!isCollapsed && (
-          <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-[300px] w-auto object-contain my-[-135px] mx-[-110px]" />
-        )}
-        {isCollapsed && (
-          <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center font-bold text-white mx-auto">
-            HB
+          <div className="flex items-center justify-center h-full">
+            <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-[300px] w-auto object-contain my-[-135px] mx-[-110px]" />
           </div>
         )}
+        
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="text-zinc-400 hover:text-white p-1 hover:bg-zinc-800 rounded transition-colors hidden md:block"
+          className={`text-zinc-400 hover:text-white p-1 hover:bg-zinc-800 rounded transition-colors hidden md:block ${
+            isCollapsed ? 'mx-auto' : 'absolute right-4'
+          }`}
         >
           {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
         </button>
