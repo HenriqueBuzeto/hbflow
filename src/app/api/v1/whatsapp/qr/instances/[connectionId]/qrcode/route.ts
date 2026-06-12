@@ -51,7 +51,7 @@ export async function POST(
       });
     }
 
-    return NextResponse.json({ success: true, qrcode: base64, result });
+    return NextResponse.json({ success: true, qrCode: base64, qrcode: base64, result });
   } catch (error: any) {
     console.error('Error fetching/generating QR Code:', error);
     if (error.message === 'FORBIDDEN') {

@@ -212,7 +212,7 @@ export default function ConexaoPage() {
         throw new Error(qrData.error || 'Erro ao obter QR Code');
       }
 
-      setQrCodeBase64(qrData.qrCode);
+      setQrCodeBase64(qrData.qrCode || qrData.qrcode);
       setQrStatus('connecting');
       setTestLog((prev) => [
         ...prev,
