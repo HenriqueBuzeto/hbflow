@@ -43,6 +43,7 @@ export default function LoginPage() {
   const [trialCnpj, setTrialCnpj] = useState('');
   const [trialEmail, setTrialEmail] = useState('');
   const [trialPhone, setTrialPhone] = useState('');
+  const [trialCoupon, setTrialCoupon] = useState('');
   const [trialError, setTrialError] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
 
@@ -193,7 +194,8 @@ export default function LoginPage() {
           companyName: trialCompany,
           cnpj: trialCnpj,
           email: trialEmail,
-          phone: trialPhone
+          phone: trialPhone,
+          couponCode: trialCoupon
         })
       });
 
@@ -566,6 +568,22 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                  Cupom de Desconto (Opcional)
+                </label>
+                <div className="relative">
+                  <Copy size={16} className="absolute left-4 top-3 text-slate-500" />
+                  <input
+                    type="text"
+                    placeholder="Ex: CUPOM100"
+                    value={trialCoupon}
+                    onChange={(e) => setTrialCoupon(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all uppercase font-mono"
+                  />
+                </div>
+              </div>
+
               {trialError && (
                 <p className="text-xs text-rose-500 font-semibold bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">
                   {trialError}
@@ -580,11 +598,11 @@ export default function LoginPage() {
                 {isRegistering ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    <span>Criando Conta de Teste...</span>
+                    <span>{trialCoupon.trim().toUpperCase() === 'CUPOM100' ? 'Criando Conta Comercial...' : 'Criando Conta de Teste...'}</span>
                   </>
                 ) : (
                   <>
-                    <span>Iniciar Teste Grátis</span>
+                    <span>{trialCoupon.trim().toUpperCase() === 'CUPOM100' ? 'Criar Conta Comercial' : 'Iniciar Teste Grátis'}</span>
                     <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
@@ -623,12 +641,21 @@ export default function LoginPage() {
             </div>
             
             {/* Header */}
-            <h3 className="text-xl font-bold text-center text-slate-100 mb-2">
-              Acesso de 3 Dias Ativo!
-            </h3>
-            <p className="text-xs text-center text-slate-400 mb-6 px-4 leading-relaxed">
-              Sua conta de teste grátis foi criada. Salve as credenciais abaixo para não perder o acesso ao sistema.
-            </p>
+            {(() => {
+              const isCommercial = credentials && (new Date(credentials.trialEndsAt).getTime() - Date.now() > 5 * 24 * 60 * 60 * 1000);
+              return (
+                <>
+                  <h3 className="text-xl font-bold text-center text-slate-100 mb-2">
+                    {isCommercial ? 'Conta Comercial Ativada!' : 'Acesso de 3 Dias Ativo!'}
+                  </h3>
+                  <p className="text-xs text-center text-slate-400 mb-6 px-4 leading-relaxed">
+                    {isCommercial 
+                      ? 'Sua conta comercial com cupom de desconto de 100% foi criada com sucesso.' 
+                      : 'Sua conta de teste grátis foi criada. Salve as credenciais abaixo para não perder o acesso ao sistema.'}
+                  </p>
+                </>
+              );
+            })()}
             
             {/* Credentials display */}
             <div className="space-y-4 mb-6">

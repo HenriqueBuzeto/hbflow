@@ -41,6 +41,7 @@ export const registerTrialSchema = z.object({
   email: z.string().email('E-mail inválido'),
   phone: z.string().min(8, 'Telefone inválido'),
   userName: z.string().min(3, 'Nome deve ter pelo menos 3 caracteres'),
+  couponCode: z.string().optional().nullable(),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;

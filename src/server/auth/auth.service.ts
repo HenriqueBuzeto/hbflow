@@ -32,6 +32,7 @@ export interface RegisterTrialData {
   email: string;
   phone: string;
   userName: string;
+  couponCode?: string | null;
 }
 
 export class AuthService {
@@ -272,7 +273,7 @@ export class AuthService {
   }
 
   static async registerTrial(data: RegisterTrialData): Promise<any> {
-    const { companyName, cnpj, email, phone, userName } = data;
+    const { companyName, cnpj, email, phone, userName, couponCode } = data;
 
     // 1. Normalize fields for comparison and uniqueness checking
     const cleanPhone = phone.replace(/\D/g, '');
@@ -281,6 +282,17 @@ export class AuthService {
 
     if (!cleanPhone || !cleanCnpj || !cleanEmail || !companyName || !userName) {
       throw new Error('Todos os campos obrigatórios devem ser preenchidos');
+    }
+
+    // Validar cupom se fornecido
+    let isCoupon100 = false;
+    if (couponCode) {
+      const cleanCoupon = couponCode.trim().toUpperCase();
+      if (cleanCoupon === 'CUPOM100') {
+        isCoupon100 = true;
+      } else if (cleanCoupon !== 'HB20' && cleanCoupon !== 'HBFLOW20' && cleanCoupon !== 'START50') {
+        throw new Error('Cupom inválido ou expirado');
+      }
     }
 
     // 2. Validate uniqueness of phone
@@ -426,9 +438,10 @@ export class AuthService {
         });
       }
 
-      const trialEndsAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000); // 3 days
+      const trialDays = isCoupon100 ? 30 : 3;
+      const trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
 
-      // Create Billing trial entry ending in 3 days
+      // Create Billing trial entry
       await tx.tenantBilling.create({
         data: {
           tenantId: tenant.id,
@@ -437,27 +450,25 @@ export class AuthService {
         },
       });
 
-      // Create Subscription entry ending in 3 days
+      // Create Subscription entry
       await tx.subscription.create({
         data: {
           tenantId: tenant.id,
           planId: planStarter.id,
-          status: 'trialing',
+          status: isCoupon100 ? 'active' : 'trialing',
           currentPeriodStart: new Date(),
           currentPeriodEnd: trialEndsAt,
-          trialEndsAt: trialEndsAt,
+          trialEndsAt: isCoupon100 ? null : trialEndsAt,
         }
       });
 
 
-      return { tenant, user, loginEmail, rawPassword, adminRoleId: adminRole.id };
+      return { tenant, user, loginEmail, rawPassword, adminRoleId: adminRole.id, trialEndsAt };
     });
 
     // Run bootstrap RBAC outside Prisma transaction but using the same connection context
     await RBACBootstrapService.bootstrapTenantRBAC(transactionResult.tenant.id, transactionResult.adminRoleId);
     
-    const trialEndsAt = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000);
-
     return {
       tenantId: transactionResult.tenant.id,
       userId: transactionResult.user.id,
@@ -465,7 +476,7 @@ export class AuthService {
       userName: transactionResult.user.name,
       loginEmail: transactionResult.loginEmail,
       password: transactionResult.rawPassword,
-      trialEndsAt,
+      trialEndsAt: transactionResult.trialEndsAt,
     };
   }
 
