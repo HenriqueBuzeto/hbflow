@@ -168,6 +168,9 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
   // Métodos auxiliares para gerenciamento de instâncias na Evolution API
   async createInstance(instanceName: string): Promise<any> {
     const { url, apiKey } = this.getApiConfig();
+    const webhookUrl = process.env.WHATSAPP_QR_GATEWAY_WEBHOOK_URL || 
+      `${process.env.NEXT_PUBLIC_APP_URL || 'http://host.docker.internal:3000'}/api/webhooks/whatsapp/qr`;
+
     const response = await fetch(`${url}/instance/create`, {
       method: 'POST',
       headers: {
@@ -182,11 +185,12 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
         // Structure for v2 (nested settings and webhooks)
         webhook: {
           enabled: true,
-          url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/webhooks/whatsapp/qr`,
+          url: webhookUrl,
           byEvents: true,
           events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE', 'QRCODE_UPDATED']
         },
-        // Structure for v1 (legacy compatibility)
+        // Legacy/alternate formats for compatibility
+        webhookUrl: webhookUrl,
         events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE', 'QRCODE_UPDATED']
       })
     });
