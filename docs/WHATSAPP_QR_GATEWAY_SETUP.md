@@ -40,7 +40,7 @@ version: '3.8'
 
 services:
   evolution-api:
-    image: atendare/evolution-api:latest
+    image: evoapicloud/evolution-api:latest
     container_name: evolution_api
     ports:
       - "8085:8080"
