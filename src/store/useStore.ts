@@ -334,6 +334,7 @@ interface Actions {
   runAgentManually: (agentId: string, input: any) => Promise<any>;
   triggerAgentOrchestrator: (trigger: AgentTrigger, input: any, conversationId?: string, contactId?: string, dealId?: string) => Promise<void>;
   setDemoModeEnabled: (enabled: boolean) => void;
+  fetchUsers: () => Promise<void>;
 }
 
 // Zod schemas for validation
@@ -584,6 +585,18 @@ export const useStore = create<State & Actions>((set, get) => ({
         routingLogs: [],
         quickReplies: initialQuickReplies
       });
+    }
+  },
+  fetchUsers: async () => {
+    if (get().demo_mode_enabled) return;
+    try {
+      const res = await fetch('/api/v1/users');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        set({ users: data.users });
+      }
+    } catch (err) {
+      console.error('Error fetching users in store:', err);
     }
   },
 

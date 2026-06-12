@@ -64,6 +64,9 @@ export class FeatureFlagService {
     // Check global feature flag
     const featureFlag = await this.getFeatureFlag(key);
     if (!featureFlag) {
+      if (key === 'whatsapp_qr_gateway_enabled') {
+        return true;
+      }
       return false;
     }
 

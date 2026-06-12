@@ -30,6 +30,7 @@ export class RBACBootstrapService {
     'users.update',
     'feature_flags.read',
     'health.read',
+    'whatsapp.connection.manage',
   ];
 
   /**
