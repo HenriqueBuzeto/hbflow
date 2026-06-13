@@ -1,13 +1,23 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/store/useStore';
 import { Users, Search, Plus, Filter, Tag, ArrowUpRight, Phone, MapPin, Award } from 'lucide-react';
 
 export default function ClientesPage() {
   const router = useRouter();
-  const { contacts, addContact } = useStore();
+  const { contacts, addContact, fetchContacts } = useStore();
+
+  // Poll contacts from database state every 5 seconds
+  useEffect(() => {
+    fetchContacts();
+    const pollInterval = setInterval(() => {
+      fetchContacts();
+    }, 5000);
+    return () => clearInterval(pollInterval);
+  }, [fetchContacts]);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [filterOrigin, setFilterOrigin] = useState('all');
 

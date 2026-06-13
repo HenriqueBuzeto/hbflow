@@ -20,13 +20,13 @@ import {
 import Link from 'next/link';
 
 export default function UsuariosPage() {
-  const { users, currentUserId, demo_mode_enabled, fetchUsers } = useStore();
+  const { users, currentUserId, demo_mode_enabled, fetchUsers, userPlan, userLimit, userCount } = useStore();
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   
   // Plan limits & quota states
-  const [plan, setPlan] = useState<'starter' | 'pro' | 'pro-test' | 'enterprise'>('starter');
-  const [limit, setLimit] = useState(3);
-  const [count, setCount] = useState(1);
+  const plan = userPlan as any;
+  const limit = userLimit;
+  const count = userCount;
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError] = useState('');
@@ -85,24 +85,11 @@ export default function UsuariosPage() {
 
   // Load users on mount and handle quota stats
   const loadQuotaStats = async () => {
-    if (demo_mode_enabled) {
-      setPlan('pro');
-      setLimit(10);
-      setCount(users.length);
-      return;
-    }
+    if (demo_mode_enabled) return;
 
     setLoading(true);
     try {
-      const res = await fetch('/api/v1/users');
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setPlan(data.plan);
-        setLimit(data.limit);
-        setCount(data.count);
-        // Sync to store
-        useStore.setState({ users: data.users });
-      }
+      await fetchUsers();
     } catch (err) {
       console.error('Error fetching quota stats:', err);
     } finally {
@@ -111,7 +98,6 @@ export default function UsuariosPage() {
   };
 
   useEffect(() => {
-    fetchUsers(); // store action
     loadQuotaStats();
   }, [demo_mode_enabled]);
 
@@ -229,8 +215,10 @@ export default function UsuariosPage() {
           presence: 'offline' as const,
           workload: 0
         };
-        useStore.setState({ users: [...users, newUser] });
-        setCount(prev => prev + 1);
+        useStore.setState({ 
+          users: [...users, newUser],
+          userCount: userCount + 1
+        });
         setSuccess('Usuário criado com sucesso (Modo Demonstração).');
       }
       setSubmitting(false);
@@ -294,10 +282,10 @@ export default function UsuariosPage() {
     
     if (demo_mode_enabled) {
       useStore.setState({
-        users: users.filter(u => u.id !== userId)
+        users: users.filter(u => u.id !== userId),
+        userCount: Math.max(0, userCount - 1)
       });
       setSuccess('Usuário excluído (Modo Demonstração).');
-      setCount(prev => Math.max(1, prev - 1));
       setUserToDeleteId(null);
       setTimeout(() => setSuccess(''), 2000);
       return;

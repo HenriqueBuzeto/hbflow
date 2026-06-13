@@ -51,7 +51,9 @@ export default function InboxPage() {
     addDeal,
     addTask,
     routingLogs,
-    demo_mode_enabled
+    demo_mode_enabled,
+    syncDatabaseState,
+    fetchUsers
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<'new' | 'meus' | 'pending' | 'closed' | 'sector'>('new');
@@ -60,6 +62,16 @@ export default function InboxPage() {
   const [messageText, setMessageText] = useState('');
   const [inputMode, setInputMode] = useState<'public' | 'private' | 'whisper'>('public');
   const [timeTick, setTimeTick] = useState(0);
+
+  // Poll database state every 5 seconds
+  useEffect(() => {
+    syncDatabaseState();
+    fetchUsers();
+    const pollInterval = setInterval(() => {
+      syncDatabaseState();
+    }, 5000);
+    return () => clearInterval(pollInterval);
+  }, [syncDatabaseState, fetchUsers]);
 
   useEffect(() => {
     const interval = setInterval(() => {

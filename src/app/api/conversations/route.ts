@@ -95,6 +95,10 @@ export async function GET(request: Request) {
             email: true,
           },
         },
+        messages: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'asc' }
+        }
       },
       orderBy: {
         [validSortBy]: validSortOrder,

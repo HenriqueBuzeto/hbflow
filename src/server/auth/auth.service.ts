@@ -4,6 +4,7 @@ import { TokenService, TokenPayload } from './token.service';
 import { SessionService } from './session.service';
 import { setTenantId } from '../db/tenant-context';
 import { RBACBootstrapService } from './rbac-bootstrap.service';
+import { DepartmentBootstrapService } from '../services/department-bootstrap.service';
 
 export interface LoginCredentials {
   email: string;
@@ -239,6 +240,9 @@ export class AuthService {
 
     // Bootstrap RBAC: criar permissões padrão e vincular ao role Admin
     await RBACBootstrapService.bootstrapTenantRBAC(tenant.id, adminRole.id);
+
+    // Bootstrap default departments (Vendas and Atendimento)
+    await DepartmentBootstrapService.bootstrapDefaultDepartments(tenant.id);
 
     // Gerar tokens
     const payload: TokenPayload = {

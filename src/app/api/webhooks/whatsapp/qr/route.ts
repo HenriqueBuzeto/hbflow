@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { WhatsAppMessageService } from '@/server/services/whatsapp/whatsapp-message.service';
 import { prisma } from '@/server/db/prisma';
 import { AuditService } from '@/server/audit/audit.service';
+import { ContactsSyncService } from '@/server/services/whatsapp/contacts-sync.service';
 
 export async function POST(request: NextRequest) {
   try {
@@ -89,6 +90,12 @@ export async function POST(request: NextRequest) {
             phoneNumber: bodyJson.data?.phoneNumber || connection.phoneNumber
           }
         });
+
+        // Trigger contact sync asynchronously on connection
+        if (connection.instanceName) {
+          ContactsSyncService.syncContacts(connection.tenantId, connection.instanceName)
+            .catch(e => console.error('[Webhook] Error triggering contact sync:', e));
+        }
       } else if (
         stateStr === 'close' ||
         stateStr === 'disconnected' ||

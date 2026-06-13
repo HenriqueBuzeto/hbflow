@@ -4,6 +4,7 @@ import { requirePermission } from '@/server/middleware/permission.middleware';
 import { requireActiveSubscription } from '@/server/middleware/subscription.middleware';
 import { PasswordService } from '@/server/auth/password.service';
 import { AuditService } from '@/server/audit/audit.service';
+import { DepartmentBootstrapService } from '@/server/services/department-bootstrap.service';
 
 // Helper to determine plan user limit
 function getPlanUserLimit(planSlug: string): number {
@@ -112,6 +113,9 @@ export async function GET(request: NextRequest) {
     await requirePermission('users.read');
     const tenantId = await requireActiveSubscription();
 
+    // Bootstrap default departments (Vendas and Atendimento)
+    await DepartmentBootstrapService.bootstrapDefaultDepartments(tenantId);
+
     // 2. Fetch users
     const users = await prisma.user.findMany({
       where: { tenantId, deletedAt: null },
@@ -142,7 +146,7 @@ export async function GET(request: NextRequest) {
       role: u.role?.name || 'Atendente',
       signature: u.signature || '',
       sigPosition: u.sigPosition as 'start' | 'end' | 'disabled',
-      filters: u.userDepartments.map(ud => ud.department.name.toLowerCase()),
+      filters: u.userDepartments.map(ud => ud.department?.name?.toLowerCase() || '').filter(Boolean),
       isOnline: u.isOnline,
       presence: 'online',
       workload: u.workload

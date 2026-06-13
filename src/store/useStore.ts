@@ -282,6 +282,9 @@ interface State {
   agentLogs: AgentLog[];
   enabledAgentIds: string[];
   demo_mode_enabled: boolean;
+  userPlan: string;
+  userLimit: number;
+  userCount: number;
 }
 
 interface Actions {
@@ -335,6 +338,9 @@ interface Actions {
   triggerAgentOrchestrator: (trigger: AgentTrigger, input: any, conversationId?: string, contactId?: string, dealId?: string) => Promise<void>;
   setDemoModeEnabled: (enabled: boolean) => void;
   fetchUsers: () => Promise<void>;
+  fetchContacts: () => Promise<void>;
+  fetchConversations: () => Promise<void>;
+  syncDatabaseState: () => Promise<void>;
 }
 
 // Zod schemas for validation
@@ -540,6 +546,9 @@ export const useStore = create<State & Actions>((set, get) => ({
   agentLogs: [],
   enabledAgentIds: ['triage-agent', 'faq-agent', 'summary-agent', 'sdr-agent', 'sales-agent', 'sentiment-agent', 'supervisor-agent', 'attendant-copilot-agent'],
   demo_mode_enabled: false,
+  userPlan: 'starter',
+  userLimit: 3,
+  userCount: 0,
 
   // Setters
   toggleDarkMode: () => {
@@ -604,11 +613,91 @@ export const useStore = create<State & Actions>((set, get) => ({
       const res = await fetch('/api/v1/users');
       const data = await res.json();
       if (res.ok && data.success) {
-        set({ users: data.users });
+        set({
+          users: data.users,
+          userPlan: data.plan || 'starter',
+          userLimit: data.limit || 3,
+          userCount: data.count || 0
+        });
       }
     } catch (err) {
       console.error('Error fetching users in store:', err);
     }
+  },
+  fetchContacts: async () => {
+    if (get().demo_mode_enabled) return;
+    try {
+      const res = await fetch('/api/contacts?pageSize=100');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const mappedContacts = data.data.items.map((c: any) => ({
+          id: c.id,
+          name: c.name,
+          phone: c.phone,
+          email: c.email || '',
+          document: c.document || '',
+          city: c.city || '',
+          state: c.state || '',
+          origin: c.source || 'whatsapp',
+          status: c.status || 'lead',
+          tags: c.tags ? c.tags.map((t: any) => t.name) : [],
+          notes: c.notes || '',
+          score: c.score || 50,
+          totalPurchased: c.totalPurchased || 0,
+          firstContactAt: c.createdAt,
+          lastContactAt: c.lastInteractionAt || c.updatedAt
+        }));
+        set({ contacts: mappedContacts });
+      }
+    } catch (err) {
+      console.error('Error fetching contacts in store:', err);
+    }
+  },
+  fetchConversations: async () => {
+    if (get().demo_mode_enabled) return;
+    try {
+      const res = await fetch('/api/conversations?pageSize=50');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const mappedConversations = data.data.items.map((c: any) => ({
+          id: c.id,
+          tenantId: c.tenantId,
+          contactId: c.contactId,
+          assignedUserId: c.assignedUserId,
+          departmentId: c.departmentId,
+          status: c.status || 'new',
+          unreadCount: c.unreadCount || 0,
+          slaLimitAt: c.slaFirstResponseDueAt || c.slaResolutionDueAt || null,
+          claimedAt: c.claimedAt,
+          waitStartedAt: c.waitStartedAt,
+          aiLeadScore: c.aiLeadScore || 40,
+          aiLeadLabel: c.aiLeadLabel || 'frio',
+          aiSummary: c.aiSummary || '',
+          createdAt: c.createdAt,
+          updatedAt: c.updatedAt,
+          messages: c.messages ? c.messages.map((m: any) => ({
+            id: m.id,
+            conversationId: m.conversationId,
+            senderType: m.senderType || 'contact',
+            senderName: m.senderName || '',
+            body: m.body || '',
+            type: m.type || 'text',
+            mediaUrl: m.mediaUrl || undefined,
+            signatureUsed: m.signatureUsed || undefined,
+            isRead: m.isRead || false,
+            createdAt: m.createdAt,
+            status: m.status || 'delivered'
+          })) : []
+        }));
+        set({ conversations: mappedConversations });
+      }
+    } catch (err) {
+      console.error('Error fetching conversations in store:', err);
+    }
+  },
+  syncDatabaseState: async () => {
+    await get().fetchContacts();
+    await get().fetchConversations();
   },
 
   // Messaging & Claiming
@@ -633,7 +722,7 @@ export const useStore = create<State & Actions>((set, get) => ({
       id: `m-usr-${Date.now()}`,
       conversationId,
       senderType,
-      senderName: senderType === 'user' ? currentUser.name : 'Sistema',
+      senderName: senderType === 'user' ? (currentUser?.name || 'Atendente') : 'Sistema',
       body: finalBody,
       type: 'text',
       signatureUsed: signatureUsed || undefined,
@@ -656,22 +745,46 @@ export const useStore = create<State & Actions>((set, get) => ({
       })
     }));
 
-    // Trigger fake delivery/read status updates
-    setTimeout(() => {
-      set((state) => ({
-        conversations: state.conversations.map((c) => {
-          if (c.id === conversationId) {
-            return {
-              ...c,
-              messages: c.messages.map((m) =>
-                m.id === newMessage.id ? { ...m, status: 'read' as const } : m
-              )
-            };
-          }
-          return c;
-        })
-      }));
-    }, 1500);
+    if (get().demo_mode_enabled) {
+      // Trigger fake delivery/read status updates for demo mode
+      setTimeout(() => {
+        set((state) => ({
+          conversations: state.conversations.map((c) => {
+            if (c.id === conversationId) {
+              return {
+                ...c,
+                messages: c.messages.map((m) =>
+                  m.id === newMessage.id ? { ...m, status: 'read' as const } : m
+                )
+              };
+            }
+            return c;
+          })
+        }));
+      }, 1000);
+      return;
+    }
+
+    // Real API send call
+    fetch(`/api/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conversationId,
+        senderType,
+        senderName: senderType === 'user' ? (currentUser?.name || 'Atendente') : 'Sistema',
+        body: finalBody,
+        type: 'text',
+        signatureUsed: signatureUsed || undefined,
+        status: 'sent'
+      })
+    })
+      .then((res) => {
+        if (res.ok) {
+          get().fetchConversations();
+        }
+      })
+      .catch((err) => console.error('Error sending message:', err));
 
     // Trigger AI Agents Orchestrator
     setTimeout(() => {
@@ -1177,6 +1290,23 @@ export const useStore = create<State & Actions>((set, get) => ({
       'assignment'
     );
 
+    if (!get().demo_mode_enabled) {
+      fetch(`/api/conversations/${conversationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignedUserId: userId,
+          status: 'open'
+        })
+      })
+        .then((res) => {
+          if (res.ok) {
+            get().fetchConversations();
+          }
+        })
+        .catch((err) => console.error('Error claiming conversation:', err));
+    }
+
     return { success: true };
   },
 
@@ -1237,6 +1367,24 @@ export const useStore = create<State & Actions>((set, get) => ({
     } else {
       // Transferred to general queue
       playNotificationSound();
+    }
+
+    if (!get().demo_mode_enabled) {
+      fetch(`/api/conversations/${conversationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assignedUserId: targetUserId || null,
+          departmentId: targetDeptId || null,
+          status: targetUserId ? 'open' : 'new'
+        })
+      })
+        .then((res) => {
+          if (res.ok) {
+            get().fetchConversations();
+          }
+        })
+        .catch((err) => console.error('Error transferring conversation:', err));
     }
   },
 
@@ -1345,6 +1493,22 @@ export const useStore = create<State & Actions>((set, get) => ({
       )
     }));
 
+    if (!get().demo_mode_enabled) {
+      fetch(`/api/conversations/${conversationId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'closed'
+        })
+      })
+        .then((res) => {
+          if (res.ok) {
+            get().fetchConversations();
+          }
+        })
+        .catch((err) => console.error('Error resolving conversation:', err));
+    }
+
     // Trigger NPS Survey mock reply
     setTimeout(() => {
       const npsMsg: Message = {
@@ -1376,18 +1540,59 @@ export const useStore = create<State & Actions>((set, get) => ({
   },
 
   // Contact CRM
-  updateContact: (contactId, updates) => set((state) => ({
-    contacts: state.contacts.map((c) => (c.id === contactId ? { ...c, ...updates } : c))
-  })),
+  updateContact: (contactId, updates) => {
+    set((state) => ({
+      contacts: state.contacts.map((c) => (c.id === contactId ? { ...c, ...updates } : c))
+    }));
+
+    if (get().demo_mode_enabled) return;
+
+    fetch(`/api/contacts/${contactId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates)
+    })
+      .then((res) => {
+        if (res.ok) {
+          get().fetchContacts();
+        }
+      })
+      .catch((err) => console.error('Error updating contact:', err));
+  },
 
   addContact: (contactData) => {
+    const tempId = `contact-${Date.now()}`;
     const newContact: Contact = {
       ...contactData,
-      id: `contact-${Date.now()}`,
+      id: tempId,
       firstContactAt: new Date().toISOString(),
       lastContactAt: new Date().toISOString()
     };
+    
     set((s) => ({ contacts: [...s.contacts, newContact] }));
+
+    if (get().demo_mode_enabled) {
+      return newContact;
+    }
+
+    fetch('/api/contacts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: contactData.name,
+        phone: contactData.phone,
+        email: contactData.email || undefined,
+        tags: contactData.tags || [],
+        notes: contactData.notes || undefined
+      })
+    })
+      .then((res) => {
+        if (res.ok) {
+          get().fetchContacts();
+        }
+      })
+      .catch((err) => console.error('Error creating contact:', err));
+
     return newContact;
   },
 

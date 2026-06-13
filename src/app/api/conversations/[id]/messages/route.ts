@@ -8,6 +8,7 @@ import { createMessageSchema, messageIdParamsSchema, conversationIdParamsSchema 
 import { validateParams, validateBody, handleValidationError } from '@/server/validators/validation.helper';
 import { AuditService } from '@/server/audit/audit.service';
 import { getRequestId } from '@/server/audit/request-id';
+import { WhatsAppMessageService } from '@/server/services/whatsapp/whatsapp-message.service';
 
 interface RouteParams {
   params: Promise<{
@@ -176,13 +177,53 @@ export async function POST(request: Request, { params }: RouteParams) {
       data: messageData,
     });
 
-    // Update conversation lastMessageAt
+    // Update conversation lastMessageAt and lastUserMessageAt
     await prisma.conversation.update({
       where: { id: conversationId },
       data: {
         lastMessageAt: new Date(),
+        ...(message.senderType === 'user' || message.senderType === 'automation' ? { lastUserMessageAt: new Date() } : {})
       },
     });
+
+    // If message is outbound (sent by user or chatbot), dispatch it via WhatsApp provider
+    if (message.senderType === 'user' || message.senderType === 'automation') {
+      const connectionId = conversation.channelId;
+      if (connectionId) {
+        const contact = await prisma.contact.findUnique({
+          where: { id: conversation.contactId }
+        });
+        if (contact) {
+          // Send WhatsApp message asynchronously in the background
+          WhatsAppMessageService.sendTextMessage(
+            tenantId,
+            connectionId,
+            contact.phone,
+            message.body
+          ).then(async (result) => {
+            if (result.status === 'sent' && result.messageId) {
+              await prisma.message.update({
+                where: { id: message.id },
+                data: {
+                  channelMessageId: result.messageId,
+                  status: 'sent'
+                }
+              });
+            } else {
+              await prisma.message.update({
+                where: { id: message.id },
+                data: {
+                  status: 'failed',
+                  errorText: result.errorText || 'Failed to send'
+                }
+              });
+            }
+          }).catch(err => {
+            console.error('[OutboundMessage] Promise execution failed:', err);
+          });
+        }
+      }
+    }
 
     // Log audit event
     await AuditService.log({
