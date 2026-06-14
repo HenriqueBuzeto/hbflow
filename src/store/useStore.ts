@@ -537,8 +537,12 @@ export const useStore = create<State & Actions>((set, get) => ({
   stages: initialStages,
   deals: [],
   tasks: [],
-  departments: [],
-  flows: [],
+  departments: typeof window !== 'undefined' && localStorage.getItem('hbflow-departments')
+    ? JSON.parse(localStorage.getItem('hbflow-departments')!)
+    : initialDepartments,
+  flows: typeof window !== 'undefined' && localStorage.getItem('hbflow-flows')
+    ? JSON.parse(localStorage.getItem('hbflow-flows')!)
+    : initialFlows,
   flowSessions: [],
   routingLogs: [],
   notifications: [],
@@ -1693,15 +1697,35 @@ export const useStore = create<State & Actions>((set, get) => ({
   },
 
   // Departments & Flows
-  addDepartment: (dept) => set((s) => ({ departments: [...s.departments, dept] })),
-  updateDepartment: (deptId, updates) => set((s) => ({
-    departments: s.departments.map(d => d.id === deptId ? { ...d, ...updates } : d)
-  })),
+  addDepartment: (dept) => {
+    const nextDepts = [...get().departments, dept];
+    set({ departments: nextDepts });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hbflow-departments', JSON.stringify(nextDepts));
+    }
+  },
+  updateDepartment: (deptId, updates) => {
+    const nextDepts = get().departments.map(d => d.id === deptId ? { ...d, ...updates } : d);
+    set({ departments: nextDepts });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hbflow-departments', JSON.stringify(nextDepts));
+    }
+  },
 
-  addFlow: (flow) => set((s) => ({ flows: [...s.flows, flow] })),
-  updateFlow: (flowId, updates) => set((s) => ({
-    flows: s.flows.map(f => f.id === flowId ? { ...f, ...updates } : f)
-  })),
+  addFlow: (flow) => {
+    const nextFlows = [...get().flows, flow];
+    set({ flows: nextFlows });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hbflow-flows', JSON.stringify(nextFlows));
+    }
+  },
+  updateFlow: (flowId, updates) => {
+    const nextFlows = get().flows.map(f => f.id === flowId ? { ...f, ...updates } : f);
+    set({ flows: nextFlows });
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hbflow-flows', JSON.stringify(nextFlows));
+    }
+  },
 
   triggerFlowSession: (conversationId, flowId) => {
     const state = get();
