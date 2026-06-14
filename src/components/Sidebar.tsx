@@ -34,7 +34,7 @@ export default function Sidebar() {
   const { users, currentUserId, conversations } = useStore();
 
   const currentUser = users.find((u) => u.id === currentUserId) || users[0] || { id: '', name: 'Usuário', email: '', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces', role: 'Atendente', presence: 'offline' };
-  const unreadCount = conversations.reduce((acc, c) => acc + (c.unreadCount > 0 ? 1 : 0), 0);
+  const unreadCount = conversations.reduce((acc, c) => acc + (c.status !== 'closed' && c.unreadCount > 0 ? 1 : 0), 0);
 
   const operationalMenu = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },

@@ -168,8 +168,25 @@ export default function InboxPage() {
       } else {
         setInputMode('private');
       }
+
+      // Clear unread count when selected/opened
+      if (activeConv.unreadCount > 0) {
+        useStore.setState((s) => ({
+          conversations: s.conversations.map((c) =>
+            c.id === activeConv.id ? { ...c, unreadCount: 0 } : c
+          )
+        }));
+
+        if (!demo_mode_enabled) {
+          fetch(`/api/conversations/${activeConv.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ unreadCount: 0 })
+          }).catch((err) => console.error('Error clearing unread count:', err));
+        }
+      }
     }
-  }, [selectedConvId, activeConv?.assignedUserId, currentUserId]);
+  }, [selectedConvId, activeConv?.id, activeConv?.unreadCount, activeConv?.assignedUserId, currentUserId, demo_mode_enabled]);
 
   // Actions
   const handleClaim = (convId: string) => {

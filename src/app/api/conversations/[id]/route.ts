@@ -253,6 +253,7 @@ export async function PUT(
             ...(validatedData.status && { status: validatedData.status }),
             ...(validatedData.priority && { priority: validatedData.priority }),
             ...(validatedData.subject !== undefined && { subject: validatedData.subject }),
+            ...(validatedData.unreadCount !== undefined && { unreadCount: validatedData.unreadCount }),
             version: { increment: 1 }, // Increment version on successful update
           },
         });

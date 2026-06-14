@@ -1484,6 +1484,7 @@ export const useStore = create<State & Actions>((set, get) => ({
           return {
             ...c,
             status: 'closed',
+            unreadCount: 0,
             aiSummary: aiSummaryText,
             assignedUserId: null, // clear assignment on closed
             messages: [...c.messages, sysMsg, aiMsg]

@@ -17,6 +17,7 @@ export const updateConversationSchema = z.object({
   status: z.string().optional(),
   priority: z.string().optional(),
   subject: z.string().optional(),
+  unreadCount: z.number().int().min(0).optional(),
 }).strict();
 
 export const listConversationsQuerySchema = z.object({
