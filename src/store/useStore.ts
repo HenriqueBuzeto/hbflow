@@ -644,6 +644,20 @@ export const useStore = create<State & Actions>((set, get) => ({
       const meData = await meRes.json();
       if (meRes.ok && meData.user?.id) {
         set({ currentUserId: meData.user.id });
+
+        // Map and populate active tenant info
+        if (meData.user.tenant) {
+          const tenantMapped: Tenant = {
+            id: meData.user.tenant.id,
+            name: meData.user.tenant.name,
+            slug: meData.user.tenant.slug,
+            plan: meData.user.tenant.plan || 'starter'
+          };
+          set({
+            tenants: [tenantMapped],
+            currentTenantId: tenantMapped.id
+          });
+        }
         
         // Expose logged-in user details to users array for standard operator safety
         const currentUserMapped: User = {

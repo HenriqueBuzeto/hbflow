@@ -30,8 +30,27 @@ export class SubscriptionAccessService {
       return { hasAccess: false, status: 'inactive', reason: 'inactive' };
     }
 
-    // 1. Verificar se existe uma cortesia/isenção manual ativa de acesso gratuito (free_access)
     const now = new Date();
+
+    // 0. Verificar se existe uma liberação por confiança (confidence grace period) ativa
+    const tenantSettings = await prisma.tenantSettings.findUnique({
+      where: { tenantId }
+    });
+    if (tenantSettings?.settingsJson) {
+      try {
+        const settings = JSON.parse(tenantSettings.settingsJson);
+        if (settings.confidenceActiveUntil) {
+          const confidenceUntil = new Date(settings.confidenceActiveUntil);
+          if (confidenceUntil >= now) {
+            return { hasAccess: true, status: 'confidence_grace', currentPeriodEnd: confidenceUntil };
+          }
+        }
+      } catch (e) {
+        console.error('Error parsing settingsJson for confidence check:', e);
+      }
+    }
+
+    // 1. Verificar se existe uma cortesia/isenção manual ativa de acesso gratuito (free_access)
     const activeFreeDiscounts = await prisma.tenantDiscount.findFirst({
       where: {
         tenantId,

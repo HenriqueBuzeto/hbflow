@@ -8,7 +8,7 @@ import Header from './Header';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { darkMode } = useStore();
+  const { darkMode, fetchUsers, demo_mode_enabled } = useStore();
 
   useEffect(() => {
     if (darkMode) {
@@ -19,6 +19,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, [darkMode]);
 
   const isPublicPage = pathname === '/' || pathname === '/login' || pathname.startsWith('/agentes');
+
+  useEffect(() => {
+    if (!isPublicPage && !demo_mode_enabled) {
+      fetchUsers().catch((err) => console.error('Error fetching user profile in layout:', err));
+    }
+  }, [isPublicPage, demo_mode_enabled, fetchUsers]);
 
   if (isPublicPage) {
     return <>{children}</>;
