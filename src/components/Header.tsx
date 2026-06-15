@@ -145,6 +145,7 @@ export default function Header() {
               </div>
             </div>
           )}
+        </div>
         {/* Support Link */}
         <a
           href="#"
