@@ -304,6 +304,7 @@ interface Actions {
   takeOverConversation: (conversationId: string, userId: string) => void;
   transferConversation: (conversationId: string, targetUserId: string | null, targetDeptId: string | null) => void;
   resolveConversation: (conversationId: string) => void;
+  runTriage: (conversationId: string) => void;
 
   // Contacts
   updateContact: (contactId: string, updates: Partial<Contact>) => void;
@@ -624,8 +625,15 @@ export const useStore = create<State & Actions>((set, get) => ({
           userCount: data.count || 0
         });
       }
+
+      // Fetch current logged-in user profile
+      const meRes = await fetch('/api/auth/me');
+      const meData = await meRes.json();
+      if (meRes.ok && meData.user?.id) {
+        set({ currentUserId: meData.user.id });
+      }
     } catch (err) {
-      console.error('Error fetching users in store:', err);
+      console.error('Error fetching users/me in store:', err);
     }
   },
   fetchContacts: async () => {
@@ -707,7 +715,7 @@ export const useStore = create<State & Actions>((set, get) => ({
   // Messaging & Claiming
   sendMessage: (conversationId, body, senderType) => {
     const state = get();
-    const currentUser = state.users.find(u => u.id === state.currentUserId);
+    const currentUser = state.users.find(u => u.id === state.currentUserId) || state.users[0];
     if (!currentUser) return;
 
     // Apply Signature
@@ -802,7 +810,7 @@ export const useStore = create<State & Actions>((set, get) => ({
 
   sendInternalNote: (conversationId, body) => {
     const state = get();
-    const currentUser = state.users.find(u => u.id === state.currentUserId);
+    const currentUser = state.users.find(u => u.id === state.currentUserId) || state.users[0];
     if (!currentUser) return;
 
     const newMessage: Message = {
@@ -832,7 +840,7 @@ export const useStore = create<State & Actions>((set, get) => ({
 
   sendWhisper: (conversationId, body) => {
     const state = get();
-    const currentUser = state.users.find(u => u.id === state.currentUserId);
+    const currentUser = state.users.find(u => u.id === state.currentUserId) || state.users[0];
     if (!currentUser) return;
 
     const newMessage: Message = {
@@ -1244,7 +1252,12 @@ export const useStore = create<State & Actions>((set, get) => ({
   claimConversation: (conversationId, userId) => {
     const state = get();
     const conv = state.conversations.find((c) => c.id === conversationId);
-    const userObj = state.users.find((u) => u.id === userId);
+    let userObj = state.users.find((u) => u.id === userId);
+
+    if (!userObj && state.users.length > 0) {
+      userObj = state.users[0];
+      userId = userObj.id;
+    }
 
     if (!conv || !userObj) {
       return { success: false, error: 'Dados inválidos' };
@@ -1725,6 +1738,153 @@ export const useStore = create<State & Actions>((set, get) => ({
     set({ flows: nextFlows });
     if (typeof window !== 'undefined') {
       localStorage.setItem('hbflow-flows', JSON.stringify(nextFlows));
+    }
+  },
+
+  runTriage: (conversationId) => {
+    const state = get();
+    const conv = state.conversations.find((c) => c.id === conversationId);
+    if (!conv || conv.assignedUserId !== null || conv.status !== 'new') return;
+
+    // Check if there is already an active flow session
+    const activeSession = state.flowSessions.find(
+      (fs) => fs.conversationId === conv.id && fs.status === 'active'
+    );
+    if (activeSession) return;
+
+    // Get the last message body from contact
+    const contactMessages = conv.messages.filter(m => m.senderType === 'contact');
+    if (contactMessages.length === 0) return;
+    const lastMsg = contactMessages[contactMessages.length - 1];
+    const body = lastMsg.body;
+    const bodyLower = body.toLowerCase().trim();
+
+    // 1. Intelligent Routing / Keyword Check
+    let matchedDeptId: string | null = null;
+    let matchedReason = 'Entrada geral';
+
+    // Key phrase sets
+    const salesKeywords = ['preço', 'orçamento', 'comprar', 'produto', 'promoção', 'vendedor', '1'];
+    const financeKeywords = ['boleto', 'pagamento', 'dívida', 'cobrança', 'pix', '2'];
+    const maintenanceKeywords = ['quebrou', 'defeito', 'arrumar', 'manutenção', 'garantia', '3'];
+
+    let predictedIntent = 'Atendimento Geral';
+    let confidence = 75;
+    if (salesKeywords.some((k) => bodyLower.includes(k))) {
+      matchedDeptId = 'dept-vendas';
+      matchedReason = 'Palavra-chave comercial ("' + salesKeywords.find(k => bodyLower.includes(k)) + '")';
+      predictedIntent = 'Setor de Vendas';
+      confidence = 94 + Math.floor(Math.random() * 5);
+    } else if (financeKeywords.some((k) => bodyLower.includes(k))) {
+      matchedDeptId = 'dept-financeiro';
+      matchedReason = 'Palavra-chave financeira ("' + financeKeywords.find(k => bodyLower.includes(k)) + '")';
+      predictedIntent = 'Setor Financeiro';
+      confidence = 91 + Math.floor(Math.random() * 6);
+    } else if (maintenanceKeywords.some((k) => bodyLower.includes(k))) {
+      matchedDeptId = 'dept-manutencao';
+      matchedReason = 'Palavra-chave manutenção ("' + maintenanceKeywords.find(k => bodyLower.includes(k)) + '")';
+      predictedIntent = 'Setor de Manutenção';
+      confidence = 95 + Math.floor(Math.random() * 4);
+    }
+
+    if (matchedDeptId) {
+      const dept = state.departments.find((d) => d.id === matchedDeptId);
+      const contact = state.contacts.find(ct => ct.id === conv.contactId);
+      const logEntry: RoutingLog = {
+        id: `log-${Date.now()}`,
+        conversationId: conv.id,
+        contactName: contact?.name || 'Cliente',
+        departmentName: dept?.name || null,
+        assignedUserName: null,
+        routingReason: `${matchedReason} | IA Intent: ${predictedIntent} (${confidence}% de confiança)`,
+        createdAt: new Date().toISOString()
+      };
+
+      set((s) => ({
+        routingLogs: [logEntry, ...s.routingLogs],
+        conversations: s.conversations.map((c) => {
+          if (c.id === conv.id) {
+            const systemMsg: Message = {
+              id: `m-sys-${Date.now()}`,
+              conversationId: c.id,
+              senderType: 'system',
+              senderName: 'Roteamento Inteligente',
+              body: `Conversa direcionada ao setor ${dept?.name} por: ${matchedReason}`,
+              type: 'text',
+              isRead: true,
+              createdAt: new Date().toISOString()
+            };
+            return {
+              ...c,
+              departmentId: matchedDeptId,
+              messages: [...c.messages, systemMsg]
+            };
+          }
+          return c;
+        })
+      }));
+
+      // Apply default department tag
+      if (contact) {
+        get().updateContact(contact.id, {
+          tags: Array.from(new Set([...contact.tags, dept!.name.toLowerCase()]))
+        });
+      }
+
+      // Automated assignment logic
+      if (dept && dept.distributionMode !== 'manual') {
+        const onlineUsers = state.users.filter(u => u.presence === 'online' && u.filters.includes(dept.name.toLowerCase()));
+        if (onlineUsers.length > 0) {
+          let assignedUser: User | null = null;
+          if (dept.distributionMode === 'workload') {
+            assignedUser = onlineUsers.reduce((prev, current) => (prev.workload < current.workload) ? prev : current);
+          } else {
+            assignedUser = onlineUsers[Math.floor(Math.random() * onlineUsers.length)];
+          }
+
+          if (assignedUser) {
+            set((s) => ({
+              conversations: s.conversations.map(c => {
+                if (c.id === conv.id) {
+                  return {
+                    ...c,
+                    assignedUserId: assignedUser!.id,
+                    status: 'open'
+                  };
+                }
+                return c;
+              }),
+              users: s.users.map(u => u.id === assignedUser!.id ? { ...u, workload: u.workload + 1 } : u)
+            }));
+
+            // Sync assignment to DB in production
+            if (!get().demo_mode_enabled) {
+              fetch(`/api/conversations/${conv.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ assignedUserId: assignedUser.id, status: 'open', departmentId: matchedDeptId })
+              }).catch((err) => console.error('Error assigning in triage:', err));
+            }
+
+            setTimeout(() => {
+              const welcomeMsg = dept.greetingMessage || `Olá, aqui é o ${assignedUser?.name}. Como posso ajudar?`;
+              get().sendMessage(conv.id, welcomeMsg, 'automation');
+            }, 1000);
+          }
+        }
+      } else {
+        // Sync department routing to DB in production
+        if (!get().demo_mode_enabled) {
+          fetch(`/api/conversations/${conv.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ departmentId: matchedDeptId })
+          }).catch((err) => console.error('Error routing to department in triage:', err));
+        }
+      }
+    } else {
+      // Trigger Welcome Flow
+      get().triggerFlowSession(conv.id, 'flow-welcome');
     }
   },
 
