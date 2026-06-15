@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useStore } from '@/store/useStore';
-import { Bell, HelpCircle, Check, Building2, Sun, Moon, ChevronDown, LogOut } from 'lucide-react';
+import { Bell, HelpCircle, Check, Building2, ChevronDown, LogOut } from 'lucide-react';
 
 export default function Header() {
   const router = useRouter();
@@ -145,17 +145,6 @@ export default function Header() {
               </div>
             </div>
           )}
-        </div>
-
-        {/* Theme Toggle Button */}
-        <button
-          onClick={toggleDarkMode}
-          className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 transition-colors cursor-pointer"
-          title={darkMode ? "Ativar Modo Claro" : "Ativar Modo Escuro"}
-        >
-          {darkMode ? <Sun size={18} className="text-amber-500" /> : <Moon size={18} />}
-        </button>
-
         {/* Support Link */}
         <a
           href="#"

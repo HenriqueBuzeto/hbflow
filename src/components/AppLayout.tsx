@@ -11,12 +11,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { darkMode, fetchUsers, demo_mode_enabled } = useStore();
 
   useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [darkMode]);
+    document.documentElement.classList.remove('dark');
+  }, []);
 
   const isPublicPage =
     pathname === '/' ||
@@ -46,7 +42,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <Header />
 
         {/* Dynamic page content */}
-        <main className="flex-1 overflow-y-auto p-6 bg-[#F8FAFC] dark:bg-slate-950">
+        <main className="flex-1 overflow-y-auto p-6 bg-[#F8FAFC]">
           {children}
         </main>
       </div>
