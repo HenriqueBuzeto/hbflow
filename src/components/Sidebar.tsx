@@ -25,7 +25,8 @@ import {
   ChevronRight,
   User,
   ShieldAlert,
-  Bot
+  Bot,
+  CreditCard
 } from 'lucide-react';
 
 export default function Sidebar() {
@@ -58,7 +59,8 @@ export default function Sidebar() {
     { name: 'Agentes IA', href: '/dashboard/agentes', icon: Bot },
     { name: 'Conexões', href: '/conexao', icon: Link2 },
     { name: 'Configurações', href: '/configuracoes', icon: Settings },
-    { name: 'Empresas', href: '/empresas', icon: Building2 }
+    { name: 'Empresas', href: '/empresas', icon: Building2 },
+    { name: 'Financeiro', href: '/financeiro', icon: CreditCard }
   ];
 
   const renderLink = (item: typeof operationalMenu[0]) => {

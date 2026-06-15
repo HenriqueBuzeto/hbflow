@@ -270,9 +270,17 @@ export default function BillingPage() {
           <span className="text-slate-500 text-sm font-semibold">|</span>
           <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Planos e Assinatura</span>
         </div>
-        <div className="text-right">
-          <span className="text-[10px] uppercase font-bold text-slate-500 tracking-widest block">Empresa</span>
-          <span className="text-xs font-bold text-white block">{currentTenant.name}</span>
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <span className="text-[10px] uppercase font-bold text-slate-500 tracking-widest block">Empresa</span>
+            <span className="text-xs font-bold text-white block">{currentTenant.name}</span>
+          </div>
+          <button
+            onClick={() => router.push('/financeiro')}
+            className="text-xs font-bold text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700/40 px-4 py-2 rounded-xl transition-all cursor-pointer shadow-sm"
+          >
+            Voltar ao Painel
+          </button>
         </div>
       </header>
 

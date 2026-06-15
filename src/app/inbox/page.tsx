@@ -657,17 +657,6 @@ export default function InboxPage() {
                         <span>Ativo: {getElapsedTime(c.claimedAt)}</span>
                       </span>
                     )}
-                    {c.aiLeadScore !== undefined && (
-                      <span className={`text-[8.5px] font-extrabold px-1.5 py-0.5 rounded border ${
-                        c.aiLeadLabel === 'quente'
-                          ? 'bg-rose-50 text-rose-600 border-rose-100'
-                          : c.aiLeadLabel === 'morno'
-                          ? 'bg-amber-50 text-amber-600 border-amber-100'
-                          : 'bg-slate-50 text-slate-500 border-slate-200'
-                      }`}>
-                        Score: {c.aiLeadScore}% {c.aiLeadLabel === 'quente' ? '🔥' : c.aiLeadLabel === 'morno' ? '⏳' : '❄️'}
-                      </span>
-                    )}
                   </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-1.5 mt-1">

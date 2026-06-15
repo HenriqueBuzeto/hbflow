@@ -287,6 +287,9 @@ interface State {
   userPlan: string;
   userLimit: number;
   userCount: number;
+  invoices: any[];
+  isBlocked: boolean;
+  subscriptionStatus: string;
 }
 
 interface Actions {
@@ -355,6 +358,8 @@ interface Actions {
   fetchContacts: () => Promise<void>;
   fetchConversations: () => Promise<void>;
   syncDatabaseState: () => Promise<void>;
+  fetchInvoices: () => Promise<void>;
+  triggerConfidencePayment: () => Promise<{ success: boolean; message?: string; error?: string }>;
 }
 
 // Zod schemas for validation
@@ -567,6 +572,9 @@ export const useStore = create<State & Actions>((set, get) => ({
   userPlan: 'starter',
   userLimit: 3,
   userCount: 0,
+  invoices: [],
+  isBlocked: false,
+  subscriptionStatus: 'active',
 
   // Setters
   toggleDarkMode: () => {
@@ -643,7 +651,11 @@ export const useStore = create<State & Actions>((set, get) => ({
       const meRes = await fetch('/api/auth/me');
       const meData = await meRes.json();
       if (meRes.ok && meData.user?.id) {
-        set({ currentUserId: meData.user.id });
+        set({ 
+          currentUserId: meData.user.id,
+          isBlocked: meData.isBlocked || false,
+          subscriptionStatus: meData.user.tenant?.status || 'active'
+        });
 
         // Map and populate active tenant info
         if (meData.user.tenant) {
@@ -795,6 +807,42 @@ export const useStore = create<State & Actions>((set, get) => ({
   syncDatabaseState: async () => {
     await get().fetchContacts();
     await get().fetchConversations();
+  },
+  fetchInvoices: async () => {
+    if (get().demo_mode_enabled) return;
+    try {
+      const res = await fetch('/api/v1/billing/invoices');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          set({ invoices: data.invoices || [] });
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching invoices in store:', err);
+    }
+  },
+  triggerConfidencePayment: async () => {
+    if (get().demo_mode_enabled) {
+      return { success: false, error: 'A liberação por confiança não está disponível no modo Demo.' };
+    }
+    try {
+      const res = await fetch('/api/v1/billing/subscription/confidence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        // Refresh user profile/status and invoices immediately
+        await get().fetchUsers();
+        await get().fetchInvoices();
+        return { success: true, message: data.message };
+      }
+      return { success: false, error: data.error || 'Erro ao processar liberação por confiança.' };
+    } catch (err: any) {
+      console.error('Error triggering confidence payment:', err);
+      return { success: false, error: err.message || 'Falha de conexão com o servidor.' };
+    }
   },
 
   // Messaging & Claiming

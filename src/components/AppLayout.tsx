@@ -18,7 +18,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [darkMode]);
 
-  const isPublicPage = pathname === '/' || pathname === '/login' || pathname.startsWith('/agentes');
+  const isPublicPage =
+    pathname === '/' ||
+    pathname === '/login' ||
+    pathname.startsWith('/agentes') ||
+    pathname === '/billing' ||
+    pathname === '/renovar';
 
   useEffect(() => {
     if (!isPublicPage && !demo_mode_enabled) {
