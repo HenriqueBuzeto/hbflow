@@ -631,6 +631,33 @@ export const useStore = create<State & Actions>((set, get) => ({
       const meData = await meRes.json();
       if (meRes.ok && meData.user?.id) {
         set({ currentUserId: meData.user.id });
+        
+        // Expose logged-in user details to users array for standard operator safety
+        const currentUserMapped: User = {
+          id: meData.user.id,
+          name: meData.user.name,
+          email: meData.user.email,
+          avatarUrl: meData.user.avatarUrl || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces',
+          role: meData.user.role?.name || 'Atendente',
+          signature: meData.user.signature || '',
+          sigPosition: meData.user.sigPosition as 'start' | 'end' | 'disabled',
+          filters: meData.user.userDepartments ? meData.user.userDepartments.map((ud: any) => ud.department?.name?.toLowerCase() || '').filter(Boolean) : [],
+          isOnline: meData.user.isOnline ?? true,
+          presence: 'online',
+          workload: meData.user.workload ?? 0
+        };
+
+        set((s) => {
+          const exists = s.users.some(u => u.id === currentUserMapped.id);
+          if (!exists) {
+            return { users: [...s.users, currentUserMapped] };
+          } else {
+            // Update it to keep info fresh (e.g. workload, filters)
+            return {
+              users: s.users.map(u => u.id === currentUserMapped.id ? { ...u, ...currentUserMapped, presence: u.presence } : u)
+            };
+          }
+        });
       }
     } catch (err) {
       console.error('Error fetching users/me in store:', err);
@@ -701,6 +728,37 @@ export const useStore = create<State & Actions>((set, get) => ({
             status: m.status || 'delivered'
           })) : []
         }));
+
+        const prevConversations = get().conversations;
+        let playSound = false;
+
+        for (const c of mappedConversations) {
+          const oldC = prevConversations.find(pc => pc.id === c.id);
+          const isUnassigned = c.assignedUserId === null && c.status !== 'closed';
+
+          if (isUnassigned) {
+            const isNewConv = !oldC;
+            const hasNewMessages = oldC
+              ? (c.unreadCount > oldC.unreadCount || c.messages.length > oldC.messages.length)
+              : (c.unreadCount > 0 || c.messages.length > 0);
+
+            if (isNewConv || hasNewMessages) {
+              playSound = true;
+            }
+
+            const hasTriageRun = c.messages.some((m: any) => m.senderType === 'automation' || m.senderType === 'system');
+            if (c.status === 'new' && !hasTriageRun) {
+              setTimeout(() => {
+                get().runTriage(c.id);
+              }, 50);
+            }
+          }
+        }
+
+        if (playSound) {
+          playNotificationSound();
+        }
+
         set({ conversations: mappedConversations });
       }
     } catch (err) {
@@ -1159,22 +1217,8 @@ export const useStore = create<State & Actions>((set, get) => ({
     setTimeout(() => {
       const state = get();
       if (node.type === 'message') {
-        const msg: Message = {
-          id: `m-flow-${Date.now()}`,
-          conversationId,
-          senderType: 'automation',
-          senderName: 'Atendente HBFlow',
-          body: node.config.messageText || '',
-          type: 'text',
-          isRead: true,
-          createdAt: new Date().toISOString()
-        };
-
-        set((s) => ({
-          conversations: s.conversations.map(c =>
-            c.id === conversationId ? { ...c, messages: [...c.messages, msg] } : c
-          )
-        }));
+        const text = node.config.messageText || '';
+        get().sendMessage(conversationId, text, 'automation');
 
         // Move to the next node if it exists
         const edge = flow.edges.find(e => e.sourceNodeId === node.id);
@@ -1190,21 +1234,8 @@ export const useStore = create<State & Actions>((set, get) => ({
           }
         }
       } else if (node.type === 'question') {
-        const msg: Message = {
-          id: `m-flow-${Date.now()}`,
-          conversationId,
-          senderType: 'automation',
-          senderName: 'Atendente HBFlow',
-          body: node.config.messageText || 'Por favor escolha uma das opções:',
-          type: 'text',
-          isRead: true,
-          createdAt: new Date().toISOString()
-        };
-        set((s) => ({
-          conversations: s.conversations.map(c =>
-            c.id === conversationId ? { ...c, messages: [...c.messages, msg] } : c
-          )
-        }));
+        const text = node.config.messageText || 'Por favor escolha uma das opções:';
+        get().sendMessage(conversationId, text, 'automation');
       } else if (node.type === 'route_department') {
         const deptId = node.config.departmentId;
         const dept = state.departments.find(d => d.id === deptId);
@@ -1259,8 +1290,28 @@ export const useStore = create<State & Actions>((set, get) => ({
       userId = userObj.id;
     }
 
-    if (!conv || !userObj) {
-      return { success: false, error: 'Dados inválidos' };
+    if (!conv) {
+      return { success: false, error: 'Conversa não encontrada no sistema' };
+    }
+
+    if (!userObj) {
+      if (userId && userId === state.currentUserId) {
+        userObj = {
+          id: userId,
+          name: 'Atendente',
+          email: '',
+          avatarUrl: '',
+          role: 'Atendente',
+          signature: '',
+          sigPosition: 'disabled',
+          filters: [],
+          isOnline: true,
+          presence: 'online',
+          workload: 0
+        };
+      } else {
+        return { success: false, error: 'Dados do atendente não carregados' };
+      }
     }
 
     // CONCURRENT TRANSACTION LOCK SIMULATION
@@ -1745,6 +1796,12 @@ export const useStore = create<State & Actions>((set, get) => ({
     const state = get();
     const conv = state.conversations.find((c) => c.id === conversationId);
     if (!conv || conv.assignedUserId !== null || conv.status !== 'new') return;
+
+    // Deduplicate: If there are already automation or system messages, do not trigger triage again.
+    const hasTriageRun = conv.messages.some(
+      (m) => m.senderType === 'automation' || m.senderType === 'system'
+    );
+    if (hasTriageRun) return;
 
     // Check if there is already an active flow session
     const activeSession = state.flowSessions.find(

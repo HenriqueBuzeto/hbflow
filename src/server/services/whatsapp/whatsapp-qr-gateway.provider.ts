@@ -34,12 +34,10 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
         },
         body: JSON.stringify({
           number: cleanPhone,
+          text: body,
           options: {
             delay: 1200,
             presence: 'composing'
-          },
-          textMessage: {
-            text: body
           }
         })
       });

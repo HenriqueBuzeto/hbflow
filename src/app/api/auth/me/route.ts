@@ -13,7 +13,10 @@ export async function GET() {
       where: { id: user.userId },
       include: {
         tenant: true,
-        role: true
+        role: true,
+        userDepartments: {
+          include: { department: true }
+        }
       },
     });
 
