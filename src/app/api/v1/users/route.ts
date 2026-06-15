@@ -121,6 +121,7 @@ export async function GET(request: NextRequest) {
       where: { tenantId, deletedAt: null },
       include: {
         role: true,
+        presence: true,
         userDepartments: {
           include: { department: true }
         }
@@ -137,20 +138,33 @@ export async function GET(request: NextRequest) {
 
     const activeUserCount = users.filter(u => u.isActive).length;
 
-    // 4. Map DB users to Frontend User schema structure
-    const serializedUsers = users.map((u) => ({
-      id: u.id,
-      name: u.name,
-      email: u.email,
-      avatarUrl: u.avatarUrl || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces',
-      role: u.role?.name || 'Atendente',
-      signature: u.signature || '',
-      sigPosition: u.sigPosition as 'start' | 'end' | 'disabled',
-      filters: u.userDepartments.map(ud => ud.department?.name?.toLowerCase() || '').filter(Boolean),
-      isOnline: u.isOnline,
-      presence: 'online',
-      workload: u.workload
-    }));
+    // 4. Map DB users to Frontend User schema structure with real-time calculated workload
+    const serializedUsers = await Promise.all(
+      users.map(async (u) => {
+        const workloadCount = await prisma.conversation.count({
+          where: {
+            tenantId,
+            assignedUserId: u.id,
+            status: 'open',
+            deletedAt: null
+          }
+        });
+
+        return {
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          avatarUrl: u.avatarUrl || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces',
+          role: u.role?.name || 'Atendente',
+          signature: u.signature || '',
+          sigPosition: u.sigPosition as 'start' | 'end' | 'disabled',
+          filters: u.userDepartments.map(ud => ud.department?.name?.toLowerCase() || '').filter(Boolean),
+          isOnline: u.isOnline,
+          presence: u.presence?.presence || 'offline',
+          workload: workloadCount
+        };
+      })
+    );
 
     return NextResponse.json({
       success: true,

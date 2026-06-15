@@ -44,8 +44,27 @@ export async function GET() {
     // Obter permissões usando o PermissionService
     const permissions = await PermissionService.getUserPermissions(user.userId);
 
-    // Remover senha hash da resposta
-    const { passwordHash, ...userWithoutPassword } = fullUser;
+    // Obter workload de conversas ativas em tempo real
+    const workloadCount = await prisma.conversation.count({
+      where: {
+        tenantId: fullUser.tenantId,
+        assignedUserId: fullUser.id,
+        status: 'open',
+        deletedAt: null
+      }
+    });
+
+    // Obter presença em tempo real
+    const userPresence = await prisma.userPresence.findUnique({
+      where: { userId: fullUser.id }
+    });
+
+    // Remover senha hash da resposta e injetar valores calculados em tempo real
+    const { passwordHash, ...userWithoutPassword } = {
+      ...fullUser,
+      workload: workloadCount,
+      presence: userPresence?.presence || 'offline'
+    };
 
     return NextResponse.json({
       user: userWithoutPassword,

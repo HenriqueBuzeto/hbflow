@@ -1,28 +1,33 @@
-import { prisma } from './prisma';
+import { AsyncLocalStorage } from 'async_hooks';
+
+// Armazenamento assíncrono isolado por ciclo de vida da requisição (Thread-Local Storage no Node.js)
+const tenantLocalStorage = new AsyncLocalStorage<string>();
 
 export class TenantContext {
-  private static currentTenantId: string | null = null;
+  // Mantido para compatibilidade estática básica (ex: scripts stand-alone), mas o local storage tem precedência
+  private static fallbackTenantId: string | null = null;
 
   static setTenant(tenantId: string): void {
-    this.currentTenantId = tenantId;
+    this.fallbackTenantId = tenantId;
   }
 
   static getTenant(): string | null {
-    return this.currentTenantId;
+    const activeStore = tenantLocalStorage.getStore();
+    if (activeStore) {
+      return activeStore;
+    }
+    return this.fallbackTenantId;
   }
 
   static clearTenant(): void {
-    this.currentTenantId = null;
+    this.fallbackTenantId = null;
   }
 
+  /**
+   * Executa uma função assíncrona injetando o tenantId no escopo isolado da requisição atual.
+   */
   static async withTenant<T>(tenantId: string, callback: () => Promise<T>): Promise<T> {
-    const previousTenant = this.currentTenantId;
-    this.currentTenantId = tenantId;
-    try {
-      return await callback();
-    } finally {
-      this.currentTenantId = previousTenant;
-    }
+    return tenantLocalStorage.run(tenantId, callback);
   }
 }
 

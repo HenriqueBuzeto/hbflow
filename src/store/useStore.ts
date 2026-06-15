@@ -765,7 +765,7 @@ export const useStore = create<State & Actions>((set, get) => ({
           phone: meData.user.phone || '',
           filters: meData.user.userDepartments ? meData.user.userDepartments.map((ud: any) => ud.department?.name?.toLowerCase() || '').filter(Boolean) : [],
           isOnline: meData.user.isOnline ?? true,
-          presence: 'online',
+          presence: meData.user.presence || 'online',
           workload: meData.user.workload ?? 0
         };
 

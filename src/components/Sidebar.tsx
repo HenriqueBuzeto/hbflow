@@ -27,14 +27,16 @@ import {
   ShieldAlert,
   Bot,
   CreditCard,
-  ShieldCheck
+  ShieldCheck,
+  Route
 } from 'lucide-react';
 
 
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
-  const { users, currentUserId, conversations } = useStore();
+  const { users, currentUserId, conversations, userPlan } = useStore();
+  const hasAfterSales = userPlan ? userPlan.toLowerCase() !== 'starter' : false;
 
   const currentUser = users.find((u) => u.id === currentUserId) || users[0] || { id: '', name: 'Usuário', email: '', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces', role: 'Atendente', presence: 'offline' };
   const unreadCount = conversations.reduce((acc, c) => acc + (c.status !== 'closed' && c.unreadCount > 0 ? 1 : 0), 0);
@@ -54,6 +56,7 @@ export default function Sidebar() {
 
   const adminMenu = [
     { name: 'Campanhas', href: '/campanhas', icon: Megaphone },
+    ...(hasAfterSales ? [{ name: 'Pós-Venda', href: '/after-sales', icon: Route }] : []),
     { name: 'Informativos', href: '/informativos', icon: Info },
     { name: 'API', href: '/api-keys', icon: Code },
     { name: 'Usuários', href: '/usuarios', icon: UserCheck },

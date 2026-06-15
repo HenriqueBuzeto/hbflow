@@ -71,6 +71,10 @@ model Tenant {
   payments             Payment[]
   pixCharges           PixCharge[]
   tenantDiscounts      TenantDiscount[]
+  journeys             Journey[]
+  contactJourneys      ContactJourney[]
+  scheduledMessages    ScheduledMessage[]
+  journeyEventLogs     JourneyEventLog[]
 }
 
 model TenantSettings {
@@ -423,6 +427,7 @@ model Contact {
   score                     Int                        @default(0)
   totalPurchased            Float                      @default(0.0)
   responsibleUserId         String?
+  marketingOptOut           Boolean                    @default(false)
   firstInteractionAt        DateTime                   @default(now())
   lastInteractionAt         DateTime                   @default(now())
   createdAt                 DateTime                   @default(now())
@@ -443,6 +448,8 @@ model Contact {
   deals                     Deal[]
   flowSessions              FlowSession[]
   tasks                     Task[]
+  contactJourneys           ContactJourney[]
+  scheduledMessages         ScheduledMessage[]
 
   @@unique([tenantId, normalizedPhone])
   @@index([tenantId, name])
@@ -1525,6 +1532,23 @@ model ScheduledMessage {
   errorMessage   String?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  // Campos para Jornadas de Pós-Venda
+  journeyId        String?
+  stepId           String?
+  contactJourneyId String?
+
+  // Relacionamentos
+  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact        Contact?          @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  journey        Journey?          @relation(fields: [journeyId], references: [id], onDelete: SetNull)
+  step           JourneyStep?      @relation(fields: [stepId], references: [id], onDelete: SetNull)
+  contactJourney ContactJourney?   @relation(fields: [contactJourneyId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([status, scheduledAt])
 }
 
 model CampaignLog {
@@ -1864,4 +1888,80 @@ model PixCharge {
 
   @@index([tenantId])
   @@index([invoiceId])
+}
+
+model Journey {
+  id               String            @id @default(uuid())
+  tenantId         String
+  name             String
+  description      String?
+  trigger          String            // manual, tag_added, deal_won, sale_completed, conversation_closed, task_completed, custom
+  triggerConfig    String?           // JSON
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  deletedAt        DateTime?
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  steps            JourneyStep[]
+  contactJourneys  ContactJourney[]
+  scheduledMessages ScheduledMessage[]
+  journeyEventLogs JourneyEventLog[]
+
+  @@index([tenantId])
+}
+
+model JourneyStep {
+  id               String            @id @default(uuid())
+  journeyId        String
+  name             String
+  delayValue       Int
+  delayUnit        String            // minutes, hours, days, weeks, months, years
+  message          String
+  channel          String            @default("whatsapp")
+  isActive         Boolean           @default(true)
+  order            Int
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  deletedAt        DateTime?
+  journey          Journey           @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  scheduledMessages ScheduledMessage[]
+
+  @@index([journeyId])
+}
+
+model ContactJourney {
+  id               String            @id @default(uuid())
+  tenantId         String
+  contactId        String
+  journeyId        String
+  status           String            @default("active") // active, completed, cancelled
+  currentStepId    String?
+  startedAt        DateTime          @default(now())
+  completedAt      DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  deletedAt        DateTime?
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contact          Contact           @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  journey          Journey           @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+  scheduledMessages ScheduledMessage[]
+
+  @@index([tenantId])
+  @@index([contactId])
+  @@index([journeyId])
+}
+
+model JourneyEventLog {
+  id               String            @id @default(uuid())
+  tenantId         String
+  journeyId        String
+  contactId        String?
+  action           String            // journey.started, journey.completed, etc.
+  metadata         String?           // JSON
+  createdAt        DateTime          @default(now())
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  journey          Journey           @relation(fields: [journeyId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([journeyId])
 }

@@ -272,6 +272,8 @@ export class WhatsAppMessageService {
 
       let processedCount = 0;
       for (const payload of payloads) {
+        let contactId: string | null = null;
+
         // Enforce Transaction to map Contact + Conversation + Message
         await prisma.$transaction(async (tx) => {
           const normalizedPhone = payload.senderPhone.replace(/\D/g, '');
@@ -293,6 +295,8 @@ export class WhatsAppMessageService {
               }
             });
           }
+
+          contactId = contact.id;
 
           // 5.2 Encontrar ou criar conversa ativa
           let conversation = await tx.conversation.findFirst({
@@ -374,6 +378,20 @@ export class WhatsAppMessageService {
 
           processedCount++;
         });
+
+        // Opt-Out checking for incoming text messages from contacts
+        if (!payload.fromMe && payload.body && contactId) {
+          try {
+            const { OptOutHandler } = await import('./optout-handler');
+            await OptOutHandler.handleIncomingMessage(
+              connection.tenantId,
+              contactId,
+              payload.body
+            );
+          } catch (optErr) {
+            console.error('Error in OptOutHandler checking:', optErr);
+          }
+        }
       }
 
       // 6. Registrar logs
