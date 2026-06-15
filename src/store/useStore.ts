@@ -105,6 +105,8 @@ export interface Message {
   body: string;
   type: 'text' | 'image' | 'audio' | 'video' | 'document' | 'location' | 'template';
   mediaUrl?: string;
+  mimeType?: string;
+  fileName?: string;
   signatureUsed?: string;
   isRead: boolean;
   createdAt: string;
@@ -296,7 +298,17 @@ interface Actions {
   updateWhatsappConnection: (config: Partial<WhatsappConnection>) => void;
 
   // Messaging & Claiming
-  sendMessage: (conversationId: string, body: string, senderType: 'user' | 'system' | 'automation') => void;
+  sendMessage: (
+    conversationId: string,
+    body: string,
+    senderType: 'user' | 'system' | 'automation',
+    media?: {
+      mediaUrl: string;
+      mimeType: string;
+      type: string;
+      fileName?: string;
+    }
+  ) => void;
   sendInternalNote: (conversationId: string, body: string) => void;
   sendWhisper: (conversationId: string, body: string) => void;
   receiveCustomerMessage: (phone: string, name: string, body: string) => void;
@@ -338,6 +350,7 @@ interface Actions {
   runAgentManually: (agentId: string, input: any) => Promise<any>;
   triggerAgentOrchestrator: (trigger: AgentTrigger, input: any, conversationId?: string, contactId?: string, dealId?: string) => Promise<void>;
   setDemoModeEnabled: (enabled: boolean) => void;
+  updateMessageBody: (conversationId: string, messageId: string, body: string) => void;
   fetchUsers: () => Promise<void>;
   fetchContacts: () => Promise<void>;
   fetchConversations: () => Promise<void>;
@@ -771,7 +784,7 @@ export const useStore = create<State & Actions>((set, get) => ({
   },
 
   // Messaging & Claiming
-  sendMessage: (conversationId, body, senderType) => {
+  sendMessage: (conversationId, body, senderType, media) => {
     const state = get();
     const currentUser = state.users.find(u => u.id === state.currentUserId) || state.users[0];
     if (!currentUser) return;
@@ -794,7 +807,10 @@ export const useStore = create<State & Actions>((set, get) => ({
       senderType,
       senderName: senderType === 'user' ? (currentUser?.name || 'Atendente') : 'Sistema',
       body: finalBody,
-      type: 'text',
+      type: media ? (media.type as any) : 'text',
+      mediaUrl: media?.mediaUrl,
+      mimeType: media?.mimeType,
+      fileName: media?.fileName,
       signatureUsed: signatureUsed || undefined,
       isRead: true,
       createdAt: new Date().toISOString(),
@@ -844,7 +860,10 @@ export const useStore = create<State & Actions>((set, get) => ({
         senderType,
         senderName: senderType === 'user' ? (currentUser?.name || 'Atendente') : 'Sistema',
         body: finalBody,
-        type: 'text',
+        type: media ? media.type : 'text',
+        mediaUrl: media?.mediaUrl,
+        mimeType: media?.mimeType,
+        fileName: media?.fileName,
         signatureUsed: signatureUsed || undefined,
         status: 'sent'
       })
@@ -864,6 +883,22 @@ export const useStore = create<State & Actions>((set, get) => ({
         conversationId
       );
     }, 200);
+  },
+
+  updateMessageBody: (conversationId, messageId, body) => {
+    set((state) => ({
+      conversations: state.conversations.map((c) => {
+        if (c.id === conversationId) {
+          return {
+            ...c,
+            messages: c.messages.map((m) =>
+              m.id === messageId ? { ...m, body } : m
+            )
+          };
+        }
+        return c;
+      })
+    }));
   },
 
   sendInternalNote: (conversationId, body) => {

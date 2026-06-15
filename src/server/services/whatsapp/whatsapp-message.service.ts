@@ -87,6 +87,108 @@ export class WhatsAppMessageService {
   }
 
   /**
+   * Envia uma mensagem de mídia de saída, passando pelo provedor ativo da conexão do tenant.
+   */
+  static async sendMediaMessage(
+    tenantId: string,
+    connectionId: string,
+    toPhone: string,
+    mediaUrl: string,
+    mimeType: string,
+    mediaType: string,
+    fileName: string,
+    caption: string
+  ): Promise<SendMessageResult> {
+    const startTime = Date.now();
+    let errorMsg: string | undefined;
+    let statusCode = 200;
+    let success = false;
+    let messageId = '';
+
+    // 1. Localizar a conexão do WhatsApp
+    const connection = await prisma.whatsappConnection.findFirst({
+      where: { id: connectionId, tenantId, deletedAt: null }
+    });
+
+    if (!connection) {
+      throw new Error('Conexão de WhatsApp não encontrada para este inquilino.');
+    }
+
+    try {
+      // 2. Resolver o provider ativo
+      const provider = await WhatsAppProviderFactory.getProvider(connection.provider, tenantId);
+
+      // 3. Enviar mídia pelo provider se ele suportar
+      let result: SendMessageResult;
+      if (provider.sendMedia) {
+        result = await provider.sendMedia(
+          toPhone,
+          mediaUrl,
+          mimeType,
+          mediaType,
+          fileName,
+          caption,
+          connection
+        );
+      } else {
+        // Fallback para envio de texto contendo menção à mídia
+        result = await provider.sendMessage(toPhone, `[${mediaType}] ${caption}`, connection);
+      }
+      
+      messageId = result.messageId;
+      success = result.status === 'sent';
+      errorMsg = result.errorText;
+
+      if (!success) {
+        statusCode = 400;
+      }
+
+      return result;
+    } catch (err: any) {
+      errorMsg = err.message || 'Erro inesperado no serviço de envio de mídia';
+      statusCode = 500;
+      return {
+        messageId: '',
+        status: 'failed',
+        errorText: errorMsg
+      };
+    } finally {
+      const durationMs = Date.now() - startTime;
+
+      // 4. Salvar logs de auditoria e API
+      await prisma.whatsappApiLog.create({
+        data: {
+          connectionId: connection.id,
+          endpoint: `/message/sendMedia (${connection.provider})`,
+          method: 'POST',
+          requestJson: JSON.stringify({ to: toPhone, mediaType, fileName, hasMedia: !!mediaUrl }),
+          responseJson: JSON.stringify({ messageId, success, errorText: errorMsg }),
+          statusCode,
+          durationMs,
+          success,
+          errorMessage: errorMsg
+        }
+      });
+
+      await prisma.auditLog.create({
+        data: {
+          tenantId,
+          action: 'whatsapp.message.send_media',
+          entity: 'message',
+          entityId: messageId || 'error',
+          metadata: {
+            provider: connection.provider,
+            to: toPhone,
+            success,
+            durationMs,
+            mediaType
+          }
+        }
+      });
+    }
+  }
+
+  /**
    * Processa Webhooks genéricos recebidos, identificando a instância/telefone correspondente,
    * validando assinaturas e inserindo as mensagens e contatos no banco de dados.
    */
@@ -196,13 +298,31 @@ export class WhatsAppMessageService {
             });
           }
 
+          // 5.2.1 Verificar se a mensagem já existe para evitar duplicados (ex: quando enviada do próprio sistema)
+          if (payload.providerMessageId) {
+            const existingMessage = await tx.message.findFirst({
+              where: {
+                tenantId: connection.tenantId,
+                channelMessageId: payload.providerMessageId
+              }
+            });
+            if (existingMessage) {
+              processedCount++;
+              return;
+            }
+          }
+
+          const isFromMe = !!payload.fromMe;
+          const senderType = isFromMe ? 'user' : 'contact';
+          const senderName = isFromMe ? (payload.senderName || 'Você') : contact.name;
+
           // 5.3 Registrar a mensagem
           await tx.message.create({
             data: {
               tenantId: connection.tenantId,
               conversationId: conversation.id,
-              senderType: 'contact',
-              senderName: contact.name,
+              senderType,
+              senderName,
               body: payload.body,
               type: payload.messageType,
               mediaUrl: payload.mediaUrl,
@@ -210,7 +330,7 @@ export class WhatsAppMessageService {
               channelMessageId: payload.providerMessageId,
               provider: connection.provider,
               status: 'delivered',
-              isRead: false
+              isRead: isFromMe
             }
           });
 
@@ -219,8 +339,10 @@ export class WhatsAppMessageService {
             where: { id: conversation.id },
             data: {
               lastMessageAt: new Date(),
-              lastCustomerMessageAt: new Date(),
-              unreadCount: { increment: 1 }
+              ...(!isFromMe ? {
+                lastCustomerMessageAt: new Date(),
+                unreadCount: { increment: 1 }
+              } : {})
             }
           });
 

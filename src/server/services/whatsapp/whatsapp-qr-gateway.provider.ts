@@ -67,6 +67,74 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
     }
   }
 
+  async sendMedia(
+    to: string,
+    mediaUrl: string,
+    mimeType: string,
+    mediaType: string,
+    fileName: string,
+    caption: string,
+    connection: any
+  ): Promise<SendMessageResult> {
+    try {
+      const instanceName = connection.instanceName;
+      if (!instanceName) {
+        return {
+          messageId: '',
+          status: 'failed',
+          errorText: 'Parâmetro QR Gateway incompleto: Nome da instância ausente.'
+        };
+      }
+
+      const { url, apiKey } = this.getApiConfig();
+      const cleanPhone = to.replace(/\D/g, '');
+
+      // Extrair o base64 bruto sem o prefixo Data URI
+      const base64Parts = mediaUrl.split(';base64,');
+      const base64Data = base64Parts.pop() || '';
+
+      const endpoint = `${url}/message/sendMedia/${instanceName}`;
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'apikey': apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          number: cleanPhone,
+          mediatype: mediaType === 'document' ? 'document' : mediaType === 'video' ? 'video' : mediaType === 'audio' ? 'audio' : 'image',
+          mimetype: mimeType,
+          media: base64Data,
+          fileName: fileName || 'arquivo',
+          caption: caption || ''
+        })
+      });
+
+      const data = (await response.json()) as any;
+
+      if (!response.ok) {
+        return {
+          messageId: '',
+          status: 'failed',
+          errorText: data.message || `Erro do QR Gateway ao enviar mídia: Status ${response.status}`
+        };
+      }
+
+      const messageId = data.key?.id || data.id || '';
+      return {
+        messageId,
+        status: 'sent'
+      };
+    } catch (error: any) {
+      return {
+        messageId: '',
+        status: 'failed',
+        errorText: error.message || 'Erro de rede ao enviar mídia via QR Gateway.'
+      };
+    }
+  }
+
   async validateWebhook(headers: Record<string, string>, bodyText: string, connection: any): Promise<boolean> {
     // A Evolution API envia uma chave secreta no header caso configurado (Ex: 'webhook-authorization' ou 'apikey')
     const authHeader = headers['webhook-authorization'] || headers['apikey'] || headers['authorization'];
@@ -98,10 +166,7 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
         return null;
       }
 
-      // Não processar mensagens enviadas pelo próprio atendente/número conectado
-      if (messageData.key.fromMe) {
-        return null;
-      }
+      const fromMe = !!messageData.key.fromMe;
 
       // Extrair número do remetente
       const remoteJid = messageData.key.remoteJid || '';
@@ -195,7 +260,8 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
         messageType,
         providerMessageId: messageData.key.id,
         mediaUrl,
-        mimeType
+        mimeType,
+        fromMe
       }];
     } catch (error) {
       console.error('Erro ao processar webhook da Evolution API:', error);

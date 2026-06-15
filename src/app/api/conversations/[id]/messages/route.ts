@@ -194,39 +194,78 @@ export async function POST(request: Request, { params }: RouteParams) {
           where: { id: conversation.contactId }
         });
         if (contact) {
-          // Send WhatsApp message asynchronously in the background
-          let bodyToSend = message.body;
-          if (message.senderType === 'user' && message.senderName) {
-            bodyToSend = `*${message.senderName}:*\n${message.body}`;
-          }
-
-          // Send WhatsApp message asynchronously in the background
-          WhatsAppMessageService.sendTextMessage(
-            tenantId,
-            connectionId,
-            contact.phone,
-            bodyToSend
-          ).then(async (result) => {
-            if (result.status === 'sent' && result.messageId) {
-              await prisma.message.update({
-                where: { id: message.id },
-                data: {
-                  channelMessageId: result.messageId,
-                  status: 'sent'
-                }
-              });
-            } else {
-              await prisma.message.update({
-                where: { id: message.id },
-                data: {
-                  status: 'failed',
-                  errorText: result.errorText || 'Failed to send'
-                }
-              });
+          if (message.mediaUrl) {
+            let caption = message.body;
+            // Prepend sender name to caption if senderType is user and it's not a generic media name
+            if (message.senderType === 'user' && message.senderName && !['[Imagem]', '[Áudio]', '[Vídeo]', '[Documento]'].includes(message.body)) {
+              caption = `*${message.senderName}:*\n${message.body}`;
             }
-          }).catch(err => {
-            console.error('[OutboundMessage] Promise execution failed:', err);
-          });
+
+            WhatsAppMessageService.sendMediaMessage(
+              tenantId,
+              connectionId,
+              contact.phone,
+              message.mediaUrl,
+              message.mimeType || 'application/octet-stream',
+              message.type,
+              message.fileName || 'arquivo',
+              caption
+            ).then(async (result) => {
+              if (result.status === 'sent' && result.messageId) {
+                await prisma.message.update({
+                  where: { id: message.id },
+                  data: {
+                    channelMessageId: result.messageId,
+                    status: 'sent'
+                  }
+                });
+              } else {
+                await prisma.message.update({
+                  where: { id: message.id },
+                  data: {
+                    status: 'failed',
+                    errorText: result.errorText || 'Failed to send media'
+                  }
+                });
+              }
+            }).catch(err => {
+              console.error('[OutboundMediaMessage] Promise execution failed:', err);
+            });
+          } else {
+            // Send WhatsApp message asynchronously in the background
+            let bodyToSend = message.body;
+            if (message.senderType === 'user' && message.senderName) {
+              bodyToSend = `*${message.senderName}:*\n${message.body}`;
+            }
+
+            // Send WhatsApp message asynchronously in the background
+            WhatsAppMessageService.sendTextMessage(
+              tenantId,
+              connectionId,
+              contact.phone,
+              bodyToSend
+            ).then(async (result) => {
+              if (result.status === 'sent' && result.messageId) {
+                await prisma.message.update({
+                  where: { id: message.id },
+                  data: {
+                    channelMessageId: result.messageId,
+                    status: 'sent'
+                  }
+                });
+              } else {
+                await prisma.message.update({
+                  where: { id: message.id },
+                  data: {
+                    status: 'failed',
+                    errorText: result.errorText || 'Failed to send'
+                  }
+                });
+              }
+            }).catch(err => {
+              console.error('[OutboundTextMessage] Promise execution failed:', err);
+            });
+          }
         }
       }
     }

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useStore } from '@/store/useStore';
+import { AudioPlayer } from '@/components/AudioPlayer';
 import {
   Search,
   Tag as TagIcon,
@@ -25,10 +26,13 @@ import {
   MessageSquare,
   AlertTriangle,
   Play,
+  Pause,
   Activity,
   Layers,
   ArrowRight,
-  UserPlus
+  UserPlus,
+  Mic,
+  Trash2
 } from 'lucide-react';
 
 export default function InboxPage() {
@@ -62,6 +66,170 @@ export default function InboxPage() {
   const [messageText, setMessageText] = useState('');
   const [inputMode, setInputMode] = useState<'public' | 'private' | 'whisper'>('public');
   const [timeTick, setTimeTick] = useState(0);
+  const [attachedFile, setAttachedFile] = useState<{ file: File; base64: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Audio Recording States & Refs
+  const [isRecording, setIsRecording] = useState(false);
+  const [isRecordPaused, setIsRecordPaused] = useState(false);
+  const [recordDuration, setRecordDuration] = useState(0);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const recordTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isRecordCancelledRef = useRef(false);
+  const audioStreamRef = useRef<MediaStream | null>(null);
+
+  const processFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string;
+      setAttachedFile({ file, base64 });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      processFile(file);
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.indexOf('image') !== -1) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          processFile(file);
+        }
+      }
+    }
+  };
+
+  // Audio Recording Methods
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioStreamRef.current = stream;
+      audioChunksRef.current = [];
+      isRecordCancelledRef.current = false;
+      setRecordDuration(0);
+      setIsRecordPaused(false);
+
+      const recorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) {
+          audioChunksRef.current.push(e.data);
+        }
+      };
+
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(track => track.stop());
+        
+        if (isRecordCancelledRef.current) {
+          audioChunksRef.current = [];
+          return;
+        }
+
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        audioChunksRef.current = [];
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          if (selectedConvId) {
+            sendMessage(selectedConvId, '[Áudio]', 'user', {
+              mediaUrl: base64,
+              mimeType: 'audio/webm',
+              type: 'audio',
+              fileName: `audio_${Date.now()}.webm`
+            });
+          }
+        };
+        reader.readAsDataURL(audioBlob);
+      };
+
+      recorder.start();
+      setIsRecording(true);
+
+      recordTimerRef.current = setInterval(() => {
+        setRecordDuration((prev) => prev + 1);
+      }, 1000);
+    } catch (err) {
+      console.error('Erro ao acessar microfone:', err);
+      alert('Não foi possível acessar o microfone. Verifique as permissões do navegador.');
+    }
+  };
+
+  const pauseRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.pause();
+      setIsRecordPaused(true);
+      if (recordTimerRef.current) {
+        clearInterval(recordTimerRef.current);
+      }
+    }
+  };
+
+  const resumeRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
+      mediaRecorderRef.current.resume();
+      setIsRecordPaused(false);
+      recordTimerRef.current = setInterval(() => {
+        setRecordDuration((prev) => prev + 1);
+      }, 1000);
+    }
+  };
+
+  const cancelRecording = () => {
+    if (mediaRecorderRef.current) {
+      isRecordCancelledRef.current = true;
+      mediaRecorderRef.current.stop();
+    }
+    cleanupRecording();
+  };
+
+  const stopAndSendRecording = () => {
+    if (mediaRecorderRef.current) {
+      isRecordCancelledRef.current = false;
+      mediaRecorderRef.current.stop();
+    }
+    cleanupRecording();
+  };
+
+  const cleanupRecording = () => {
+    setIsRecording(false);
+    setIsRecordPaused(false);
+    setRecordDuration(0);
+    if (recordTimerRef.current) {
+      clearInterval(recordTimerRef.current);
+      recordTimerRef.current = null;
+    }
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getTracks().forEach(track => track.stop());
+      audioStreamRef.current = null;
+    }
+  };
+
+  const formatDuration = (sec: number) => {
+    const mins = Math.floor(sec / 60);
+    const secs = sec % 60;
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+  };
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      if (recordTimerRef.current) {
+        clearInterval(recordTimerRef.current);
+      }
+    };
+  }, []);
 
   // Poll database state every 5 seconds
   useEffect(() => {
@@ -199,16 +367,36 @@ export default function InboxPage() {
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!messageText.trim() || !selectedConvId) return;
+    if ((!messageText.trim() && !attachedFile) || !selectedConvId) return;
 
-    if (inputMode === 'whisper') {
-      sendWhisper(selectedConvId, messageText.trim());
-    } else if (inputMode === 'private') {
-      sendInternalNote(selectedConvId, messageText.trim());
+    const trimmedText = messageText.trim();
+
+    if (attachedFile) {
+      const isImg = attachedFile.file.type.startsWith('image/');
+      const isAudio = attachedFile.file.type.startsWith('audio/');
+      const isVideo = attachedFile.file.type.startsWith('video/');
+      const mediaType = isImg ? 'image' : isAudio ? 'audio' : isVideo ? 'video' : 'document';
+      
+      const bodyText = trimmedText || (isImg ? '[Imagem]' : isAudio ? '[Áudio]' : isVideo ? '[Vídeo]' : '[Documento]');
+
+      sendMessage(selectedConvId, bodyText, 'user', {
+        mediaUrl: attachedFile.base64,
+        mimeType: attachedFile.file.type,
+        type: mediaType,
+        fileName: attachedFile.file.name
+      });
     } else {
-      sendMessage(selectedConvId, messageText.trim(), 'user');
+      if (inputMode === 'whisper') {
+        sendWhisper(selectedConvId, trimmedText);
+      } else if (inputMode === 'private') {
+        sendInternalNote(selectedConvId, trimmedText);
+      } else {
+        sendMessage(selectedConvId, trimmedText, 'user');
+      }
     }
+
     setMessageText('');
+    setAttachedFile(null);
   };
 
   const handleApplyQuickReply = (text: string) => {
@@ -758,9 +946,12 @@ export default function InboxPage() {
                             </div>
                           )}
                           {m.type === 'audio' && m.mediaUrl && (
-                            <div className="my-2 max-w-xs bg-slate-100/50 p-2 rounded-xl border border-slate-200/40">
-                              <audio src={m.mediaUrl} controls className="w-full h-8" />
-                            </div>
+                            <AudioPlayer
+                              src={m.mediaUrl}
+                              messageId={m.id}
+                              conversationId={selectedConvId || m.conversationId}
+                              initialBody={m.body}
+                            />
                           )}
                           {m.type === 'video' && m.mediaUrl && (
                             <div className="my-2 rounded-xl overflow-hidden border border-slate-200/60 bg-black max-w-sm max-h-72 shadow-sm">
@@ -972,52 +1163,151 @@ export default function InboxPage() {
                   )}
                 </div>
 
-                <form onSubmit={handleSend} className="flex gap-2 items-center">
-                  <button
-                    type="button"
-                    className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer shrink-0"
-                    title="Anexar arquivo"
-                  >
-                    <Paperclip size={16} />
-                  </button>
+                {attachedFile && (
+                  <div className="mb-2 p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-805 rounded-xl flex items-center gap-3 shrink-0">
+                    <div className="relative w-12 h-12 rounded-lg border border-slate-200 dark:border-slate-700 bg-white overflow-hidden shadow-sm shrink-0">
+                      {attachedFile.file.type.startsWith('image/') ? (
+                        <img src={attachedFile.base64} className="w-full h-full object-cover" alt="Anexo preview" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-primary/10 text-primary font-extrabold text-[10px] uppercase">
+                          {attachedFile.file.name.split('.').pop()?.substring(0, 3)}
+                        </div>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setAttachedFile(null)}
+                        className="absolute top-0.5 right-0.5 w-4.5 h-4.5 rounded-full bg-slate-950/70 hover:bg-slate-950 text-white flex items-center justify-center transition-colors shadow-sm"
+                      >
+                        <X size={9} />
+                      </button>
+                    </div>
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[10px] font-bold text-slate-700 dark:text-slate-200 truncate max-w-[200px]">
+                        {attachedFile.file.name}
+                      </span>
+                      <span className="text-[9px] text-slate-400 font-medium font-mono">
+                        {(attachedFile.file.size / 1024).toFixed(1)} KB
+                      </span>
+                    </div>
+                  </div>
+                )}
 
-                  <input
-                    type="text"
-                    value={messageText}
-                    onChange={(e) => setMessageText(e.target.value)}
-                    disabled={activeConv.status === 'new'}
-                    placeholder={
-                      activeConv.status === 'new'
-                        ? 'Assuma o atendimento para digitar...'
-                        : inputMode === 'whisper'
-                        ? 'Sussurrar para o atendente (Cliente não lê)...'
-                        : inputMode === 'private'
-                        ? 'Escreva uma nota interna privada...'
-                        : 'Digite sua mensagem aqui...'
-                    }
-                    className={`flex-1 border rounded-xl py-2.5 px-4 text-xs outline-none transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
-                      inputMode === 'whisper'
-                        ? 'bg-sky-50 border-sky-300 focus:border-sky-500 focus:bg-sky-50 text-sky-900 placeholder-sky-500/70'
-                        : inputMode === 'private'
-                        ? 'bg-amber-50 border-amber-300 focus:border-amber-500 focus:bg-amber-50 text-amber-900 placeholder-amber-500/70'
-                        : 'bg-slate-50 border-slate-200 focus:border-primary focus:bg-white text-slate-800'
-                    }`}
-                  />
+                {isRecording ? (
+                  <div className="flex gap-2 items-center bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-2.5 rounded-2xl shrink-0 w-full shadow-inner">
+                    {/* Pulsing red dot and recording timer */}
+                    <div className="flex items-center gap-2 px-3">
+                      <span className={`w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0 ${!isRecordPaused ? 'animate-pulse' : ''}`} />
+                      <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-200">
+                        {formatDuration(recordDuration)}
+                      </span>
+                      {isRecordPaused && (
+                        <span className="text-[9px] font-extrabold text-amber-600 bg-amber-50 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/40 border border-amber-100 px-1.5 py-0.5 rounded-md uppercase tracking-wider select-none shrink-0">
+                          Pausado
+                        </span>
+                      )}
+                    </div>
 
-                  <button
-                    type="submit"
-                    disabled={!messageText.trim() || activeConv.status === 'new'}
-                    className={`p-2.5 rounded-xl transition-all shadow-md disabled:opacity-40 shrink-0 cursor-pointer text-white ${
-                      inputMode === 'whisper'
-                        ? 'bg-sky-500 hover:bg-sky-600 shadow-sky-500/15'
-                        : inputMode === 'private'
-                        ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/15'
-                        : 'bg-primary hover:bg-primary-hover shadow-primary/15'
-                    }`}
-                  >
-                    <Send size={16} />
-                  </button>
-                </form>
+                    <div className="flex-1" />
+
+                    {/* Discard / Cancel button */}
+                    <button
+                      type="button"
+                      onClick={cancelRecording}
+                      className="p-2 text-rose-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-xl transition-all cursor-pointer shadow-sm border border-rose-100 dark:border-rose-900/30"
+                      title="Cancelar gravação"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+
+                    {/* Pause / Resume toggle button */}
+                    <button
+                      type="button"
+                      onClick={isRecordPaused ? resumeRecording : pauseRecording}
+                      className="p-2 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-all cursor-pointer shadow-sm border border-slate-200 dark:border-slate-700/50"
+                      title={isRecordPaused ? "Retomar gravação" : "Pausar gravação"}
+                    >
+                      {isRecordPaused ? <Play size={16} fill="currentColor" /> : <Pause size={16} fill="currentColor" />}
+                    </button>
+
+                    {/* Stop and Send button */}
+                    <button
+                      type="button"
+                      onClick={stopAndSendRecording}
+                      className="p-2.5 bg-primary hover:bg-primary-hover text-white rounded-xl transition-all shadow-md shadow-primary/15 hover:scale-105 active:scale-95 cursor-pointer shrink-0"
+                      title="Enviar áudio"
+                    >
+                      <Send size={16} />
+                    </button>
+                  </div>
+                ) : (
+                  <form onSubmit={handleSend} className="flex gap-2 items-center">
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileChange}
+                      className="hidden"
+                      accept="image/*,application/pdf,audio/*,video/*"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer shrink-0"
+                      title="Anexar arquivo"
+                    >
+                      <Paperclip size={16} />
+                    </button>
+
+                    <input
+                      type="text"
+                      value={messageText}
+                      onChange={(e) => setMessageText(e.target.value)}
+                      onPaste={handlePaste}
+                      disabled={activeConv.status === 'new'}
+                      placeholder={
+                        activeConv.status === 'new'
+                          ? 'Assuma o atendimento para digitar...'
+                          : inputMode === 'whisper'
+                          ? 'Sussurrar para o atendente (Cliente não lê)...'
+                          : inputMode === 'private'
+                          ? 'Escreva uma nota interna privada...'
+                          : 'Digite sua mensagem aqui...'
+                      }
+                      className={`flex-1 border rounded-xl py-2.5 px-4 text-xs outline-none transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
+                        inputMode === 'whisper'
+                          ? 'bg-sky-50 border-sky-300 focus:border-sky-500 focus:bg-sky-50 text-sky-900 placeholder-sky-500/70'
+                          : inputMode === 'private'
+                          ? 'bg-amber-50 border-amber-300 focus:border-amber-500 focus:bg-amber-50 text-amber-900 placeholder-amber-500/70'
+                          : 'bg-slate-50 border-slate-200 focus:border-primary focus:bg-white text-slate-800'
+                      }`}
+                    />
+
+                    {(!messageText.trim() && !attachedFile) ? (
+                      <button
+                        type="button"
+                        onClick={startRecording}
+                        disabled={activeConv.status === 'new'}
+                        className="p-2.5 bg-slate-200/80 hover:bg-slate-300/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl transition-all shadow-sm hover:scale-105 active:scale-95 disabled:opacity-40 disabled:scale-100 shrink-0 cursor-pointer"
+                        title="Gravar áudio"
+                      >
+                        <Mic size={16} />
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        disabled={activeConv.status === 'new'}
+                        className={`p-2.5 rounded-xl transition-all shadow-md disabled:opacity-40 shrink-0 cursor-pointer text-white ${
+                          inputMode === 'whisper'
+                            ? 'bg-sky-500 hover:bg-sky-600 shadow-sky-500/15'
+                            : inputMode === 'private'
+                            ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/15'
+                            : 'bg-primary hover:bg-primary-hover shadow-primary/15'
+                        }`}
+                      >
+                        <Send size={16} />
+                      </button>
+                    )}
+                  </form>
+                )}
               </div>
             ) : (
               <div className="p-4 text-center text-xs font-bold text-slate-400 bg-slate-100 border-t shrink-0">
