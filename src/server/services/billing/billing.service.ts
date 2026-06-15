@@ -77,7 +77,7 @@ export class BillingService {
     companyDiscountPercentage: number;
     couponDiscountPercentage: number;
   }> {
-    const baseAmount = plan === 'pro' ? 349.00 : 149.00;
+    const baseAmount = plan === 'pro' ? 189.90 : 99.90;
     let couponDiscountPercentage = 0;
     let companyDiscountPercentage = 0;
 

@@ -69,7 +69,7 @@ async function runE2EPilotFlow(): Promise<TestResult[]> {
         data: {
           name: 'Pro Plan',
           slug: planSlug,
-          priceCents: 34900, // R$ 349.00
+          priceCents: 18990, // R$ 189.90
           billingCycle: 'monthly',
           isActive: true
         }
@@ -107,7 +107,7 @@ async function runE2EPilotFlow(): Promise<TestResult[]> {
 
       assert(
         'Phase 2.2 - Pro plan monthly invoice generated with open status',
-        invoice !== null && invoice.status === 'open' && invoice.totalCents === 34900,
+        invoice !== null && invoice.status === 'open' && invoice.totalCents === 18990,
         `Invoice total: ${invoice?.totalCents}, Status: ${invoice?.status}`
       );
 

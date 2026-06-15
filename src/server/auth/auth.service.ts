@@ -433,9 +433,9 @@ export class AuthService {
       if (!planStarter) {
         planStarter = await tx.plan.create({
           data: {
-            name: 'Starter Plan',
+            name: 'Plano Starter',
             slug: 'starter',
-            priceCents: 14900, // R$ 149.00
+            priceCents: 9990, // R$ 99.90
             billingCycle: 'monthly',
             isActive: true
           }

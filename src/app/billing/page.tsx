@@ -313,12 +313,12 @@ export default function BillingPage() {
           )}
 
           {/* Plan cards list */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {plans.map((plan: any) => (
               <div 
                 key={plan.id}
                 onClick={() => handlePlanChange(plan)}
-                className={`bg-slate-950/80 border rounded-3xl p-6 shadow-xl flex flex-col justify-between h-[300px] transition-all cursor-pointer relative overflow-hidden group hover:border-slate-600 ${
+                className={`bg-slate-950/80 border rounded-3xl p-6 shadow-xl flex flex-col justify-between h-[320px] transition-all cursor-pointer relative overflow-hidden group hover:border-slate-600 ${
                   selectedPlan?.id === plan.id 
                     ? 'border-primary ring-2 ring-primary/20 bg-slate-950' 
                     : 'border-slate-800'
@@ -335,14 +335,40 @@ export default function BillingPage() {
                   </div>
                   <h3 className="text-lg font-black text-white group-hover:text-primary transition-colors">{plan.name}</h3>
                   <div className="mt-3 flex items-baseline gap-1">
-                    <span className="text-2xl font-black text-white">R$ {(plan.priceCents / 100).toFixed(2)}</span>
-                    <span className="text-slate-500 text-xs font-semibold">/ {plan.billingCycle === 'monthly' ? 'mês' : 'ano'}</span>
+                    {plan.slug === 'enterprise' ? (
+                      <span className="text-xl font-black text-white">Valor a combinar</span>
+                    ) : (
+                      <>
+                        <span className="text-2xl font-black text-white">R$ {(plan.priceCents / 100).toFixed(2)}</span>
+                        <span className="text-slate-500 text-xs font-semibold">/ {plan.billingCycle === 'monthly' ? 'mês' : 'ano'}</span>
+                      </>
+                    )}
                   </div>
                   
                   <ul className="mt-5 space-y-2 text-xs text-slate-400 font-medium">
-                    <li className="flex items-center gap-2">🟢 <span>Infraestrutura Multi-Tenant</span></li>
-                    <li className="flex items-center gap-2">🟢 <span>Suporte a Atendimento via PIX</span></li>
-                    <li className="flex items-center gap-2">🟢 <span>Controle de Acesso Automatizado</span></li>
+                    {plan.slug === 'starter' && (
+                      <>
+                        <li className="flex items-center gap-2">🟢 <span>1 Canal de WhatsApp</span></li>
+                        <li className="flex items-center gap-2">🟢 <span>3 Atendentes Humanos</span></li>
+                        <li className="flex items-center gap-2">🟢 <span>IA Triage, FAQ e Summary</span></li>
+                      </>
+                    )}
+                    {plan.slug === 'pro' && (
+                      <>
+                        <li className="flex items-center gap-2">🟢 <span>2 Canais de WhatsApp</span></li>
+                        <li className="flex items-center gap-2">🟢 <span>10 Atendentes Humanos</span></li>
+                        <li className="flex items-center gap-2">🟢 <span>Agente SDR & Cobrança (IA)</span></li>
+                        <li className="flex items-center gap-2">🟢 <span>Agente Follow-up Automático</span></li>
+                      </>
+                    )}
+                    {plan.slug === 'enterprise' && (
+                      <>
+                        <li className="flex items-center gap-2">🟢 <span>Canais & Atendentes Ilimitados</span></li>
+                        <li className="flex items-center gap-2">🟢 <span>Supervisor, Coach & Copilot IA</span></li>
+                        <li className="flex items-center gap-2">🟢 <span>Relatórios Predict & Forecast IA</span></li>
+                        <li className="flex items-center gap-2">🟢 <span>Suporte VIP & SLA Garantido</span></li>
+                      </>
+                    )}
                   </ul>
                 </div>
               </div>
@@ -384,100 +410,122 @@ export default function BillingPage() {
             Resumo do Pedido
           </h4>
 
-          <div className="space-y-3.5 text-xs">
-            <div className="flex justify-between text-slate-400 font-medium">
-              <span>Mensalidade ({selectedPlan ? selectedPlan.name : 'Nenhum'})</span>
-              <span className="font-mono">R$ {selectedPlan ? (selectedPlan.priceCents / 100).toFixed(2) : '0.00'}</span>
+          {selectedPlan?.slug === 'enterprise' ? (
+            <div className="space-y-4 text-xs">
+              <p className="text-slate-350 leading-relaxed font-medium">
+                O <strong>Plano Enterprise</strong> é personalizado sob demanda para grandes operações.
+              </p>
+              <p className="text-slate-400 leading-relaxed font-medium">
+                Entre em contato com nossa equipe comercial para negociar os valores e obter uma proposta adequada à sua infraestrutura.
+              </p>
+              <a
+                href="https://wa.me/5511998231142?text=Ol%C3%A1%2C%20gostaria%20de%20solicitar%20um%20or%C3%A7amento%20para%20o%20Plano%20Enterprise%20do%20HBFlow."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-primary hover:bg-primary-hover text-white py-3.5 rounded-2xl font-bold text-xs transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer text-center"
+              >
+                <span>Falar com o Comercial</span>
+                <ArrowRight size={13} />
+              </a>
             </div>
-
-            {currentInvoice && currentInvoice.discountCents > 0 && (
-              <div className="flex justify-between text-emerald-400 font-bold bg-emerald-950/10 p-2.5 rounded-xl border border-emerald-950/30">
-                <span className="flex items-center gap-1"><Percent size={12} /> Desconto Aplicado</span>
-                <span className="font-mono">-R$ {(currentInvoice.discountCents / 100).toFixed(2)}</span>
-              </div>
-            )}
-
-            <div className="flex justify-between text-sm font-extrabold text-white pt-2 border-t border-slate-900">
-              <span>Valor Total</span>
-              <span className="font-mono text-primary">
-                R$ {currentInvoice ? (currentInvoice.totalCents / 100).toFixed(2) : selectedPlan ? (selectedPlan.priceCents / 100).toFixed(2) : '0.00'}
-              </span>
-            </div>
-          </div>
-
-          {!checkoutResult && (
-            <button
-              onClick={handleCheckout}
-              disabled={isProcessingCheckout || !selectedPlan}
-              className="w-full bg-primary hover:bg-primary-hover disabled:bg-primary/50 text-white py-3.5 rounded-2xl font-bold text-xs transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
-            >
-              {isProcessingCheckout ? (
-                <>
-                  <Loader2 size={13} className="animate-spin" />
-                  <span>Processando...</span>
-                </>
-              ) : (
-                <>
-                  <span>Pagar com Pix</span>
-                  <ArrowRight size={13} />
-                </>
-              )}
-            </button>
-          )}
-
-          {checkoutResult && (
-            <div className="space-y-4 pt-4 border-t border-slate-800 animate-scale-in">
-              <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center gap-3">
-                <div className="bg-white p-3 rounded-2xl w-40 h-40 flex items-center justify-center shadow">
-                  <QrCode size={120} className="text-slate-900" />
+          ) : (
+            <>
+              <div className="space-y-3.5 text-xs">
+                <div className="flex justify-between text-slate-400 font-medium">
+                  <span>Mensalidade ({selectedPlan ? selectedPlan.name : 'Nenhum'})</span>
+                  <span className="font-mono">R$ {selectedPlan ? (selectedPlan.priceCents / 100).toFixed(2) : '0.00'}</span>
                 </div>
-                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                  QR Code PIX Gerado
-                </span>
+
+                {currentInvoice && currentInvoice.discountCents > 0 && (
+                  <div className="flex justify-between text-emerald-400 font-bold bg-emerald-950/10 p-2.5 rounded-xl border border-emerald-950/30">
+                    <span className="flex items-center gap-1"><Percent size={12} /> Desconto Aplicado</span>
+                    <span className="font-mono">-R$ {(currentInvoice.discountCents / 100).toFixed(2)}</span>
+                  </div>
+                )}
+
+                <div className="flex justify-between text-sm font-extrabold text-white pt-2 border-t border-slate-900">
+                  <span>Valor Total</span>
+                  <span className="font-mono text-primary">
+                    R$ {currentInvoice ? (currentInvoice.totalCents / 100).toFixed(2) : selectedPlan ? (selectedPlan.priceCents / 100).toFixed(2) : '0.00'}
+                  </span>
+                </div>
               </div>
 
-              <div>
-                <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                  Código Copia e Cola
-                </label>
-                <div className="flex bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 items-center">
-                  <input
-                    type="text"
-                    readOnly
-                    value={checkoutResult.copyPasteCode}
-                    className="bg-transparent border-none text-[10px] text-slate-350 select-all font-mono outline-none flex-1 truncate"
-                  />
+              {!checkoutResult && (
+                <button
+                  onClick={handleCheckout}
+                  disabled={isProcessingCheckout || !selectedPlan}
+                  className="w-full bg-primary hover:bg-primary-hover disabled:bg-primary/50 text-white py-3.5 rounded-2xl font-bold text-xs transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {isProcessingCheckout ? (
+                    <>
+                      <Loader2 size={13} className="animate-spin" />
+                      <span>Processando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Pagar com Pix</span>
+                      <ArrowRight size={13} />
+                    </>
+                  )}
+                </button>
+              )}
+
+              {checkoutResult && (
+                <div className="space-y-4 pt-4 border-t border-slate-800 animate-scale-in">
+                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center gap-3">
+                    <div className="bg-white p-3 rounded-2xl w-40 h-40 flex items-center justify-center shadow">
+                      <QrCode size={120} className="text-slate-900" />
+                    </div>
+                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                      QR Code PIX Gerado
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                      Código Copia e Cola
+                    </label>
+                    <div className="flex bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 items-center">
+                      <input
+                        type="text"
+                        readOnly
+                        value={checkoutResult.copyPasteCode}
+                        className="bg-transparent border-none text-[10px] text-slate-350 select-all font-mono outline-none flex-1 truncate"
+                      />
+                      <button
+                        onClick={handleCopyPayload}
+                        className="p-1 text-slate-400 hover:text-white transition-colors"
+                      >
+                        {copiedPayload ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {globalError && (
+                    <p className="text-[10px] text-rose-550 font-bold bg-rose-500/10 p-2 rounded border border-rose-500/20">{globalError}</p>
+                  )}
+
                   <button
-                    onClick={handleCopyPayload}
-                    className="p-1 text-slate-400 hover:text-white transition-colors"
+                    onClick={handleConfirmPayment}
+                    disabled={isConfirmingPayment}
+                    className="w-full bg-emerald-650 hover:bg-emerald-550 disabled:bg-emerald-655/50 text-white py-3.5 rounded-2xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg"
                   >
-                    {copiedPayload ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                    {isConfirmingPayment ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin" />
+                        <span>Processando confirmação...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard size={13} />
+                        <span>Confirmar Pagamento</span>
+                      </>
+                    )}
                   </button>
                 </div>
-              </div>
-
-              {globalError && (
-                <p className="text-[10px] text-rose-500 font-bold bg-rose-500/10 p-2 rounded border border-rose-500/20">{globalError}</p>
               )}
-
-              <button
-                onClick={handleConfirmPayment}
-                disabled={isConfirmingPayment}
-                className="w-full bg-emerald-650 hover:bg-emerald-550 disabled:bg-emerald-655/50 text-white py-3.5 rounded-2xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg"
-              >
-                {isConfirmingPayment ? (
-                  <>
-                    <Loader2 size={13} className="animate-spin" />
-                    <span>Processando confirmação...</span>
-                  </>
-                ) : (
-                  <>
-                    <CreditCard size={13} />
-                    <span>Confirmar Pagamento</span>
-                  </>
-                )}
-              </button>
-            </div>
+            </>
           )}
 
           <div className="bg-slate-900/40 p-3 rounded-2xl border border-slate-800/60 flex items-start gap-2">

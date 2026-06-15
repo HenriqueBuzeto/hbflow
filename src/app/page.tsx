@@ -689,7 +689,7 @@ export default function LandingPage() {
                 <p className="text-slate-400 text-[10.5px] mt-2 font-medium">Ideal para pequenas lojas que precisam automatizar o WhatsApp básico.</p>
                 <div className="my-6">
                   <span className="text-2xl font-black text-white font-mono">
-                    R$ {billingPeriod === 'monthly' ? '149' : '119'}
+                    R$ {billingPeriod === 'monthly' ? '99,90' : '79,90'}
                   </span>
                   <span className="text-[10px] text-slate-500 font-bold">/mês</span>
                 </div>
@@ -721,7 +721,7 @@ export default function LandingPage() {
                 <p className="text-slate-350 text-[10.5px] mt-2 font-medium">Perfeito para empresas comerciais em expansão que querem vendas automáticas.</p>
                 <div className="my-6">
                   <span className="text-3xl font-black text-white font-mono">
-                    R$ {billingPeriod === 'monthly' ? '349' : '279'}
+                    R$ {billingPeriod === 'monthly' ? '189,90' : '151,90'}
                   </span>
                   <span className="text-[10px] text-slate-400 font-bold">/mês</span>
                 </div>
@@ -755,9 +755,8 @@ export default function LandingPage() {
                 <p className="text-slate-450 text-[10.5px] mt-2 font-medium">Para grandes operações com auditoria de SLA e consultoria preditiva.</p>
                 <div className="my-6">
                   <span className="text-2xl font-black text-white font-mono">
-                    R$ {billingPeriod === 'monthly' ? '799' : '639'}
+                    Valor a combinar
                   </span>
-                  <span className="text-[10px] text-slate-500 font-bold">/mês</span>
                 </div>
                 <hr className="border-white/5 my-4" />
                 <ul className="space-y-3 text-[10.5px] font-semibold text-slate-350">
