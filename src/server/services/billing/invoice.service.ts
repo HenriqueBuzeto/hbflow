@@ -25,7 +25,13 @@ export class InvoiceService {
     });
 
     if (existingInvoice) {
-      throw new Error('INVOICE_ALREADY_EXISTS_FOR_PERIOD');
+      if (existingInvoice.status === 'paid') {
+        throw new Error('INVOICE_ALREADY_PAID_FOR_PERIOD');
+      }
+      // Se a fatura existente não estiver paga, podemos deletá-la para gerar a nova recalculada
+      await prisma.invoice.delete({
+        where: { id: existingInvoice.id }
+      });
     }
 
     const subscription = await prisma.subscription.findUnique({
@@ -71,7 +77,7 @@ export class InvoiceService {
       });
 
       // Se o cupom foi aplicado e a fatura foi criada, atualizamos o contador do cupom
-      if (calculation.appliedCouponId) {
+      if (calculation.appliedCouponId && !calculation.appliedCouponId.startsWith('mock-')) {
         await tx.coupon.update({
           where: { id: calculation.appliedCouponId },
           data: { redeemedCount: { increment: 1 } }

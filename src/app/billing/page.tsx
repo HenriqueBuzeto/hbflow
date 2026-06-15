@@ -266,9 +266,16 @@ export default function BillingPage() {
       {/* Header */}
       <header className="max-w-6xl mx-auto w-full z-10 flex items-center justify-between border-b border-slate-800 pb-4 mb-6">
         <div className="flex items-center gap-3">
-          <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-[300px] w-auto object-contain my-[-135px] mx-[-110px]" />
-          <span className="text-slate-500 text-sm font-semibold">|</span>
-          <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Planos e Assinatura</span>
+          <div className="w-24 h-8 relative overflow-hidden flex items-center justify-center shrink-0">
+            <img 
+              src="/logo hbflow.png" 
+              alt="HBFlow Logo" 
+              className="absolute h-48 w-auto max-w-none object-contain" 
+              style={{ top: '-80px', left: '-58px' }} 
+            />
+          </div>
+          <span className="text-slate-500 text-sm font-semibold shrink-0">|</span>
+          <span className="text-slate-400 text-xs font-bold uppercase tracking-wider shrink-0">Planos e Assinatura</span>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
@@ -351,7 +358,7 @@ export default function BillingPage() {
             <form onSubmit={handleApplyCoupon} className="flex gap-2">
               <input
                 type="text"
-                placeholder="Ex: CUPOM100 ou HB20"
+                placeholder="Cupom de Desconto"
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value)}
                 className="flex-1 bg-slate-900 border border-slate-800 focus:border-primary rounded-xl px-4 py-2 text-xs outline-none uppercase font-mono tracking-wider text-slate-200"
