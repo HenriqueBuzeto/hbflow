@@ -56,7 +56,11 @@ export async function GET() {
     });
 
     const plans = await prisma.plan.findMany({
-      where: { isActive: true, deletedAt: null },
+      where: { 
+        isActive: true, 
+        deletedAt: null,
+        slug: { in: ['starter', 'pro', 'enterprise'] }
+      },
       orderBy: { priceCents: 'asc' }
     });
 

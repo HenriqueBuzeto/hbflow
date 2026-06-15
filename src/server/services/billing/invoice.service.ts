@@ -135,7 +135,22 @@ export class InvoiceService {
       });
     }
 
-    return result;
+    const fullInvoice = await prisma.invoice.findUnique({
+      where: { id: result.id },
+      include: {
+        subscription: {
+          include: { plan: true }
+        },
+        payments: {
+          orderBy: { createdAt: 'desc' }
+        },
+        pixCharges: {
+          orderBy: { createdAt: 'desc' }
+        }
+      }
+    });
+
+    return fullInvoice || result;
   }
 
   /**
