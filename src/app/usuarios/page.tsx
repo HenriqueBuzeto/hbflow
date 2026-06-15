@@ -745,14 +745,51 @@ export default function UsuariosPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5">URL da Foto de Perfil</label>
-                  <input
-                    type="text"
-                    value={formAvatarUrl}
-                    onChange={(e) => setFormAvatarUrl(e.target.value)}
-                    placeholder="https://exemplo.com/foto.jpg"
-                    className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-primary focus:bg-white rounded-xl py-2.5 px-3.5 outline-none transition-all font-medium text-slate-800 text-[12px]"
-                  />
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5">Foto de Perfil</label>
+                  <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 hover:border-slate-300 focus-within:border-primary transition-all rounded-xl p-1.5">
+                    {formAvatarUrl ? (
+                      <div className="relative group shrink-0">
+                        <img
+                          src={formAvatarUrl}
+                          alt="Avatar Preview"
+                          className="w-10 h-10 rounded-full object-cover ring-2 ring-primary/10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setFormAvatarUrl('')}
+                          className="absolute -top-1 -right-1 bg-rose-500 text-white p-0.5 rounded-full hover:bg-rose-600 shadow-sm transition-all cursor-pointer"
+                          title="Remover foto"
+                        >
+                          <X size={8} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-slate-200 border border-slate-350 flex items-center justify-center text-slate-500 font-bold text-[11px] uppercase shrink-0">
+                        {formName ? formName.charAt(0) : '?'}
+                      </div>
+                    )}
+                    
+                    <div className="flex-1 min-w-0">
+                      <label className="inline-flex items-center justify-center bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-extrabold text-[10px] px-3 py-1.5 rounded-lg cursor-pointer transition-all shadow-sm">
+                        <span>Escolher Foto</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                setFormAvatarUrl(reader.result as string);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                  </div>
                 </div>
 
                 <div>
