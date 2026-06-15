@@ -8,7 +8,7 @@ import Header from './Header';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { darkMode, fetchUsers, demo_mode_enabled } = useStore();
+  const { darkMode, fetchUsers, syncDatabaseState, demo_mode_enabled } = useStore();
 
   useEffect(() => {
     document.documentElement.classList.remove('dark');
@@ -26,6 +26,33 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       fetchUsers().catch((err) => console.error('Error fetching user profile in layout:', err));
     }
   }, [isPublicPage, demo_mode_enabled, fetchUsers]);
+
+  // Sincronização global de conversas, mensagens e contatos a cada 5 segundos nas rotas autenticadas
+  useEffect(() => {
+    if (isPublicPage || demo_mode_enabled) return;
+
+    // Dispara a sincronização inicial imediatamente
+    syncDatabaseState().catch((err) => console.error('Erro na sincronização inicial:', err));
+
+    const handleSync = () => {
+      if (document.visibilityState === 'visible') {
+        syncDatabaseState().catch((err) => console.error('Erro na sincronização de foco:', err));
+      }
+    };
+
+    const pollInterval = setInterval(() => {
+      syncDatabaseState().catch((err) => console.error('Erro no polling de background:', err));
+    }, 5000);
+
+    window.addEventListener('focus', handleSync);
+    document.addEventListener('visibilitychange', handleSync);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('focus', handleSync);
+      document.removeEventListener('visibilitychange', handleSync);
+    };
+  }, [isPublicPage, demo_mode_enabled, syncDatabaseState]);
 
   if (isPublicPage) {
     return <>{children}</>;

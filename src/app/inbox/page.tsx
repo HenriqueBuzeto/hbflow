@@ -258,29 +258,10 @@ export default function InboxPage() {
     };
   }, []);
 
-  // Poll database state every 5 seconds and sync instantly on window focus/visibility changes
+  // Sincronização inicial de redundância ao montar a tela
   useEffect(() => {
     syncDatabaseState();
     fetchUsers();
-
-    const handleSync = () => {
-      if (document.visibilityState === 'visible') {
-        syncDatabaseState();
-      }
-    };
-
-    const pollInterval = setInterval(() => {
-      syncDatabaseState();
-    }, 5000);
-
-    window.addEventListener('focus', handleSync);
-    document.addEventListener('visibilitychange', handleSync);
-
-    return () => {
-      clearInterval(pollInterval);
-      window.removeEventListener('focus', handleSync);
-      document.removeEventListener('visibilitychange', handleSync);
-    };
   }, [syncDatabaseState, fetchUsers]);
 
   useEffect(() => {
