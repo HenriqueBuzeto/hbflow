@@ -42,6 +42,10 @@ export default function UsuariosPage() {
   const [formPassword, setFormPassword] = useState('');
   const [formRole, setFormRole] = useState('Atendente');
   const [formFilters, setFormFilters] = useState<string[]>([]);
+  const [formAvatarUrl, setFormAvatarUrl] = useState('');
+  const [formPhone, setFormPhone] = useState('');
+  const [formSignature, setFormSignature] = useState('');
+  const [formSigPosition, setFormSigPosition] = useState<'start' | 'end' | 'disabled'>('end');
   const [passwordStrength, setPasswordStrength] = useState<{ score: number; text: string; color: string }>({ score: 0, text: 'Muito Fraca', color: 'bg-rose-500' });
 
   // Delete confirmation state
@@ -109,6 +113,10 @@ export default function UsuariosPage() {
     setFormPassword('');
     setFormRole('Atendente');
     setFormFilters(['vendas']);
+    setFormAvatarUrl('');
+    setFormPhone('');
+    setFormSignature('');
+    setFormSigPosition('end');
     setError('');
     setSuccess('');
     setIsModalOpen(true);
@@ -121,6 +129,10 @@ export default function UsuariosPage() {
     setFormPassword(''); // blank password during edit
     setFormRole(user.role);
     setFormFilters(user.filters || []);
+    setFormAvatarUrl(user.avatarUrl || '');
+    setFormPhone(user.phone || '');
+    setFormSignature(user.signature || '');
+    setFormSigPosition(user.sigPosition || 'end');
     setError('');
     setSuccess('');
     setIsModalOpen(true);
@@ -193,7 +205,17 @@ export default function UsuariosPage() {
       // Simulation mode
       if (editingUser) {
         useStore.setState({
-          users: users.map(u => u.id === editingUser.id ? { ...u, name: formName, email: formEmail, role: formRole, filters: formFilters } : u)
+          users: users.map(u => u.id === editingUser.id ? { 
+            ...u, 
+            name: formName, 
+            email: formEmail, 
+            role: formRole, 
+            filters: formFilters,
+            avatarUrl: formAvatarUrl || u.avatarUrl,
+            phone: formPhone,
+            signature: formSignature,
+            sigPosition: formSigPosition
+          } : u)
         });
         setSuccess('Usuário atualizado com sucesso (Modo Demonstração).');
       } else {
@@ -206,10 +228,11 @@ export default function UsuariosPage() {
           id: `user-demo-${Date.now()}`,
           name: formName,
           email: formEmail,
-          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces',
+          avatarUrl: formAvatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces',
           role: formRole,
-          signature: `Atenciosamente, ${formName}`,
-          sigPosition: 'end' as const,
+          signature: formSignature || `Atenciosamente, ${formName}`,
+          sigPosition: formSigPosition,
+          phone: formPhone,
           filters: formFilters,
           isOnline: false,
           presence: 'offline' as const,
@@ -242,6 +265,10 @@ export default function UsuariosPage() {
             role: formRole,
             filters: formFilters,
             isActive: true,
+            avatarUrl: formAvatarUrl,
+            phone: formPhone,
+            signature: formSignature,
+            sigPosition: formSigPosition,
             ...(formPassword ? { password: formPassword } : {})
           })
         });
@@ -254,7 +281,11 @@ export default function UsuariosPage() {
             email: formEmail,
             password: formPassword,
             role: formRole,
-            filters: formFilters
+            filters: formFilters,
+            avatarUrl: formAvatarUrl,
+            phone: formPhone,
+            signature: formSignature,
+            sigPosition: formSigPosition
           })
         });
       }
@@ -462,6 +493,7 @@ export default function UsuariosPage() {
 
                         <td className="px-6 py-4">
                           <span className="text-slate-500 block font-mono text-[11px]">{user.email}</span>
+                          {user.phone && <span className="text-slate-400 block font-mono text-[10px] mt-0.5">{user.phone}</span>}
                         </td>
 
                         <td className="px-6 py-4">
@@ -707,6 +739,56 @@ export default function UsuariosPage() {
                     <option value="Financeiro">Financeiro (Chats + Faturamento)</option>
                     <option value="Gestor">Gestor (Acesso Quase Completo)</option>
                     <option value="Admin">Admin (Acesso Total + Configurações)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5">URL da Foto de Perfil</label>
+                  <input
+                    type="text"
+                    value={formAvatarUrl}
+                    onChange={(e) => setFormAvatarUrl(e.target.value)}
+                    placeholder="https://exemplo.com/foto.jpg"
+                    className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-primary focus:bg-white rounded-xl py-2.5 px-3.5 outline-none transition-all font-medium text-slate-800 text-[12px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5">Telefone de Contato</label>
+                  <input
+                    type="text"
+                    value={formPhone}
+                    onChange={(e) => setFormPhone(e.target.value)}
+                    placeholder="Ex: +55 11 99999-9999"
+                    className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-primary focus:bg-white rounded-xl py-2.5 px-3.5 outline-none transition-all font-medium text-slate-800 text-[12px]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5">Assinatura de Mensagem</label>
+                  <input
+                    type="text"
+                    value={formSignature}
+                    onChange={(e) => setFormSignature(e.target.value)}
+                    placeholder="Ex: Atenciosamente, Pedro."
+                    className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-primary focus:bg-white rounded-xl py-2.5 px-3.5 outline-none transition-all font-medium text-slate-800 text-[12px]"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-400 uppercase block mb-1.5">Posição da Assinatura</label>
+                  <select
+                    value={formSigPosition}
+                    onChange={(e) => setFormSigPosition(e.target.value as any)}
+                    className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 focus:border-primary focus:bg-white rounded-xl py-2.5 px-3.5 outline-none transition-all cursor-pointer font-bold text-slate-800 text-[12px]"
+                  >
+                    <option value="disabled">Desativada</option>
+                    <option value="end">Ao Final da Mensagem</option>
+                    <option value="start">No Início da Mensagem</option>
                   </select>
                 </div>
               </div>

@@ -10,8 +10,25 @@ import {
   Loader2, 
   Plus, 
   Trash, 
-  ShieldCheck 
+  ShieldCheck,
+  TrendingUp,
+  DollarSign,
+  AlertTriangle,
+  Users,
+  Activity
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+  Legend
+} from 'recharts';
 
 export default function AdminBillingPage() {
   const { currentTenantId } = useStore();
@@ -20,6 +37,9 @@ export default function AdminBillingPage() {
   const [plans, setPlans] = useState<any[]>([]);
   const [coupons, setCoupons] = useState<any[]>([]);
   const [discounts, setDiscounts] = useState<any[]>([]);
+  const [metrics, setMetrics] = useState<any>(null);
+  const [blockedTenants, setBlockedTenants] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<any[]>([]);
 
   // Form states
   const [loading, setLoading] = useState(false);
@@ -54,6 +74,18 @@ export default function AdminBillingPage() {
   const loadData = async () => {
     try {
       setLoading(true);
+
+      // Load metrics
+      const mRes = await fetch('/api/v1/admin/billing/metrics');
+      if (mRes.ok) {
+        const mData = await mRes.json();
+        if (mData.success) {
+          setMetrics(mData.metrics);
+          setBlockedTenants(mData.blockedTenants || []);
+          setChartData(mData.chartData || []);
+        }
+      }
+
       // Load plans
       const pRes = await fetch('/api/v1/billing/plans');
       if (pRes.ok) {
@@ -195,6 +227,206 @@ export default function AdminBillingPage() {
 
         {error && <div className="bg-rose-950/20 border border-rose-500/20 text-rose-350 p-4 rounded-xl text-xs font-bold font-mono">{error}</div>}
         {success && <div className="bg-emerald-950/20 border border-emerald-500/20 text-emerald-400 p-4 rounded-xl text-xs font-bold font-mono">{success}</div>}
+
+        {/* Metrics Overview Cards */}
+        {metrics && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            
+            {/* MRR */}
+            <div className="bg-slate-950 border border-slate-800 p-5 rounded-2xl flex items-center gap-4 shadow-sm">
+              <div className="w-11 h-11 rounded-xl bg-violet-950/40 border border-violet-800/35 flex items-center justify-center text-primary shrink-0">
+                <DollarSign size={20} />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 font-bold block uppercase tracking-wider">MRR Acumulado</span>
+                <span className="text-xl font-bold text-white">
+                  {metrics.mrr.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </span>
+                <span className="text-[9px] text-emerald-500 block mt-0.5 font-medium">Assinaturas Ativas</span>
+              </div>
+            </div>
+
+            {/* Total Tenants */}
+            <div className="bg-slate-950 border border-slate-800 p-5 rounded-2xl flex items-center gap-4 shadow-sm">
+              <div className="w-11 h-11 rounded-xl bg-indigo-950/40 border border-indigo-800/35 flex items-center justify-center text-indigo-400 shrink-0">
+                <Building size={20} />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 font-bold block uppercase tracking-wider">Total de Contas</span>
+                <span className="text-xl font-bold text-white">{metrics.totalTenants} empresas</span>
+                <span className="text-[9px] text-slate-400 block mt-0.5">Inquilinos cadastrados</span>
+              </div>
+            </div>
+
+            {/* Active Trials */}
+            <div className="bg-slate-950 border border-slate-800 p-5 rounded-2xl flex items-center gap-4 shadow-sm">
+              <div className="w-11 h-11 rounded-xl bg-emerald-950/40 border border-emerald-800/35 flex items-center justify-center text-emerald-400 shrink-0">
+                <Users size={20} />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 font-bold block uppercase tracking-wider">Trials Ativos</span>
+                <span className="text-xl font-bold text-white">{metrics.activeTrials} demo</span>
+                <span className="text-[9px] text-emerald-500 block mt-0.5">Em período experimental</span>
+              </div>
+            </div>
+
+            {/* Expired Trials */}
+            <div className="bg-slate-950 border border-slate-800 p-5 rounded-2xl flex items-center gap-4 shadow-sm">
+              <div className="w-11 h-11 rounded-xl bg-rose-950/40 border border-rose-800/35 flex items-center justify-center text-rose-450 shrink-0">
+                <AlertTriangle size={20} />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 font-bold block uppercase tracking-wider">Trials Expirados</span>
+                <span className="text-xl font-bold text-white">{metrics.expiredTrials} contas</span>
+                <span className="text-[9px] text-rose-400 block mt-0.5">Bloqueados na tolerância</span>
+              </div>
+            </div>
+
+            {/* Churn / Bloqueios */}
+            <div className="bg-slate-950 border border-slate-800 p-5 rounded-2xl flex items-center gap-4 shadow-sm">
+              <div className="w-11 h-11 rounded-xl bg-rose-950/40 border border-rose-800/35 flex items-center justify-center text-rose-450 shrink-0">
+                <Percent size={20} />
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 font-bold block uppercase tracking-wider">Taxa de Bloqueio</span>
+                <span className="text-xl font-bold text-white">{metrics.churnRate}%</span>
+                <span className="text-[9px] text-rose-400 block mt-0.5">Inquilinos inadimplentes</span>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* Growth & Distribution Charts */}
+        {metrics && chartData.length > 0 && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* Chart: MRR Growth Trend */}
+            <div className="bg-slate-950 border border-slate-800 p-5 rounded-3xl shadow-sm lg:col-span-2 flex flex-col h-[280px]">
+              <div className="mb-4">
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <TrendingUp size={14} className="text-primary" />
+                  Evolução do Faturamento SaaS (MRR)
+                </h3>
+                <p className="text-[9px] text-slate-500">Estimativa baseada em contratos ativos e pagamentos mensais recorrentes</p>
+              </div>
+              <div className="flex-1 w-full min-h-0">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorSaasMrr" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#7C3AED" stopOpacity={0.25}/>
+                        <stop offset="95%" stopColor="#7C3AED" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#64748b' }} />
+                    <YAxis tick={{ fontSize: 9, fill: '#64748b' }} />
+                    <Tooltip contentStyle={{ fontSize: 10, borderRadius: 12, backgroundColor: '#020617', borderColor: '#1e293b', color: '#fff' }} />
+                    <Area type="monotone" dataKey="mrr" stroke="#7C3AED" strokeWidth={2} fillOpacity={1} fill="url(#colorSaasMrr)" name="MRR (R$)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Chart: Plans Distribution Pie */}
+            <div className="bg-slate-950 border border-slate-800 p-5 rounded-3xl shadow-sm flex flex-col h-[280px]">
+              <div className="mb-4">
+                <h3 className="text-xs font-bold text-white uppercase tracking-wider">Distribuição por Plano</h3>
+                <p className="text-[9px] text-slate-500">Volume de empresas ativas em cada categoria</p>
+              </div>
+              <div className="flex-1 w-full min-h-0 flex items-center justify-center relative">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={[
+                        { name: 'Starter', value: metrics.plans.starter },
+                        { name: 'Pro', value: metrics.plans.pro },
+                        { name: 'Enterprise', value: metrics.plans.enterprise },
+                        { name: 'Trial', value: metrics.plans.trial }
+                      ].filter(p => p.value > 0)}
+                      cx="50%"
+                      cy="45%"
+                      innerRadius={42}
+                      outerRadius={65}
+                      paddingAngle={5}
+                      dataKey="value"
+                    >
+                      {[
+                        <Cell key="c1" fill="#7C3AED" />,
+                        <Cell key="c2" fill="#10B981" />,
+                        <Cell key="c3" fill="#3B82F6" />,
+                        <Cell key="c4" fill="#F59E0B" />
+                      ]}
+                    </Pie>
+                    <Tooltip formatter={(value) => `${value} empresas`} contentStyle={{ fontSize: 10, backgroundColor: '#020617', borderColor: '#1e293b', color: '#fff' }} />
+                    <Legend layout="horizontal" verticalAlign="bottom" align="center" iconSize={8} wrapperStyle={{ fontSize: 9 }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* Delinquency / Blocked Tenants Table */}
+        {blockedTenants.length > 0 && (
+          <div className="bg-slate-950/80 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+            <h3 className="text-xs font-black uppercase text-rose-400 tracking-wider flex items-center gap-1.5">
+              <AlertTriangle size={15} /> Inquilinos Bloqueados (Inadimplentes)
+            </h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs text-left text-slate-350">
+                <thead className="bg-slate-900/40 text-slate-500 uppercase tracking-wider text-[9px] font-bold">
+                  <tr>
+                    <th className="px-4 py-3 rounded-l-xl">Empresa</th>
+                    <th className="px-4 py-3">Slug</th>
+                    <th className="px-4 py-3">Plano</th>
+                    <th className="px-4 py-3">Data de Registro</th>
+                    <th className="px-4 py-3 rounded-r-xl text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/60">
+                  {blockedTenants.map((tenant) => (
+                    <tr key={tenant.id} className="hover:bg-slate-900/30 transition-colors">
+                      <td className="px-4 py-3 font-semibold text-white">{tenant.name}</td>
+                      <td className="px-4 py-3 font-mono text-[10px] text-slate-400">{tenant.slug}</td>
+                      <td className="px-4 py-3 capitalize">
+                        <span className="bg-rose-500/10 text-rose-400 border border-rose-500/20 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold tracking-wider">
+                          {tenant.plan}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-slate-400 font-mono text-[10px]">{new Date(tenant.createdAt).toLocaleDateString('pt-BR')}</td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`Reativar acesso para ${tenant.name}?`)) return;
+                            try {
+                              const res = await fetch(`/api/v1/admin/tenants/${tenant.id}/subscription/activate`, {
+                                method: 'POST'
+                              });
+                              const data = await res.json();
+                              if (res.ok && data.success) {
+                                setSuccess(`Assinatura de ${tenant.name} reativada com sucesso!`);
+                                loadData();
+                              } else {
+                                throw new Error(data.error || 'Erro ao reativar assinatura');
+                              }
+                            } catch (err: any) {
+                              setError(err.message);
+                            }
+                          }}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[10px] px-3.5 py-1.5 rounded-xl transition-all cursor-pointer"
+                        >
+                          Desbloquear / Reativar
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* 3 Forms Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

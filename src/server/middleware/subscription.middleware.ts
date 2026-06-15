@@ -1,5 +1,4 @@
 import { requireAuth } from './auth.middleware';
-import { SubscriptionAccessService } from '../services/billing/subscription-access.service';
 import { prisma } from '../db/prisma';
 
 /**
@@ -28,9 +27,8 @@ export async function requireActiveSubscription(): Promise<string> {
     return user.tenantId;
   }
 
-  // 2. Validar assinatura e acesso comercial do tenant
-  const access = await SubscriptionAccessService.checkAccess(user.tenantId);
-  if (!access.hasAccess) {
+  // 2. Validar assinatura e acesso comercial do tenant usando a flag pré-calculada
+  if (fullUser?.tenant?.isBlocked) {
     throw new Error('SUBSCRIPTION_REQUIRED');
   }
 

@@ -7,7 +7,9 @@ import { ShieldAlert, Clock, User, ChevronRight, Bookmark } from 'lucide-react';
 
 export default function PainelAtendimentosPage() {
   const router = useRouter();
-  const { conversations, contacts, users, departments } = useStore();
+  const { conversations, contacts, users, departments, currentUserId } = useStore();
+  const currentUser = users.find((u) => u.id === currentUserId);
+
 
   return (
     <div className="space-y-6">
@@ -60,8 +62,23 @@ export default function PainelAtendimentosPage() {
 
                   {/* Snippet */}
                   <p className="text-xs text-slate-500 line-clamp-2 mt-3 leading-relaxed italic border-l-2 border-slate-200 pl-2">
-                    &quot;{lastMsg ? lastMsg.body : 'Sem mensagens no histórico.'}&quot;
+                    &quot;
+                    {lastMsg ? (
+                      lastMsg.senderType === 'contact' ? (
+                        lastMsg.body
+                      ) : lastMsg.senderType === 'user' ? (
+                        `${lastMsg.senderName === currentUser?.name ? 'Você' : (lastMsg.senderName || 'Atendente')}: ${lastMsg.body}`
+                      ) : lastMsg.senderType === 'system' || lastMsg.senderType === 'automation' ? (
+                        `Sistema: ${lastMsg.body}`
+                      ) : (
+                        lastMsg.body
+                      )
+                    ) : (
+                      'Sem mensagens no histórico.'
+                    )}
+                    &quot;
                   </p>
+
                 </div>
 
                 {/* Footer metrics */}

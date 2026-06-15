@@ -239,6 +239,23 @@ export async function POST(request: Request) {
       ? new Date() 
       : undefined;
 
+    // Resolve channelId automatically if not provided
+    let channelId = validatedData.channelId;
+    if (!channelId) {
+      const activeConnection = await prisma.whatsappConnection.findFirst({
+        where: {
+          tenantId,
+          deletedAt: null,
+        },
+        orderBy: {
+          createdAt: 'asc',
+        },
+      });
+      if (activeConnection) {
+        channelId = activeConnection.id;
+      }
+    }
+
     // Create conversation
     const conversation = await prisma.conversation.create({
       data: {
@@ -248,8 +265,8 @@ export async function POST(request: Request) {
         assignedUserId: validatedData.assignedUserId,
         status: validatedData.status,
         priority: validatedData.priority,
-        subject: validatedData.subject,
-        channelId: validatedData.channelId,
+        subject: validatedData.subject || 'Atendimento iniciado por operador',
+        channelId,
         waitStartedAt,
         deletedAt: null,
       },

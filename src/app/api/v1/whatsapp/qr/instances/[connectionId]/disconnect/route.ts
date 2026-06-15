@@ -41,7 +41,9 @@ export async function POST(
         status: 'disconnected',
         qrCode: null,
         lastQrAt: null,
-        disconnectedAt: new Date()
+        disconnectedAt: new Date(),
+        qrcodeExpired: false,
+        lastError: null
       }
     });
 

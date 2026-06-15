@@ -119,7 +119,7 @@ export async function PUT(
 
     // 3. Read & validate inputs
     const body = await request.json().catch(() => ({}));
-    const { name, email, password, role: roleName, filters, isActive } = body;
+    const { name, email, password, role: roleName, filters, isActive, avatarUrl, phone, signature, sigPosition } = body;
 
     if (!name || !email || !roleName) {
       return NextResponse.json({ success: false, error: 'Nome, e-mail e perfil são campos obrigatórios.' }, { status: 400 });
@@ -176,6 +176,10 @@ export async function PUT(
           email: cleanEmail,
           roleId: role.id,
           isActive: isActive !== undefined ? isActive : true,
+          avatarUrl: avatarUrl !== undefined ? avatarUrl : undefined,
+          phone: phone !== undefined ? phone : undefined,
+          signature: signature !== undefined ? signature : undefined,
+          sigPosition: sigPosition !== undefined ? sigPosition : undefined,
           ...(passwordHash ? { passwordHash } : {})
         }
       });

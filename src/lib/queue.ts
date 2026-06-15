@@ -1,10 +1,5 @@
-// @ts-nocheck
-/**
- * HBFlow AI Workforce Queue Manager
- * Abstração para enfileiramento de tarefas de agentes de IA usando BullMQ e Redis.
- * Possui fallback automático para execução assíncrona em memória caso o Redis não esteja disponível,
- * garantindo a estabilidade e portabilidade do workspace de desenvolvimento.
- */
+import { Queue, Worker, Job as BullJob } from 'bullmq';
+import Redis from 'ioredis';
 
 export interface QueueJob<T = any> {
   id: string;
@@ -15,66 +10,107 @@ export interface QueueJob<T = any> {
 
 export type JobHandler<T = any> = (job: QueueJob<T>) => Promise<void>;
 
-function getBullmqPackageName(): string {
-  // Construct package name dynamically to bypass static analysis of bundlers (e.g. Next.js Turbopack)
-  const parts = ['bu', 'll', 'mq'];
-  return parts.join('');
-}
-
 class AIWorkforceQueueManager {
   private queues: Map<string, Array<{ job: QueueJob; handler: JobHandler }>> = new Map();
   private redisConnected: boolean = false;
-  private bullQueueInstance: any = null;
+  private bullQueues: Map<string, Queue> = new Map();
+  private bullWorkers: Map<string, Worker> = new Map();
+  private redisConnection: Redis | null = null;
+  private isProduction = process.env.NODE_ENV === 'production';
+  private initializationPromise: Promise<void> | null = null;
 
   constructor() {
-    // Inicialização segura: Tenta detectar as dependências do Redis/BullMQ de forma dinâmica
-    this.detectRedis();
+    this.initializationPromise = this.initConnection();
   }
 
-  private async detectRedis() {
-    try {
-      // Exemplo de importação dinâmica para evitar erros caso os pacotes não estejam instalados
-      const bullmqPackage = getBullmqPackageName();
-      const { Queue, Worker } = await import(bullmqPackage);
-      // Conexão fictícia ou real baseada em variáveis de ambiente
-      const redisUrl = process.env.REDIS_URL || 'redis://127.0.0.1:6379';
-      
-      if (process.env.NODE_ENV === 'production') {
-        console.log(`[Queue] Inicializando BullMQ conectado ao Redis: ${redisUrl}`);
-        this.bullQueueInstance = new Queue('ai-workforce-tasks', {
-          connection: { url: redisUrl }
-        });
-        this.redisConnected = true;
+  private async initConnection() {
+    const redisUrl = process.env.REDIS_URL;
+
+    if (!redisUrl) {
+      if (this.isProduction) {
+        console.error('[Queue Error] A variável REDIS_URL não está configurada. Fila em produção exige Redis real.');
+        this.redisConnected = false;
+      } else {
+        console.log('[Queue] REDIS_URL não definido. Utilizando fallback local em memória.');
+        this.redisConnected = false;
       }
-    } catch (e) {
-      console.log('[Queue] Redis ou BullMQ não encontrados. Ativando fila assíncrona em memória (In-Memory Fallback).');
+      return;
+    }
+
+    try {
+      // Cria a conexão com ioredis de forma explícita
+      this.redisConnection = new Redis(redisUrl, {
+        maxRetriesPerRequest: null, // Exigido pelo BullMQ
+        lazyConnect: true,
+      });
+
+      // Registra o tratador de erros para evitar "Unhandled error event" no console
+      this.redisConnection.on('error', (err) => {
+        if (this.isProduction) {
+          console.error('[Queue Redis Connection Error]:', err.message);
+        }
+      });
+
+      // Conecta manualmente
+      await this.redisConnection.connect();
+      this.redisConnected = true;
+      console.log(`[Queue] Inicializado com sucesso. Conectado ao Redis: ${redisUrl}`);
+    } catch (err) {
       this.redisConnected = false;
+      if (this.isProduction) {
+        console.error('[Queue Error] Falha de conexão com o Redis em produção:', err);
+        throw new Error('Falha ao conectar com o Redis de produção.');
+      } else {
+        console.log('[Queue] Falha ao conectar ao Redis local. Ativando fallback em memória.');
+      }
     }
   }
 
-  /**
-   * Envia uma tarefa para processamento em segundo plano (background job)
-   */
+  private async ensureInitialized() {
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+    }
+  }
+
+  private getQueue(queueName: string): Queue | null {
+    if (!this.redisConnected || !this.redisConnection) return null;
+
+    if (!this.bullQueues.has(queueName)) {
+      const queue = new Queue(queueName, {
+        connection: this.redisConnection as any
+      });
+      this.bullQueues.set(queueName, queue);
+    }
+    return this.bullQueues.get(queueName)!;
+  }
+
   async addJob<T>(queueName: string, jobName: string, data: T): Promise<string> {
+    await this.ensureInitialized();
     const jobId = `job_${Math.random().toString(36).substring(2, 9)}`;
     const timestamp = Date.now();
     const job: QueueJob<T> = { id: jobId, name: jobName, data, timestamp };
 
     console.log(`[Queue: ${queueName}] Adicionando job "${jobName}" [ID: ${jobId}]`);
 
-    if (this.redisConnected && this.bullQueueInstance) {
+    const queue = this.getQueue(queueName);
+    if (queue) {
       try {
-        await this.bullQueueInstance.add(jobName, data, { jobId });
+        await queue.add(jobName, data, { jobId });
         return jobId;
       } catch (err) {
-        console.error(`[Queue] Falha no BullMQ ao adicionar job, usando fallback local:`, err);
+        console.error(`[Queue Error] Falha no BullMQ ao adicionar job na fila "${queueName}":`, err);
+        if (this.isProduction) {
+          throw err;
+        }
       }
     }
 
-    // Fallback: executa de forma assíncrona em background na thread do Node.js
+    // Fallback: em memória
+    if (this.isProduction) {
+      throw new Error(`Fila fora do ar em produção. REDIS indisponível para fila "${queueName}".`);
+    }
+
     const registeredHandlers = this.queues.get(queueName) || [];
-    
-    // Executa os workers registrados de forma não-bloqueante
     setTimeout(async () => {
       for (const item of registeredHandlers) {
         if (item.job.name === jobName || item.job.name === '*') {
@@ -90,12 +126,9 @@ class AIWorkforceQueueManager {
     return jobId;
   }
 
-  /**
-   * Registra um Worker para escutar e processar jobs específicos da fila
-   */
   registerWorker(queueName: string, jobName: string, handler: JobHandler): void {
     console.log(`[Queue Worker] Registrando listener para fila "${queueName}" -> "${jobName}"`);
-    
+
     if (!this.queues.has(queueName)) {
       this.queues.set(queueName, []);
     }
@@ -103,31 +136,37 @@ class AIWorkforceQueueManager {
     const jobPattern: QueueJob = { id: '*', name: jobName, data: null, timestamp: 0 };
     this.queues.get(queueName)!.push({ job: jobPattern, handler });
 
-    // Em produção real com BullMQ, criaríamos o Worker correspondente:
-    if (this.redisConnected) {
-      try {
-        const bullmqPackage = getBullmqPackageName();
-        import(bullmqPackage).then(({ Worker }) => {
-          new Worker(
-            queueName,
-            async (bullJob) => {
-              const parsedJob: QueueJob = {
-                id: bullJob.id || '',
-                name: bullJob.name,
-                data: bullJob.data,
-                timestamp: bullJob.timestamp
-              };
-              await handler(parsedJob);
-            },
-            {
-              connection: { url: process.env.REDIS_URL || 'redis://127.0.0.1:6379' }
-            }
-          );
-        });
-      } catch (e) {
-        // Silencia erros no setup inicial
+    // Inicialização assíncrona do worker se o Redis estiver disponível
+    this.ensureInitialized().then(() => {
+      if (this.redisConnected && this.redisConnection) {
+        try {
+          const workerKey = `${queueName}-${jobName}`;
+          if (!this.bullWorkers.has(workerKey)) {
+            const worker = new Worker(
+              queueName,
+              async (bullJob: BullJob) => {
+                if (bullJob.name === jobName || jobName === '*') {
+                  const parsedJob: QueueJob = {
+                    id: bullJob.id || '',
+                    name: bullJob.name,
+                    data: bullJob.data,
+                    timestamp: bullJob.timestamp
+                  };
+                  await handler(parsedJob);
+                }
+              },
+              {
+                connection: this.redisConnection as any
+              }
+            );
+            this.bullWorkers.set(workerKey, worker);
+            console.log(`[Queue Worker] Worker do BullMQ ativo com sucesso para: "${queueName}" -> "${jobName}"`);
+          }
+        } catch (e) {
+          console.error(`[Queue Worker Error] Erro ao registrar worker BullMQ para "${queueName}":`, e);
+        }
       }
-    }
+    });
   }
 }
 

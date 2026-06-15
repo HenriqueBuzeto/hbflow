@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 // Pagination limits
 export const DEFAULT_PAGE = 1;
 export const DEFAULT_PAGE_SIZE = 20;
-export const MAX_PAGE_SIZE = 100;
+export const MAX_PAGE_SIZE = 5000;
 
 // Standard API error format
 export interface StandardApiError {

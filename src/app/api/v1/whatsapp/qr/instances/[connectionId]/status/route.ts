@@ -63,7 +63,8 @@ export async function GET(
         phoneNumber,
         displayName,
         connectedAt,
-        disconnectedAt
+        disconnectedAt,
+        ...(localStatus === 'connected' ? { qrcodeExpired: false, lastError: null } : {})
       }
     });
 

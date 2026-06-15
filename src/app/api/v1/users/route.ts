@@ -197,7 +197,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Read & Validate inputs
     const body = await request.json().catch(() => ({}));
-    const { name, email, password, role: roleName, filters } = body;
+    const { name, email, password, role: roleName, filters, avatarUrl, phone, signature, sigPosition } = body;
 
     if (!name || !email || !password || !roleName) {
       return NextResponse.json({ success: false, error: 'Todos os campos obrigatórios devem ser preenchidos.' }, { status: 400 });
@@ -246,7 +246,10 @@ export async function POST(request: NextRequest) {
         email: cleanEmail,
         passwordHash,
         roleId: role.id,
-        avatarUrl: `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces`,
+        avatarUrl: avatarUrl || `https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces`,
+        phone: phone || null,
+        signature: signature || null,
+        sigPosition: sigPosition || 'end',
         isActive: true,
         isOnline: false,
         workload: 0

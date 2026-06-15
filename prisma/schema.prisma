@@ -16,6 +16,8 @@ model Tenant {
   phone                String?
   status               String               @default("active")
   plan                 String               @default("starter")
+  isBlocked            Boolean              @default(false)
+  subscriptionStatus   String               @default("active")
   timezone             String               @default("America/Sao_Paulo")
   locale               String               @default("pt_BR")
   isActive             Boolean              @default(true)
@@ -330,12 +332,17 @@ model WhatsappConnection {
   lastQrAt          DateTime?
   connectedAt       DateTime?
   disconnectedAt    DateTime?
-  metadataJson      String?                   @default("{}")
-  lastWebhookAt     DateTime?
-  lastSyncAt        DateTime?
-  createdAt         DateTime                  @default(now())
-  updatedAt         DateTime                  @updatedAt
-  deletedAt         DateTime?
+  metadataJson          String?                   @default("{}")
+  lastWebhookAt         DateTime?
+  lastSyncAt            DateTime?
+  lastMessageReceivedAt DateTime?
+  lastMessageSentAt     DateTime?
+  lastWebhookReceivedAt DateTime?
+  lastError             String?
+  qrcodeExpired         Boolean                   @default(false)
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+  deletedAt             DateTime?
   conversations     Conversation[]            @relation("ChannelConversations")
   apiLogs           WhatsappApiLog[]
   tenant            Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -1006,6 +1013,8 @@ model Department {
   distributionMode        String           @default("manual")
   slaFirstResponseMinutes Int              @default(15)
   slaResolutionMinutes    Int              @default(60)
+  firstResponseSlaMinutes Int              @default(15)
+  subsequentSlaMinutes    Int              @default(30)
   isActive                Boolean          @default(true)
   createdAt               DateTime         @default(now())
   updatedAt               DateTime         @updatedAt

@@ -46,7 +46,9 @@ export async function POST(
         phoneNumber: null,
         displayName: null,
         connectedAt: null,
-        disconnectedAt: new Date()
+        disconnectedAt: new Date(),
+        qrcodeExpired: false,
+        lastError: null
       }
     });
 

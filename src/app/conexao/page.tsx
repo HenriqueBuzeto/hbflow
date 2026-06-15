@@ -738,7 +738,18 @@ export default function ConexaoPage() {
                     {qrStatus === 'connecting' && (
                       <div className="border border-slate-200 rounded-2xl p-6 bg-slate-50 flex flex-col items-center justify-center gap-4">
                         <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-sm flex items-center justify-center w-48 h-48 relative overflow-hidden">
-                          {!qrCodeBase64 ? (
+                          {whatsappConnection.qrcodeExpired ? (
+                            <div className="flex flex-col items-center justify-center text-center p-4 gap-2">
+                              <AlertCircle size={32} className="text-rose-500 animate-pulse" />
+                              <span className="text-[10px] font-bold text-rose-600">QR Code Expirou</span>
+                              <button
+                                onClick={handleGenerateQR}
+                                className="mt-1 bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-[9px] font-bold px-2 py-1 rounded"
+                              >
+                                Regenerar
+                              </button>
+                            </div>
+                          ) : !qrCodeBase64 ? (
                             <div className="flex flex-col items-center justify-center text-center p-4 gap-2">
                               <RefreshCw size={24} className="animate-spin text-slate-400" />
                               <span className="text-[9px] font-bold text-slate-450">Gerando Imagem...</span>
@@ -758,12 +769,21 @@ export default function ConexaoPage() {
                         </div>
                         
                         <div className="text-center space-y-1">
-                          <span className="text-xs font-extrabold text-slate-800 block flex items-center justify-center gap-1.5">
-                            <RefreshCw size={12} className="animate-spin text-primary" />
-                            Aguardando Leitura
-                          </span>
+                          {whatsappConnection.qrcodeExpired ? (
+                            <span className="text-xs font-extrabold text-rose-600 block flex items-center justify-center gap-1.5">
+                              <AlertCircle size={12} className="text-rose-600" />
+                              Código Expirado
+                            </span>
+                          ) : (
+                            <span className="text-xs font-extrabold text-slate-800 block flex items-center justify-center gap-1.5">
+                              <RefreshCw size={12} className="animate-spin text-primary" />
+                              Aguardando Leitura
+                            </span>
+                          )}
                           <p className="text-[10px] text-slate-400 max-w-xs leading-normal">
-                            Abra o WhatsApp no seu celular, vá em <strong>Aparelhos Conectados &gt; Conectar Aparelho</strong> e leia o código acima.
+                            {whatsappConnection.qrcodeExpired 
+                              ? 'O tempo limite do QR Code da Evolution API expirou. Clique em Regenerar para obter um código atualizado.' 
+                              : 'Abra o WhatsApp no seu celular, vá em Aparelhos Conectados > Conectar Aparelho e leia o código acima.'}
                           </p>
                         </div>
 
@@ -864,7 +884,21 @@ export default function ConexaoPage() {
                       {whatsappConnection.provider === 'qr_gateway' ? 'Conectado QR Code' : 'Conectado Oficial'}
                     </span>
                     <span className="text-[10px] text-slate-500 block mt-0.5 font-medium">
-                      Sincronizado: {new Date(whatsappConnection.lastSyncedAt || '').toLocaleTimeString()}
+                      Sincronizado: {whatsappConnection.lastSyncedAt ? new Date(whatsappConnection.lastSyncedAt).toLocaleTimeString() : 'Agora'}
+                    </span>
+                  </div>
+                </>
+              ) : whatsappConnection.status === 'connecting' ? (
+                <>
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0 animate-scale-in">
+                    <RefreshCw size={22} className="animate-spin" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-extrabold text-slate-800 block">
+                      Aguardando QR Code
+                    </span>
+                    <span className="text-[10px] text-slate-500 block mt-0.5 font-medium">
+                      Lendo celular...
                     </span>
                   </div>
                 </>
@@ -885,13 +919,113 @@ export default function ConexaoPage() {
               <button
                 onClick={handleSync}
                 disabled={isSyncing}
-                className="w-full bg-slate-55 hover:bg-slate-100 text-slate-700 text-xs font-semibold py-2.5 px-3 rounded-xl border border-slate-200 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer font-bold"
+                className="w-full bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold py-2.5 px-3 rounded-xl border border-slate-200 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50 cursor-pointer font-bold"
               >
                 <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
                 <span>Sincronizar Canal</span>
               </button>
             </div>
           </div>
+
+          {/* Dossiê de Saúde da Instância (QR Code) */}
+          {activeProvider === 'qr_gateway' && connectionId && (
+            <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm space-y-4 animate-scale-in">
+              <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">Dossiê de Saúde da Instância</h4>
+              
+              <div className="space-y-3 text-xs">
+                {/* Telemetria do Webhook */}
+                <div className="flex justify-between items-center py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">Último Webhook:</span>
+                  <span className="font-mono text-slate-800 font-semibold">
+                    {whatsappConnection.lastWebhookReceivedAt 
+                      ? new Date(whatsappConnection.lastWebhookReceivedAt).toLocaleTimeString('pt-BR') 
+                      : 'Sem dados'}
+                  </span>
+                </div>
+
+                {/* Telemetria de Mensagens Enviadas */}
+                <div className="flex justify-between items-center py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">Última Msg Enviada:</span>
+                  <span className="font-mono text-slate-800 font-semibold">
+                    {whatsappConnection.lastMessageSentAt 
+                      ? new Date(whatsappConnection.lastMessageSentAt).toLocaleTimeString('pt-BR') 
+                      : 'Sem dados'}
+                  </span>
+                </div>
+
+                {/* Telemetria de Mensagens Recebidas */}
+                <div className="flex justify-between items-center py-1.5 border-b border-slate-100">
+                  <span className="text-slate-500 font-medium">Última Msg Recebida:</span>
+                  <span className="font-mono text-slate-800 font-semibold">
+                    {whatsappConnection.lastMessageReceivedAt 
+                      ? new Date(whatsappConnection.lastMessageReceivedAt).toLocaleTimeString('pt-BR') 
+                      : 'Sem dados'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Alerta de Inatividade (> 5 min) */}
+              {(() => {
+                if (whatsappConnection.status === 'connected' && whatsappConnection.lastWebhookReceivedAt) {
+                  const diff = (Date.now() - new Date(whatsappConnection.lastWebhookReceivedAt).getTime()) / 60000;
+                  if (diff > 5) {
+                    return (
+                      <div className="flex items-start gap-2 bg-amber-50 text-amber-800 text-[11px] p-3 rounded-xl border border-amber-200">
+                        <AlertCircle size={14} className="shrink-0 mt-0.5 text-amber-600" />
+                        <div>
+                          <span className="font-bold block">Alerta de Inatividade</span>
+                          <span className="text-[10px] leading-relaxed">Sem sinal de webhooks há {Math.floor(diff)} minutos. A conexão pode ter caído.</span>
+                        </div>
+                      </div>
+                    );
+                  }
+                }
+                return null;
+              })()}
+
+              {/* Erros da Conexão */}
+              {whatsappConnection.lastError && (
+                <div className="flex items-start gap-2 bg-rose-50 text-rose-800 text-[11px] p-3 rounded-xl border border-rose-200">
+                  <AlertCircle size={14} className="shrink-0 mt-0.5 text-rose-600" />
+                  <div>
+                    <span className="font-bold block">Erro Recente</span>
+                    <span className="text-[10px] leading-relaxed break-words">{whatsappConnection.lastError}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* QR Code Expirado */}
+              {whatsappConnection.qrcodeExpired && (
+                <div className="flex items-start gap-2 bg-rose-50 text-rose-800 text-[11px] p-3 rounded-xl border border-rose-200">
+                  <AlertCircle size={14} className="shrink-0 mt-0.5 text-rose-600" />
+                  <div>
+                    <span className="font-bold block">QR Code Expirado</span>
+                    <span className="text-[10px] leading-relaxed">Gere um novo QR Code para tentar conectar novamente.</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Botões de Ação de Saúde */}
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                <button
+                  onClick={async () => {
+                    setTestLog(prev => [...prev, `[${new Date().toLocaleTimeString()}] Solicitando reconexão...`]);
+                    await handleGenerateQR();
+                  }}
+                  className="bg-primary hover:bg-primary-hover text-white text-xs font-bold py-2.5 px-3 rounded-xl transition-all shadow-sm text-center cursor-pointer flex items-center justify-center gap-1"
+                >
+                  <RefreshCw size={12} />
+                  <span>Reconectar</span>
+                </button>
+                <button
+                  onClick={handleResetQR}
+                  className="bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 text-xs font-bold py-2.5 px-3 rounded-xl transition-all text-center cursor-pointer flex items-center justify-center gap-1"
+                >
+                  <span>Resetar</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* CLI Terminal Logger Console */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-sm flex flex-col h-[280px]">

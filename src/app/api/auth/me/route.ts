@@ -34,11 +34,9 @@ export async function GET() {
     let isBlocked = false;
     let blockError: string | undefined = undefined;
 
-    if (!isSuperAdmin) {
-      const { SubscriptionAccessService } = await import('@/server/services/billing/subscription-access.service');
-      const access = await SubscriptionAccessService.checkAccess(user.tenantId);
-      if (!access.hasAccess) {
-        isBlocked = true;
+    if (!isSuperAdmin && fullUser.tenant) {
+      isBlocked = fullUser.tenant.isBlocked;
+      if (isBlocked) {
         blockError = 'SUBSCRIPTION_REQUIRED';
       }
     }

@@ -50,6 +50,7 @@ export interface Tenant {
   name: string;
   slug: string;
   plan: string;
+  createdAt?: string;
 }
 
 export interface User {
@@ -60,6 +61,7 @@ export interface User {
   role: string; // Admin, Gestor, Supervisor, Atendente, Comercial, Financeiro
   signature: string;
   sigPosition: 'start' | 'end' | 'disabled';
+  phone?: string | null;
   filters: string[]; // e.g. ["vendas", "orcamento", "financeiro"]
   isOnline: boolean;
   presence: 'online' | 'away' | 'lunch' | 'meeting' | 'break' | 'offline';
@@ -67,16 +69,22 @@ export interface User {
 }
 
 export interface WhatsappConnection {
+  id?: string;
   name: string;
   provider?: 'cloud_api' | 'qr_gateway';
   instanceName?: string;
-  phoneNumber: string;
-  phoneId: string;
-  wabaId: string;
-  accessToken: string;
-  verifyToken: string;
-  status: 'connected' | 'disconnected' | 'warning';
-  lastSyncedAt: string;
+  phoneNumber?: string | null;
+  phoneId?: string | null;
+  wabaId?: string | null;
+  accessToken?: string | null;
+  verifyToken?: string | null;
+  status: 'connected' | 'disconnected' | 'warning' | 'connecting';
+  lastSyncedAt?: string | null;
+  lastMessageReceivedAt?: string | null;
+  lastMessageSentAt?: string | null;
+  lastWebhookReceivedAt?: string | null;
+  lastError?: string | null;
+  qrcodeExpired?: boolean;
 }
 
 export interface Contact {
@@ -124,12 +132,17 @@ export interface Conversation {
   slaLimitAt: string | null;
   claimedAt: string | null;
   waitStartedAt: string | null;
+  lastMessageAt?: string | null;
+  lastCustomerMessageAt?: string | null;
+  lastUserMessageAt?: string | null;
   aiLeadScore?: number;
   aiLeadLabel?: 'quente' | 'morno' | 'frio';
   aiSummary?: string;
   createdAt: string;
   updatedAt: string;
+  closedAt?: string | null;
   messages: Message[];
+
 }
 
 export interface QuickReply {
@@ -290,6 +303,7 @@ interface State {
   invoices: any[];
   isBlocked: boolean;
   subscriptionStatus: string;
+  selectedConversationId: string | null;
 }
 
 interface Actions {
@@ -360,6 +374,8 @@ interface Actions {
   syncDatabaseState: () => Promise<void>;
   fetchInvoices: () => Promise<void>;
   triggerConfidencePayment: () => Promise<{ success: boolean; message?: string; error?: string }>;
+  setSelectedConversationId: (id: string | null) => void;
+  startConversation: (contactId: string) => Promise<string | null>;
 }
 
 // Zod schemas for validation
@@ -575,6 +591,7 @@ export const useStore = create<State & Actions>((set, get) => ({
   invoices: [],
   isBlocked: false,
   subscriptionStatus: 'active',
+  selectedConversationId: null,
 
   // Setters
   toggleDarkMode: () => {
@@ -592,6 +609,70 @@ export const useStore = create<State & Actions>((set, get) => ({
   updateWhatsappConnection: (config) => set((state) => ({
     whatsappConnection: { ...state.whatsappConnection, ...config }
   })),
+  setSelectedConversationId: (id) => set({ selectedConversationId: id }),
+  startConversation: async (contactId) => {
+    if (get().demo_mode_enabled) {
+      const state = get();
+      const contact = state.contacts.find(c => c.id === contactId);
+      if (!contact) return null;
+
+      const existing = state.conversations.find(c => c.contactId === contactId && c.status !== 'closed');
+      if (existing) {
+        set({ selectedConversationId: existing.id });
+        return existing.id;
+      }
+
+      const newConv: Conversation = {
+        id: `conv-demo-${Date.now()}`,
+        tenantId: state.currentTenantId,
+        contactId,
+        assignedUserId: state.currentUserId,
+        departmentId: null,
+        status: 'open',
+        unreadCount: 0,
+        slaLimitAt: null,
+        claimedAt: new Date().toISOString(),
+        waitStartedAt: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        messages: []
+      };
+
+      set(s => ({ conversations: [newConv, ...s.conversations] }));
+      set({ selectedConversationId: newConv.id });
+      return newConv.id;
+    }
+
+    try {
+      const existing = get().conversations.find(c => c.contactId === contactId && c.status !== 'closed');
+      if (existing) {
+        set({ selectedConversationId: existing.id });
+        return existing.id;
+      }
+
+      const res = await fetch('/api/conversations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contactId,
+          status: 'open',
+          assignedUserId: get().currentUserId,
+          subject: 'Atendimento iniciado por operador'
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        await get().fetchConversations();
+        set({ selectedConversationId: data.data.id });
+        return data.data.id;
+      }
+      return null;
+    } catch (err) {
+      console.error('Error starting conversation:', err);
+      return null;
+    }
+  },
   setDemoModeEnabled: (enabled) => {
     if (!enabled) {
       set({
@@ -663,7 +744,8 @@ export const useStore = create<State & Actions>((set, get) => ({
             id: meData.user.tenant.id,
             name: meData.user.tenant.name,
             slug: meData.user.tenant.slug,
-            plan: meData.user.tenant.plan || 'starter'
+            plan: meData.user.tenant.plan || 'starter',
+            createdAt: meData.user.tenant.createdAt
           };
           set({
             tenants: [tenantMapped],
@@ -680,6 +762,7 @@ export const useStore = create<State & Actions>((set, get) => ({
           role: meData.user.role?.name || 'Atendente',
           signature: meData.user.signature || '',
           sigPosition: meData.user.sigPosition as 'start' | 'end' | 'disabled',
+          phone: meData.user.phone || '',
           filters: meData.user.userDepartments ? meData.user.userDepartments.map((ud: any) => ud.department?.name?.toLowerCase() || '').filter(Boolean) : [],
           isOnline: meData.user.isOnline ?? true,
           presence: 'online',
@@ -705,7 +788,7 @@ export const useStore = create<State & Actions>((set, get) => ({
   fetchContacts: async () => {
     if (get().demo_mode_enabled) return;
     try {
-      const res = await fetch('/api/contacts?pageSize=100');
+      const res = await fetch('/api/contacts?pageSize=5000');
       const data = await res.json();
       if (res.ok && data.success) {
         const mappedContacts = data.data.items.map((c: any) => ({
@@ -748,6 +831,7 @@ export const useStore = create<State & Actions>((set, get) => ({
           slaLimitAt: c.slaFirstResponseDueAt || c.slaResolutionDueAt || null,
           claimedAt: c.claimedAt,
           waitStartedAt: c.waitStartedAt,
+          closedAt: c.closedAt,
           aiLeadScore: c.aiLeadScore || 40,
           aiLeadLabel: c.aiLeadLabel || 'frio',
           aiSummary: c.aiSummary || '',
@@ -1293,7 +1377,8 @@ export const useStore = create<State & Actions>((set, get) => ({
       }
     } else {
       // If it doesn't match any keyword, trigger Welcome Flow Session automatically
-      if (isNewConversation) {
+      const hasUserMessages = newConv.messages.some((m) => m.senderType === 'user');
+      if (isNewConversation && !hasUserMessages) {
         get().triggerFlowSession(newConv.id, 'flow-welcome');
       }
     }
@@ -1899,6 +1984,10 @@ export const useStore = create<State & Actions>((set, get) => ({
       (m) => m.senderType === 'automation' || m.senderType === 'system'
     );
     if (hasTriageRun) return;
+
+    // Check if the operator has already sent messages (outbound initiated)
+    const hasUserMessages = conv.messages.some((m) => m.senderType === 'user');
+    if (hasUserMessages) return;
 
     // Check if there is already an active flow session
     const activeSession = state.flowSessions.find(

@@ -26,8 +26,10 @@ import {
   User,
   ShieldAlert,
   Bot,
-  CreditCard
+  CreditCard,
+  ShieldCheck
 } from 'lucide-react';
+
 
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -60,8 +62,10 @@ export default function Sidebar() {
     { name: 'Conexões', href: '/conexao', icon: Link2 },
     { name: 'Configurações', href: '/configuracoes', icon: Settings },
     { name: 'Empresas', href: '/empresas', icon: Building2 },
-    { name: 'Financeiro', href: '/financeiro', icon: CreditCard }
+    { name: 'Financeiro', href: '/financeiro', icon: CreditCard },
+    { name: 'Auditoria', href: '/admin/audit', icon: ShieldCheck }
   ];
+
 
   const renderLink = (item: typeof operationalMenu[0]) => {
     const isActive = pathname === item.href;

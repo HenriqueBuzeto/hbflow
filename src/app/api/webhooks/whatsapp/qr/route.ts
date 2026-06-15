@@ -34,6 +34,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Conexão correspondente não encontrada' }, { status: 404 });
     }
 
+    // Registrar o recebimento do webhook na conexão
+    await prisma.whatsappConnection.update({
+      where: { id: connection.id },
+      data: { lastWebhookReceivedAt: new Date() }
+    });
+
     const event = bodyJson.event || '';
 
     // 1. Validar webhook secret/auth se enviado ou configurado
@@ -63,7 +69,9 @@ export async function POST(request: NextRequest) {
           data: {
             qrCode,
             lastQrAt: new Date(),
-            status: 'connecting' // update status when a qr code is displayed/renewed
+            status: 'connecting', // update status when a qr code is displayed/renewed
+            qrcodeExpired: false,
+            lastError: null
           }
         });
 
@@ -87,7 +95,9 @@ export async function POST(request: NextRequest) {
           data: {
             status,
             connectedAt: new Date(),
-            phoneNumber: bodyJson.data?.phoneNumber || connection.phoneNumber
+            phoneNumber: bodyJson.data?.phoneNumber || connection.phoneNumber,
+            qrcodeExpired: false,
+            lastError: null
           }
         });
 
@@ -104,13 +114,17 @@ export async function POST(request: NextRequest) {
         stateStr === 'logout'
       ) {
         status = 'disconnected';
+        const qrcodeExpired = stateStr === 'refused' || stateStr === 'refused_connection';
+
         await prisma.whatsappConnection.update({
           where: { id: connection.id },
           data: {
             status,
             disconnectedAt: new Date(),
             qrCode: null,
-            lastQrAt: null
+            lastQrAt: null,
+            qrcodeExpired,
+            lastError: qrcodeExpired ? 'QR Code recusado ou expirado pela Evolution API' : null
           }
         });
       }

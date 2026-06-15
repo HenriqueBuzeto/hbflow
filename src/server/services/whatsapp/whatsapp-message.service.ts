@@ -69,6 +69,13 @@ export class WhatsAppMessageService {
         }
       });
 
+      if (success) {
+        await prisma.whatsappConnection.update({
+          where: { id: connection.id },
+          data: { lastMessageSentAt: new Date() }
+        });
+      }
+
       await prisma.auditLog.create({
         data: {
           tenantId,
@@ -170,6 +177,13 @@ export class WhatsAppMessageService {
         }
       });
 
+      if (success) {
+        await prisma.whatsappConnection.update({
+          where: { id: connection.id },
+          data: { lastMessageSentAt: new Date() }
+        });
+      }
+
       await prisma.auditLog.create({
         data: {
           tenantId,
@@ -244,7 +258,10 @@ export class WhatsAppMessageService {
       // Atualizar timestamp da última atividade de webhook
       await prisma.whatsappConnection.update({
         where: { id: connection.id },
-        data: { lastWebhookAt: new Date() }
+        data: { 
+          lastWebhookAt: new Date(),
+          lastWebhookReceivedAt: new Date()
+        }
       });
 
       // 5. Processar as mensagens recebidas
@@ -346,6 +363,15 @@ export class WhatsAppMessageService {
             }
           });
 
+          // Atualizar telemetria de mensagens na conexão
+          await tx.whatsappConnection.update({
+            where: { id: connection.id },
+            data: {
+              [isFromMe ? 'lastMessageSentAt' : 'lastMessageReceivedAt']: new Date(),
+              lastWebhookReceivedAt: new Date()
+            }
+          });
+
           processedCount++;
         });
       }
@@ -365,6 +391,16 @@ export class WhatsAppMessageService {
       return { success: true, processedCount };
     } catch (error: any) {
       console.error('Falha ao processar webhook coordenado:', error);
+      
+      // Registrar erro na conexão
+      try {
+        await prisma.whatsappConnection.update({
+          where: { id: connection.id },
+          data: { lastError: error.message || 'Erro ao processar webhook' }
+        });
+      } catch (dbErr) {
+        console.error('Erro ao registrar erro na conexão:', dbErr);
+      }
       
       // Registrar falha no evento
       await prisma.whatsappWebhookEvent.create({

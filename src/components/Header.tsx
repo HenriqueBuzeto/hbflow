@@ -37,15 +37,42 @@ export default function Header() {
     }
   };
 
-  const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0] || { id: '', name: 'Empresa', slug: '', plan: 'starter' };
+  const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0] || { id: '', name: 'Empresa', slug: '', plan: 'starter', createdAt: undefined };
   const unreadNotifications = notifications.filter((n) => !n.isRead);
   const currentUser = users.find((u) => u.id === currentUserId) || users[0] || { id: '', name: 'Usuário', email: '', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces', role: 'Atendente', presence: 'offline' };
 
+  // Trial countdown helper
+  const getTrialCountdown = () => {
+    if (activeTenant.plan !== 'trial' || !activeTenant.createdAt) return null;
+    const trialStart = new Date(activeTenant.createdAt).getTime();
+    const trialEnd = trialStart + 3 * 24 * 60 * 60 * 1000; // 3 dias em ms
+    const diffMs = trialEnd - Date.now();
+    
+    if (diffMs <= 0) {
+      return { expired: true, text: 'expirado' };
+    }
+    
+    const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+    const hours = Math.floor((diffMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+    const minutes = Math.floor((diffMs % (60 * 60 * 1000)) / (60 * 1000));
+    
+    let text = '';
+    if (days > 0) {
+      text = `${days}d ${hours}h`;
+    } else if (hours > 0) {
+      text = `${hours}h ${minutes}m`;
+    } else {
+      text = `${minutes}m`;
+    }
+    
+    return { expired: false, text };
+  };
 
+  const trialInfo = getTrialCountdown();
 
   return (
     <header className="h-16 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-6 flex items-center justify-between sticky top-0 z-20 shadow-sm shrink-0">
-      {/* Left: Tenant Selector */}
+      {/* Left: Tenant Selector & Trial Countdown */}
       <div className="flex items-center gap-4 relative">
         <button
           onClick={() => setShowTenantDropdown(!showTenantDropdown)}
@@ -55,6 +82,23 @@ export default function Header() {
           <span>{activeTenant.name}</span>
           <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${showTenantDropdown ? 'rotate-180' : ''}`} />
         </button>
+
+        {trialInfo && (
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10.5px] font-bold shadow-sm select-none shrink-0 ${
+            trialInfo.expired
+              ? 'bg-rose-50 border-rose-200 text-rose-600'
+              : 'bg-amber-50 border-amber-200 text-amber-700'
+          }`}>
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${trialInfo.expired ? 'bg-rose-500' : 'bg-amber-500 animate-ping'}`} />
+            <span>Teste Grátis: <span className="font-extrabold">{trialInfo.text}</span></span>
+            <button
+              onClick={() => router.push('/billing')}
+              className="ml-1 px-2.5 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-[9px] font-black transition-colors uppercase tracking-wider shadow-sm"
+            >
+              Assinar
+            </button>
+          </div>
+        )}
 
         {showTenantDropdown && (
           <>

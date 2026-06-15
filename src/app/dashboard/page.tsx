@@ -2,15 +2,14 @@
 
 import React from 'react';
 import { useStore } from '@/store/useStore';
+import OnboardingChecklist from '@/components/OnboardingChecklist';
 import {
   MessageSquare,
-  Users,
   Clock,
   AlertTriangle,
   TrendingUp,
-  DollarSign,
-  Briefcase,
-  CheckSquare
+  Users,
+  Award
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -18,17 +17,11 @@ import {
   Area,
   XAxis,
   YAxis,
-  Tooltip,
-  BarChart,
-  Bar,
-  PieChart,
-  Pie,
-  Cell,
-  Legend
+  Tooltip
 } from 'recharts';
 
 export default function DashboardPage() {
-  const { conversations, contacts, deals, tasks, users, departments, demo_mode_enabled } = useStore();
+  const { conversations, contacts, users, departments, demo_mode_enabled } = useStore();
   const [nowTimestamp] = React.useState(() => Date.now());
 
   // Render empty state if there are no conversations
@@ -40,10 +33,13 @@ export default function DashboardPage() {
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Painel de Controle</h1>
             <p className="text-xs text-slate-500 mt-1">
-              Veja as estatísticas de conversação, atendimento e performance comercial do HBFlow em tempo real.
+              Veja as estatísticas de conversação, tempo de resposta e performance dos atendentes em tempo real.
             </p>
           </div>
         </div>
+
+        {/* Onboarding Checklist Widget */}
+        <OnboardingChecklist />
 
         {/* Professional Empty State */}
         <div className="bg-white border border-slate-200 rounded-3xl p-12 shadow-sm text-center flex flex-col items-center justify-center gap-4 relative overflow-hidden min-h-[400px]">
@@ -62,41 +58,46 @@ export default function DashboardPage() {
 
   // 1. Metric Calculations
   const totalConversations = conversations.length;
-  const newLeads = contacts.filter((c) => c.status === 'lead').length;
-  const openAttends = conversations.filter((c) => c.status === 'open').length;
+  const openAttends = conversations.filter((c) => c.status === 'open' || c.status === 'pending').length;
   const closedAttends = conversations.filter((c) => c.status === 'closed').length;
 
-  const activeDeals = deals.filter((d) => d.status === 'open');
-  const totalPipelineValue = activeDeals.reduce((sum, d) => sum + d.value, 0);
-
-  const pendingTasks = tasks.filter((t) => t.status === 'pending');
-
   // SLA Warnings Count
-  const now = new Date();
+  const nowTimestampDate = new Date(nowTimestamp);
   const slaBreached = conversations.filter(
-    (c) => c.status !== 'closed' && c.slaLimitAt && new Date(c.slaLimitAt) < now
+    (c) => c.status !== 'closed' && c.slaLimitAt && new Date(c.slaLimitAt).getTime() < nowTimestamp
   ).length;
 
-  // Average Wait and Attendance Time calculations
-  const waitingConvs = conversations.filter(c => c.status === 'new' && c.waitStartedAt);
-  const claimedConvs = conversations.filter(c => c.claimedAt);
-  
+  // Resilient Average Wait and Attendance Time calculations
   let totalWaitMs = 0;
   let waitCount = 0;
 
-  waitingConvs.forEach(c => {
-    if (c.waitStartedAt) {
-      totalWaitMs += nowTimestamp - new Date(c.waitStartedAt).getTime();
-      waitCount++;
-    }
-  });
-
-  claimedConvs.forEach(c => {
-    if (c.claimedAt) {
-      const wait = new Date(c.claimedAt).getTime() - new Date(c.createdAt).getTime();
+  conversations.forEach((c) => {
+    if (c.status === 'new') {
+      // Chat is waiting in queue
+      const start = c.waitStartedAt ? new Date(c.waitStartedAt).getTime() : new Date(c.createdAt).getTime();
+      const wait = nowTimestamp - start;
       if (wait > 0) {
         totalWaitMs += wait;
         waitCount++;
+      }
+    } else {
+      // Chat has been claimed
+      const start = c.createdAt ? new Date(c.createdAt).getTime() : null;
+      const claim = c.claimedAt ? new Date(c.claimedAt).getTime() : null;
+      if (start && claim) {
+        const wait = claim - start;
+        if (wait > 0) {
+          totalWaitMs += wait;
+          waitCount++;
+        }
+      } else if (start) {
+        // Fallback wait estimate if claimedAt is null but chat is in progress
+        const upd = new Date(c.updatedAt).getTime();
+        const wait = Math.min(upd - start, 5 * 60 * 1000); // capped at 5 minutes for safety
+        if (wait > 0) {
+          totalWaitMs += wait;
+          waitCount++;
+        }
       }
     }
   });
@@ -105,10 +106,15 @@ export default function DashboardPage() {
 
   let totalAttendMs = 0;
   let attendCount = 0;
-  conversations.forEach(c => {
-    if (c.claimedAt) {
-      const end = c.status === 'closed' ? new Date(c.updatedAt).getTime() : nowTimestamp;
-      const duration = end - new Date(c.claimedAt).getTime();
+
+  conversations.forEach((c) => {
+    if (c.status !== 'new') {
+      // Chat in progress or resolved
+      const start = c.claimedAt ? new Date(c.claimedAt).getTime() : new Date(c.createdAt).getTime();
+      const end = c.status === 'closed' 
+        ? (c.closedAt ? new Date(c.closedAt).getTime() : new Date(c.updatedAt).getTime())
+        : nowTimestamp;
+      const duration = end - start;
       if (duration > 0) {
         totalAttendMs += duration;
         attendCount++;
@@ -118,7 +124,7 @@ export default function DashboardPage() {
 
   const avgAttendMin = attendCount > 0 ? (totalAttendMs / attendCount / 60000).toFixed(1) : (demo_mode_enabled ? '8.5' : '0.0');
 
-  // Helper to get real traffic data from conversations
+  // Traffic calculation from real store data
   const getRealTrafficData = () => {
     const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
     const data = [];
@@ -155,8 +161,7 @@ export default function DashboardPage() {
     return data;
   };
 
-  // 2. Charts Data
-  // Message volume trend
+  // Message traffic data
   const trafficData = demo_mode_enabled ? [
     { name: 'Seg', mensagens: 420, contatos: 85 },
     { name: 'Ter', mensagens: 580, contatos: 120 },
@@ -167,28 +172,25 @@ export default function DashboardPage() {
     { name: 'Dom', mensagens: 180, contatos: 30 }
   ] : getRealTrafficData();
 
-  // Pipeline stage counts
-  const stageData = [
-    { name: 'Novo Lead', valor: deals.filter((d) => d.stageId === 'stage-1').reduce((sum, d) => sum + d.value, 0) },
-    { name: 'Em Atendimento', valor: deals.filter((d) => d.stageId === 'stage-2').reduce((sum, d) => sum + d.value, 0) },
-    { name: 'Proposta Enviada', valor: deals.filter((d) => d.stageId === 'stage-3').reduce((sum, d) => sum + d.value, 0) },
-    { name: 'Negociação', valor: deals.filter((d) => d.stageId === 'stage-4').reduce((sum, d) => sum + d.value, 0) },
-    { name: 'Ganho', valor: deals.filter((d) => d.status === 'won').reduce((sum, d) => sum + d.value, 0) },
-    { name: 'Perdido', valor: deals.filter((d) => d.status === 'lost').reduce((sum, d) => sum + d.value, 0) }
-  ];
+  // 2. Ranking of Agents/Users based on real conversation data
+  const userRanking = users.map((user) => {
+    const userConvs = conversations.filter((c) => c.assignedUserId === user.id);
+    const activeCount = userConvs.filter((c) => c.status === 'open' || c.status === 'pending').length;
+    const closedCount = userConvs.filter((c) => c.status === 'closed').length;
+    const totalCount = userConvs.length;
 
-  // Agent Performance Conversion
-  const COLORS = ['#7C3AED', '#10B981', '#F59E0B', '#3B82F6', '#EC4899'];
-  const agentPerformance = users.map((u) => {
-    // Mocking some sales closed won
-    const wonCount = deals.filter((d) => d.assignedUserId === u.id && d.status === 'won').length;
-    const totalCount = deals.filter((d) => d.assignedUserId === u.id).length;
-    const conversion = totalCount > 0 ? Math.round((wonCount / totalCount) * 100) : (demo_mode_enabled ? 20 : 0);
     return {
-      name: u.name,
-      value: conversion
+      id: user.id,
+      name: user.name,
+      avatarUrl: user.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&h=100&fit=crop&crop=faces',
+      role: user.role || 'Atendente',
+      activeCount,
+      closedCount,
+      totalCount
     };
-  });
+  })
+  // Sort by total attributed conversations
+  .sort((a, b) => b.totalCount - a.totalCount);
 
   return (
     <div className="space-y-6">
@@ -197,7 +199,7 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Painel de Controle</h1>
           <p className="text-xs text-slate-500 mt-1">
-            Veja as estatísticas de conversação, atendimento e performance comercial do HBFlow em tempo real.
+            Veja as estatísticas de conversação, tempo de resposta e performance dos atendentes em tempo real.
           </p>
         </div>
         <div className="text-xs text-slate-500 bg-white border border-slate-200 px-3 py-1.5 rounded-xl">
@@ -205,9 +207,12 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Onboarding Checklist Widget */}
+      <OnboardingChecklist />
+
       {/* Metric Grid Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {/* Metric 1 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Metric 1: Total Conversations */}
         <div className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
             <MessageSquare size={22} />
@@ -215,96 +220,54 @@ export default function DashboardPage() {
           <div>
             <span className="text-xs text-slate-500 font-semibold block">Conversas Totais</span>
             <span className="text-2xl font-bold text-slate-800">{totalConversations}</span>
-            <span className="text-[10px] text-emerald-600 font-medium block mt-0.5">+12% vs ontem</span>
+            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">
+              {openAttends} ativas / {closedAttends} resolvidos
+            </span>
           </div>
         </div>
 
-        {/* Metric 2 */}
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
-          <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 shrink-0">
-            <Users size={22} />
-          </div>
-          <div>
-            <span className="text-xs text-slate-500 font-semibold block">Novos Leads</span>
-            <span className="text-2xl font-bold text-slate-800">{newLeads}</span>
-            <span className="text-[10px] text-emerald-600 font-medium block mt-0.5">+8% este mês</span>
-          </div>
-        </div>
-
-        {/* Metric 3 */}
+        {/* Metric 2: Average Wait Time (TME) */}
         <div className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
           <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 shrink-0">
             <Clock size={22} />
           </div>
           <div>
-            <span className="text-xs text-slate-500 font-semibold block">Tempo Médio de Espera</span>
+            <span className="text-xs text-slate-500 font-semibold block">Tempo Médio de Espera (TME)</span>
             <span className="text-2xl font-bold text-slate-800">{avgWaitMin} min</span>
-            <span className="text-[10px] text-amber-600 font-medium block mt-0.5">Tempo em fila</span>
+            <span className="text-[10px] text-amber-600 font-medium block mt-0.5">Tempo médio em fila</span>
           </div>
         </div>
 
-        {/* Metric 4 */}
+        {/* Metric 3: Average Attendance Time (TMA) */}
         <div className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
           <div className="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 shrink-0">
             <Clock size={22} />
           </div>
           <div>
-            <span className="text-xs text-slate-500 font-semibold block">Média de Atendimento</span>
+            <span className="text-xs text-slate-500 font-semibold block">Média de Atendimento (TMA)</span>
             <span className="text-2xl font-bold text-slate-800">{avgAttendMin} min</span>
-            <span className="text-[10px] text-emerald-600 font-medium block mt-0.5">Conversa ativa</span>
+            <span className="text-[10px] text-emerald-600 font-medium block mt-0.5">Duração do chat ativo</span>
           </div>
         </div>
 
-        {/* Metric 5 */}
+        {/* Metric 4: SLAs Expired */}
         <div className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-4 shadow-sm hover:shadow-md transition-shadow">
           <div className="w-12 h-12 rounded-xl bg-rose-100 flex items-center justify-center text-rose-600 shrink-0">
             <AlertTriangle size={22} />
           </div>
           <div>
             <span className="text-xs text-slate-500 font-semibold block">SLAs Vencidos</span>
-            <span className="text-2xl font-bold text-slate-800">{slaBreached}</span>
-            <span className="text-[10px] text-rose-600 font-medium block mt-0.5">Excederam limite</span>
-          </div>
-        </div>
-      </div>
-
-      {/* CRM Business Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-4 shadow-sm">
-          <div className="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-600">
-            <DollarSign size={20} />
-          </div>
-          <div>
-            <span className="text-xs text-slate-500 font-semibold block">Valor em Negociação (Pipeline)</span>
-            <span className="text-xl font-bold text-slate-800">
-              {totalPipelineValue.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+            <span className={`text-2xl font-bold ${slaBreached > 0 ? 'text-rose-600 animate-pulse' : 'text-slate-800'}`}>
+              {slaBreached}
             </span>
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-4 shadow-sm">
-          <div className="w-10 h-10 rounded-lg bg-violet-50 flex items-center justify-center text-violet-600">
-            <Briefcase size={20} />
-          </div>
-          <div>
-            <span className="text-xs text-slate-500 font-semibold block">Oportunidades Ativas</span>
-            <span className="text-xl font-bold text-slate-800">{activeDeals.length} negócios</span>
-          </div>
-        </div>
-
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl flex items-center gap-4 shadow-sm">
-          <div className="w-10 h-10 rounded-lg bg-slate-100 flex items-center justify-center text-slate-600">
-            <CheckSquare size={20} />
-          </div>
-          <div>
-            <span className="text-xs text-slate-500 font-semibold block">Tarefas de Vendas Pendentes</span>
-            <span className="text-xl font-bold text-slate-800">{pendingTasks.length} follow-ups</span>
+            <span className="text-[10px] text-rose-600 font-medium block mt-0.5">Excederam o tempo</span>
           </div>
         </div>
       </div>
 
-      {/* Graphs Grid */}
+      {/* Main Graphs & Leaderboard */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
         {/* Graph 1: Message Volume Area Chart */}
         <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm lg:col-span-2 flex flex-col h-[320px]">
           <div className="mb-4">
@@ -333,56 +296,72 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Graph 2: Conversion pie chart */}
+        {/* Leaderboard: Ranking of Attendants */}
         <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm flex flex-col h-[320px]">
-          <div className="mb-4">
-            <h3 className="text-sm font-bold text-slate-800">Conversão por Atendente (%)</h3>
-            <p className="text-[10px] text-slate-400">Taxa de sucesso no fechamento de leads comerciais</p>
+          <div className="mb-4 flex items-center justify-between border-b pb-2">
+            <div>
+              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                <Award size={16} className="text-amber-500" />
+                Ranking de Atendimentos
+              </h3>
+              <p className="text-[10px] text-slate-400">Desempenho de chamados por atendente</p>
+            </div>
           </div>
-          <div className="flex-1 w-full min-h-0 flex items-center justify-center relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={agentPerformance}
-                  cx="50%"
-                  cy="45%"
-                  innerRadius={50}
-                  outerRadius={75}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {agentPerformance.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(value) => `${value}%`} contentStyle={{ fontSize: 11 }} />
-                <Legend layout="horizontal" verticalAlign="bottom" align="center" iconSize={10} wrapperStyle={{ fontSize: 10 }} />
-              </PieChart>
-            </ResponsiveContainer>
+          <div className="flex-1 overflow-y-auto space-y-3.5 pr-1 text-xs">
+            {userRanking.length === 0 ? (
+              <div className="text-center py-12 text-slate-400">Nenhum atendente cadastrado.</div>
+            ) : (
+              userRanking.map((rank, idx) => {
+                const maxConvs = userRanking[0]?.totalCount || 1;
+                // Avoid divide by zero
+                const pct = Math.max(5, Math.round((rank.totalCount / maxConvs) * 100));
+
+                return (
+                  <div key={rank.id} className="flex items-center gap-3">
+                    {/* Medal/Podium Badge */}
+                    <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                      idx === 0 ? 'bg-amber-100 text-amber-600 border border-amber-200' :
+                      idx === 1 ? 'bg-slate-100 text-slate-500 border border-slate-200' :
+                      idx === 2 ? 'bg-orange-50 text-orange-600 border border-orange-200' :
+                      'bg-slate-50 text-slate-400 border border-slate-150'
+                    }`}>
+                      {idx + 1}
+                    </div>
+
+                    {/* Avatar */}
+                    <img
+                      src={rank.avatarUrl}
+                      alt={rank.name}
+                      className="w-7 h-7 rounded-full object-cover shrink-0 ring-1 ring-slate-200"
+                    />
+
+                    {/* Content & Progress Bar */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex justify-between items-center mb-0.5">
+                        <span className="font-bold text-slate-800 truncate block max-w-[100px]" title={rank.name}>
+                          {rank.name}
+                        </span>
+                        <span className="text-[9.5px] text-slate-400 font-semibold shrink-0">
+                          <span className="text-primary font-bold">{rank.activeCount}</span> ativos /{' '}
+                          <span className="text-emerald-600 font-bold">{rank.closedCount}</span> resolvidos
+                        </span>
+                      </div>
+                      
+                      {/* Bar indicator */}
+                      <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden flex">
+                        <div 
+                          className="bg-primary h-full rounded-full transition-all duration-500" 
+                          style={{ width: `${pct}%` }} 
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
-        {/* Graph 3: Pipeline Stages Bar Chart */}
-        <div className="bg-white border border-slate-200 p-5 rounded-2xl shadow-sm lg:col-span-3 h-[280px]">
-          <div className="mb-4">
-            <h3 className="text-sm font-bold text-slate-800">Valores por Etapa do Pipeline</h3>
-            <p className="text-[10px] text-slate-400">Valor estimado total alocado em cada fase do Kanban</p>
-          </div>
-          <div className="w-full h-full pb-8">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={stageData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
-                <XAxis dataKey="name" tick={{ fontSize: 10, fill: '#64748b' }} />
-                <YAxis tick={{ fontSize: 10, fill: '#64748b' }} />
-                <Tooltip formatter={(value) => `R$ ${value}`} contentStyle={{ fontSize: 11 }} />
-                <Bar dataKey="valor" fill="#7C3AED" radius={[6, 6, 0, 0]} name="Volume Financeiro">
-                  {stageData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.name === 'Ganho' ? '#10B981' : entry.name === 'Perdido' ? '#EF4444' : '#7C3AED'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
       </div>
 
       {/* Active Departments / Queues status */}

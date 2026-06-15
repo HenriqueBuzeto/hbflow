@@ -57,16 +57,43 @@ export default function InboxPage() {
     routingLogs,
     demo_mode_enabled,
     syncDatabaseState,
-    fetchUsers
+    fetchUsers,
+    selectedConversationId: selectedConvId,
+    setSelectedConversationId: setSelectedConvId
   } = useStore();
 
+
+
+
   const [activeTab, setActiveTab] = useState<'new' | 'meus' | 'pending' | 'closed' | 'sector'>('new');
-  const [selectedConvId, setSelectedConvId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [messageText, setMessageText] = useState('');
   const [inputMode, setInputMode] = useState<'public' | 'private' | 'whisper'>('public');
+
+  // Synchronize active tab based on selected conversation status/assignment
+  useEffect(() => {
+    if (selectedConvId) {
+      const conv = conversations.find((c) => c.id === selectedConvId);
+      if (conv) {
+        if (conv.status === 'new') {
+          setActiveTab('new');
+        } else if (conv.status === 'open') {
+          if (conv.assignedUserId === currentUserId) {
+            setActiveTab('meus');
+          } else {
+            setActiveTab('sector');
+          }
+        } else if (conv.status === 'pending') {
+          setActiveTab('pending');
+        } else if (conv.status === 'closed') {
+          setActiveTab('closed');
+        }
+      }
+    }
+  }, [selectedConvId, conversations, currentUserId]);
   const [timeTick, setTimeTick] = useState(0);
   const [attachedFile, setAttachedFile] = useState<{ file: File; base64: string } | null>(null);
+  const [sortBy, setSortBy] = useState<'recent' | 'sla'>('recent');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Audio Recording States & Refs
@@ -231,14 +258,29 @@ export default function InboxPage() {
     };
   }, []);
 
-  // Poll database state every 5 seconds
+  // Poll database state every 5 seconds and sync instantly on window focus/visibility changes
   useEffect(() => {
     syncDatabaseState();
     fetchUsers();
+
+    const handleSync = () => {
+      if (document.visibilityState === 'visible') {
+        syncDatabaseState();
+      }
+    };
+
     const pollInterval = setInterval(() => {
       syncDatabaseState();
     }, 5000);
-    return () => clearInterval(pollInterval);
+
+    window.addEventListener('focus', handleSync);
+    document.addEventListener('visibilitychange', handleSync);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('focus', handleSync);
+      document.removeEventListener('visibilitychange', handleSync);
+    };
   }, [syncDatabaseState, fetchUsers]);
 
   useEffect(() => {
@@ -322,6 +364,20 @@ export default function InboxPage() {
     }
 
     return true;
+  });
+
+  // Sort conversations dynamically
+  const sortedAndFilteredConvs = [...filteredConversations].sort((a, b) => {
+    if (sortBy === 'sla') {
+      const limitA = a.slaLimitAt ? new Date(a.slaLimitAt).getTime() : Infinity;
+      const limitB = b.slaLimitAt ? new Date(b.slaLimitAt).getTime() : Infinity;
+      if (limitA !== limitB) {
+        return limitA - limitB;
+      }
+    }
+    const timeA = a.lastMessageAt ? new Date(a.lastMessageAt).getTime() : new Date(a.createdAt).getTime();
+    const timeB = b.lastMessageAt ? new Date(b.lastMessageAt).getTime() : new Date(b.createdAt).getTime();
+    return timeB - timeA;
   });
 
   const activeConv = conversations.find((c) => c.id === selectedConvId);
@@ -596,7 +652,7 @@ export default function InboxPage() {
 
       {/* COLUMN 2: CHATS LIST */}
       <div className="w-80 border-r border-slate-200 flex flex-col shrink-0">
-        <div className="p-4 border-b border-slate-200 flex items-center gap-2 shrink-0 bg-slate-50/30">
+        <div className="p-4 border-b border-slate-200 flex flex-col gap-2 shrink-0 bg-slate-50/30">
           <div className="relative flex-1">
             <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
             <input
@@ -607,14 +663,32 @@ export default function InboxPage() {
               className="w-full bg-white border border-slate-200 rounded-xl py-1.5 pl-9 pr-3 text-xs outline-none focus:border-primary transition-all font-medium"
             />
           </div>
+          <div className="flex justify-between items-center text-[9px] font-bold text-slate-400 px-1 select-none">
+            <span>ORDENAR</span>
+            <div className="flex gap-1.5">
+              <button 
+                onClick={() => setSortBy('recent')}
+                className={`transition-colors cursor-pointer ${sortBy === 'recent' ? 'text-primary font-black' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                Recentes
+              </button>
+              <span>•</span>
+              <button 
+                onClick={() => setSortBy('sla')}
+                className={`transition-colors cursor-pointer ${sortBy === 'sla' ? 'text-primary font-black' : 'text-slate-400 hover:text-slate-600'}`}
+              >
+                Urgência SLA
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Chats grid list */}
         <div className="flex-1 overflow-y-auto divide-y divide-slate-100 bg-white">
-          {filteredConversations.length === 0 ? (
+          {sortedAndFilteredConvs.length === 0 ? (
             <div className="p-8 text-center text-xs text-slate-400">Nenhum chamado encontrado.</div>
           ) : (
-            filteredConversations.map((c) => {
+            sortedAndFilteredConvs.map((c) => {
               const contact = contacts.find((ct) => ct.id === c.contactId);
               const lastMsg = c.messages[c.messages.length - 1];
               const isSelected = c.id === selectedConvId;
@@ -641,10 +715,30 @@ export default function InboxPage() {
                   </div>
 
                   <p className="text-xs text-slate-500 truncate leading-relaxed">
-                    {lastMsg ? lastMsg.body : 'Sem mensagens no histórico'}
+                    {lastMsg ? (
+                      lastMsg.senderType === 'contact' ? (
+                        lastMsg.body
+                      ) : lastMsg.senderType === 'user' ? (
+                        <>
+                          <span className="font-semibold text-slate-650">
+                            {lastMsg.senderName === currentUser?.name ? 'Você' : (lastMsg.senderName || 'Atendente')}:
+                          </span>{' '}
+                          {lastMsg.body}
+                        </>
+                      ) : lastMsg.senderType === 'system' || lastMsg.senderType === 'automation' ? (
+                        <>
+                          <span className="font-semibold text-slate-650">Sistema:</span> {lastMsg.body}
+                        </>
+                      ) : (
+                        lastMsg.body
+                      )
+                    ) : (
+                      'Sem mensagens no histórico'
+                    )}
                   </p>
 
-                  <div className="flex items-center gap-1.5 text-[9px] font-semibold">
+
+                  <div className="flex flex-wrap items-center gap-1.5 text-[9px] font-semibold">
                     {c.status === 'new' && c.waitStartedAt && (
                       <span className="flex items-center gap-1 text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-100">
                         <Clock size={10} className="animate-pulse" />
@@ -657,6 +751,25 @@ export default function InboxPage() {
                         <span>Ativo: {getElapsedTime(c.claimedAt)}</span>
                       </span>
                     )}
+                    {c.status !== 'closed' && c.slaLimitAt && (() => {
+                      const limit = new Date(c.slaLimitAt).getTime();
+                      const diffMs = limit - Date.now();
+                      const breached = diffMs < 0;
+                      const absMin = Math.abs(Math.floor(diffMs / 60000));
+                      
+                      return (
+                        <span className={`flex items-center gap-1 px-1.5 py-0.5 rounded border font-bold ${
+                          breached 
+                            ? 'text-rose-600 bg-rose-50 border-rose-100 animate-pulse font-extrabold' 
+                            : 'text-indigo-650 bg-indigo-50 border-indigo-100'
+                        }`}>
+                          <Clock size={10} />
+                          <span>
+                            {breached ? `SLA Estourado há ${absMin}m` : `SLA Restante: ${absMin}m`}
+                          </span>
+                        </span>
+                      );
+                    })()}
                   </div>
 
                   <div className="flex flex-wrap items-center justify-between gap-1.5 mt-1">
@@ -1332,8 +1445,9 @@ export default function InboxPage() {
               </div>
               <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 font-bold px-3 py-1.5 rounded-xl border border-emerald-100 text-[10.5px] z-10 shrink-0">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                <span>Simulador WebSocket Ativo</span>
+                <span>Sincronização em Tempo Real</span>
               </div>
+
             </div>
 
             {/* Quick Metrics Grid */}
@@ -1455,7 +1569,8 @@ export default function InboxPage() {
               </span>
               <div className="flex-1 overflow-y-auto font-mono text-[10.5px] text-slate-300 space-y-1.5">
                 {routingLogs.length === 0 ? (
-                  <div className="text-slate-500 italic">Aguardando eventos de roteamento... Use os gatilhos de simulação no cabeçalho.</div>
+                  <div className="text-slate-500 italic">Aguardando eventos de roteamento em tempo real...</div>
+
                 ) : (
                   routingLogs.map((log) => (
                     <div key={log.id}>

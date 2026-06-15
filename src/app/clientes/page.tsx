@@ -7,7 +7,7 @@ import { Users, Search, Plus, Filter, Tag, ArrowUpRight, Phone, MapPin, Award } 
 
 export default function ClientesPage() {
   const router = useRouter();
-  const { contacts, addContact, fetchContacts } = useStore();
+  const { contacts, addContact, fetchContacts, startConversation } = useStore();
 
   // Poll contacts from database state every 5 seconds
   useEffect(() => {
@@ -20,6 +20,15 @@ export default function ClientesPage() {
 
   const [searchQuery, setSearchQuery] = useState('');
   const [filterOrigin, setFilterOrigin] = useState('all');
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50; // 50 items per page
+
+  // Reset page when queries change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterOrigin]);
 
   // Contact Creation State
   const [showAddModal, setShowAddModal] = useState(false);
@@ -70,6 +79,11 @@ export default function ClientesPage() {
 
     return matchesSearch && matchesOrigin;
   });
+
+  const totalPages = Math.ceil(filteredContacts.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = startIndex + pageSize;
+  const paginatedContacts = filteredContacts.slice(startIndex, endIndex);
 
   return (
     <div className="space-y-6">
@@ -150,14 +164,14 @@ export default function ClientesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
-                {filteredContacts.length === 0 ? (
+                {paginatedContacts.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="px-6 py-8 text-center text-slate-400">
                       Nenhum cliente cadastrado ou encontrado.
                     </td>
                   </tr>
                 ) : (
-                  filteredContacts.map((contact) => (
+                  paginatedContacts.map((contact) => (
                     <tr
                       key={contact.id}
                       onClick={() => router.push(`/clientes/${contact.id}`)}
@@ -225,16 +239,32 @@ export default function ClientesPage() {
                       </td>
 
                       <td className="px-6 py-4 text-center">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/clientes/${contact.id}`);
-                          }}
-                          className="text-primary hover:text-primary-hover font-bold inline-flex items-center gap-0.5"
-                        >
-                          <span>Dossiê</span>
-                          <ArrowUpRight size={14} />
-                        </button>
+                        <div className="flex items-center justify-center gap-3">
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const convId = await startConversation(contact.id);
+                              if (convId) {
+                                router.push('/inbox');
+                              }
+                            }}
+                            className="text-emerald-600 hover:text-emerald-700 font-bold inline-flex items-center gap-1 cursor-pointer"
+                          >
+                            <Phone size={13} />
+                            <span>Chamar</span>
+                          </button>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              router.push(`/clientes/${contact.id}`);
+                            }}
+                            className="text-primary hover:text-primary-hover font-bold inline-flex items-center gap-0.5"
+                          >
+                            <span>Dossiê</span>
+                            <ArrowUpRight size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -242,6 +272,38 @@ export default function ClientesPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination Footer */}
+          {totalPages > 1 && (
+            <div className="flex flex-col sm:flex-row items-center justify-between border-t border-slate-150 bg-slate-50/50 px-6 py-4.5 gap-4">
+              <div className="text-xs text-slate-500 font-medium">
+                Exibindo <span className="font-bold text-slate-800">{Math.min(startIndex + 1, filteredContacts.length)}</span> a{' '}
+                <span className="font-bold text-slate-800">{Math.min(endIndex, filteredContacts.length)}</span> de{' '}
+                <span className="font-bold text-slate-800">{filteredContacts.length}</span> contatos
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-3.5 py-2 text-[11px] font-extrabold bg-white text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white transition-all cursor-pointer shadow-sm"
+                >
+                  Anterior
+                </button>
+                <span className="px-3.5 py-2 text-[11px] font-bold text-slate-700 bg-white border border-slate-200 rounded-xl shadow-sm min-w-[100px] text-center">
+                  Página {currentPage} de {totalPages}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-3.5 py-2 text-[11px] font-extrabold bg-white text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white transition-all cursor-pointer shadow-sm"
+                >
+                  Próxima
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
