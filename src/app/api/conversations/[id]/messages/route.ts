@@ -197,7 +197,7 @@ export async function POST(request: Request, { params }: RouteParams) {
           // Send WhatsApp message asynchronously in the background
           let bodyToSend = message.body;
           if (message.senderType === 'user' && message.senderName) {
-            bodyToSend = `*${message.senderName}*\n${message.body}`;
+            bodyToSend = `*${message.senderName}:*\n${message.body}`;
           }
 
           // Send WhatsApp message asynchronously in the background

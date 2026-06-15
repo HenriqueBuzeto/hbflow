@@ -131,7 +131,7 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
         messageBody = messageContent.extendedTextMessage.text || '';
         messageType = 'text';
       } else if (messageContent.imageMessage) {
-        messageBody = '[Imagem]';
+        messageBody = messageContent.imageMessage.caption || '[Imagem]';
         messageType = 'image';
         mimeType = messageContent.imageMessage.mimetype;
       } else if (messageContent.audioMessage) {
@@ -139,13 +139,53 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
         messageType = 'audio';
         mimeType = messageContent.audioMessage.mimetype;
       } else if (messageContent.videoMessage) {
-        messageBody = '[Vídeo]';
+        messageBody = messageContent.videoMessage.caption || '[Vídeo]';
         messageType = 'video';
         mimeType = messageContent.videoMessage.mimetype;
       } else if (messageContent.documentMessage) {
         messageBody = messageContent.documentMessage.fileName || '[Documento]';
         messageType = 'document';
         mimeType = messageContent.documentMessage.mimetype;
+      }
+
+      // Baixar mídia se disponível para tipos suportados
+      const messageId = messageData.key.id;
+      if (['image', 'audio', 'video', 'document'].includes(messageType) && messageId) {
+        try {
+          const { url, apiKey } = this.getApiConfig();
+          const endpoint = `${url}/chat/getBase64FromMediaMessage/${connection.instanceName}`;
+          
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'apikey': apiKey,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              message: {
+                key: {
+                  id: messageId
+                }
+              },
+              convertToMp4: false
+            })
+          });
+
+          if (response.ok) {
+            const resData = (await response.json()) as any;
+            if (resData && resData.base64) {
+              const detectedMime = resData.mimetype || mimeType || 'application/octet-stream';
+              mediaUrl = `data:${detectedMime};base64,${resData.base64}`;
+              if (resData.mimetype) {
+                mimeType = resData.mimetype;
+              }
+            }
+          } else {
+            console.error(`Falha ao buscar mídia do QR Gateway. Status: ${response.status}`);
+          }
+        } catch (mediaError) {
+          console.error('Erro ao baixar mídia do QR Gateway:', mediaError);
+        }
       }
 
       return [{

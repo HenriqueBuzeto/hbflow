@@ -533,25 +533,14 @@ export default function InboxPage() {
         {activeConv && activeContact ? (
           <>
             {/* Active Chat Header */}
-            <div className="h-14 bg-white border-b border-slate-200 px-5 flex items-center justify-between shrink-0">
+            <div className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-5 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="w-9 h-9 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-xs shrink-0 ring-2 ring-primary/20">
                   {activeContact.name.charAt(0)}
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h4 className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">{activeContact.name}</h4>
-                    {activeConv.aiLeadScore !== undefined && (
-                      <span className={`flex items-center gap-1 text-[8.5px] font-extrabold px-2 py-0.5 rounded-full border shadow-sm shrink-0 ${
-                        activeConv.aiLeadLabel === 'quente'
-                          ? 'bg-rose-50 text-rose-600 border-rose-200 dark:bg-rose-950/20 dark:text-rose-400 dark:border-rose-900/50'
-                          : activeConv.aiLeadLabel === 'morno'
-                          ? 'bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/20 dark:text-amber-400 dark:border-amber-900/50'
-                          : 'bg-slate-50 text-slate-500 border-slate-200 dark:bg-slate-900/20 dark:text-slate-400 dark:border-slate-850'
-                      }`}>
-                        Lead Score: {activeConv.aiLeadScore}% ({activeConv.aiLeadLabel === 'quente' ? 'Quente 🔥' : activeConv.aiLeadLabel === 'morno' ? 'Morno ⏳' : 'Frio ❄️'})
-                      </span>
-                    )}
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white truncate">{activeContact.name}</h4>
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-[9px] text-slate-400 block truncate font-medium">
@@ -755,7 +744,44 @@ export default function InboxPage() {
                             {m.senderName}
                           </span>
 
-                          <p className="whitespace-pre-wrap leading-relaxed">{m.body}</p>
+                          {m.type === 'image' && m.mediaUrl && (
+                            <div className="my-2 rounded-xl overflow-hidden border border-slate-200/60 bg-white max-w-sm max-h-72 shadow-sm">
+                              <img
+                                src={m.mediaUrl}
+                                alt="Imagem enviada"
+                                className="w-full h-full object-contain cursor-pointer hover:opacity-95 transition-opacity"
+                                onClick={() => {
+                                  const w = window.open();
+                                  if (w) w.document.write(`<img src="${m.mediaUrl}" style="max-width:100%; max-height:100vh; display:block; margin:auto;" />`);
+                                }}
+                              />
+                            </div>
+                          )}
+                          {m.type === 'audio' && m.mediaUrl && (
+                            <div className="my-2 max-w-xs bg-slate-100/50 p-2 rounded-xl border border-slate-200/40">
+                              <audio src={m.mediaUrl} controls className="w-full h-8" />
+                            </div>
+                          )}
+                          {m.type === 'video' && m.mediaUrl && (
+                            <div className="my-2 rounded-xl overflow-hidden border border-slate-200/60 bg-black max-w-sm max-h-72 shadow-sm">
+                              <video src={m.mediaUrl} controls className="w-full h-full object-contain" />
+                            </div>
+                          )}
+                          {m.type === 'document' && m.mediaUrl && (
+                            <div className="my-2">
+                              <a
+                                href={m.mediaUrl}
+                                download={m.body || 'Documento'}
+                                className="flex items-center gap-2 bg-slate-100 hover:bg-slate-200/80 p-2.5 rounded-xl border border-slate-200 transition-all text-primary font-bold w-fit text-[11px] shadow-sm"
+                              >
+                                <Paperclip size={13} className="text-primary shrink-0" />
+                                <span className="underline truncate max-w-[180px]">{m.body || 'Download Documento'}</span>
+                              </a>
+                            </div>
+                          )}
+                          {(!m.mediaUrl || (m.body && !['[Imagem]', '[Áudio]', '[Vídeo]', '[Documento]'].includes(m.body) && m.type !== 'document')) && (
+                            <p className="whitespace-pre-wrap leading-relaxed">{m.body}</p>
+                          )}
 
                           <div className={`flex items-center justify-end gap-1 text-[8.5px] mt-2 font-medium ${
                             isUser ? 'text-purple-200' : 'text-slate-400'
