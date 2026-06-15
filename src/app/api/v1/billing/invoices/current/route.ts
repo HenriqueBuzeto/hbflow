@@ -14,6 +14,9 @@ export async function GET() {
         deletedAt: null
       },
       include: {
+        subscription: {
+          include: { plan: true }
+        },
         payments: {
           orderBy: { createdAt: 'desc' }
         },
@@ -24,11 +27,41 @@ export async function GET() {
       orderBy: { dueDate: 'asc' }
     });
 
+    // Se a fatura aberta/atrasada tiver um preço antigo que mudou, atualiza no banco
+    if (invoice && invoice.subscription?.plan) {
+      const correctPrice = invoice.subscription.plan.priceCents;
+      if (invoice.subtotalCents !== correctPrice) {
+        const discountCents = invoice.discountCents;
+        const newTotal = Math.max(0, correctPrice - discountCents);
+        invoice = await prisma.invoice.update({
+          where: { id: invoice.id },
+          data: {
+            subtotalCents: correctPrice,
+            totalCents: newTotal
+          },
+          include: {
+            subscription: {
+              include: { plan: true }
+            },
+            payments: {
+              orderBy: { createdAt: 'desc' }
+            },
+            pixCharges: {
+              orderBy: { createdAt: 'desc' }
+            }
+          }
+        });
+      }
+    }
+
     // Se não tiver nenhuma aberta/atrasada, pega a última paga/geral
     if (!invoice) {
       invoice = await prisma.invoice.findFirst({
         where: { tenantId, deletedAt: null },
         include: {
+          subscription: {
+            include: { plan: true }
+          },
           payments: {
             orderBy: { createdAt: 'desc' }
           },

@@ -21,7 +21,7 @@ import {
 
 export default function BillingPage() {
   const router = useRouter();
-  const { currentTenantId, tenants } = useStore();
+  const { currentTenantId, tenants, fetchUsers } = useStore();
   
   // Expiration Status state
   const [subscriptionInfo, setSubscriptionInfo] = useState<any>(null);
@@ -35,14 +35,14 @@ export default function BillingPage() {
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false);
   const [couponError, setCouponError] = useState('');
   const [couponSuccess, setCouponSuccess] = useState('');
-
+ 
   // Payment states
   const [isProcessingCheckout, setIsProcessingCheckout] = useState(false);
   const [checkoutResult, setCheckoutResult] = useState<any>(null);
   const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
   const [globalError, setGlobalError] = useState('');
   const [copiedPayload, setCopiedPayload] = useState(false);
-
+ 
   // Fetch subscription, plans and current invoice
   const initBilling = async () => {
     try {
@@ -53,7 +53,7 @@ export default function BillingPage() {
         setSubscriptionInfo(subData.subscription);
         setAccessInfo(subData.access);
       }
-
+ 
       // 2. Fetch Plans
       const plansRes = await fetch('/api/v1/billing/plans');
       if (plansRes.ok) {
@@ -63,7 +63,7 @@ export default function BillingPage() {
           setSelectedPlan(plansData.plans[0]); // default to first plan (Starter)
         }
       }
-
+ 
       // 3. Fetch Current Invoice
       const invRes = await fetch('/api/v1/billing/invoices/current');
       if (invRes.ok) {
@@ -74,10 +74,14 @@ export default function BillingPage() {
       console.error('Failed to load billing status:', err);
     }
   };
-
+ 
   useEffect(() => {
-    initBilling();
-  }, []);
+    const loadStoreAndBilling = async () => {
+      await fetchUsers();
+      await initBilling();
+    };
+    loadStoreAndBilling();
+  }, [fetchUsers]);
 
   // Update selected plan
   const handlePlanChange = (plan: any) => {
@@ -96,9 +100,14 @@ export default function BillingPage() {
     setCouponError('');
     setCouponSuccess('');
 
+    const targetTenantId = currentTenantId || useStore.getState().currentTenantId;
+
     try {
-      // Se tivermos uma fatura atual aberta, podemos simular aplicando a ela
-      if (!currentInvoice) {
+      // Se tivermos uma fatura atual aberta correspondente ao plano selecionado, podemos aplicar a ela
+      const invoiceMatchesSelected = currentInvoice && 
+        (currentInvoice.subscription?.plan?.slug === selectedPlan?.slug);
+
+      if (!invoiceMatchesSelected) {
         // Criar uma fatura aberta temporária para o plano selecionado
         const start = new Date();
         const end = new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000);
@@ -107,7 +116,7 @@ export default function BillingPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            tenantId: currentTenantId,
+            tenantId: targetTenantId,
             billingPeriodStart: start.toISOString(),
             billingPeriodEnd: end.toISOString(),
             couponCode: couponCode.trim().toUpperCase()
@@ -122,12 +131,12 @@ export default function BillingPage() {
         setCurrentInvoice(genData.invoice);
         setCouponSuccess(`Cupom "${couponCode.toUpperCase()}" aplicado com sucesso!`);
       } else {
-        // Se já existe fatura aberta, regenera informando o cupom
+        // Se já existe fatura aberta do mesmo plano, regenera informando o cupom
         const genRes = await fetch('/api/v1/admin/billing/invoices/generate-monthly', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            tenantId: currentTenantId,
+            tenantId: targetTenantId,
             billingPeriodStart: currentInvoice.billingPeriodStart,
             billingPeriodEnd: currentInvoice.billingPeriodEnd,
             couponCode: couponCode.trim().toUpperCase()
@@ -155,11 +164,18 @@ export default function BillingPage() {
     setIsProcessingCheckout(true);
     setGlobalError('');
 
+    const targetTenantId = currentTenantId || useStore.getState().currentTenantId;
+
     try {
       let activeInvoice = currentInvoice;
 
-      // Se não houver fatura ativa aberta, gera uma nova mensalidade
-      if (!activeInvoice || activeInvoice.status === 'paid') {
+      // Se a fatura ativa aberta for para um plano diferente do selecionado,
+      // ou se não houver fatura, força a geração de uma nova fatura
+      const invoiceMatchesSelected = activeInvoice && 
+        (activeInvoice.subscription?.plan?.slug === selectedPlan.slug);
+
+      // Se não houver fatura ativa aberta, ou for de outro plano, gera uma nova mensalidade
+      if (!invoiceMatchesSelected || activeInvoice?.status === 'paid') {
         const start = new Date();
         const end = new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000);
         
@@ -167,7 +183,7 @@ export default function BillingPage() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            tenantId: currentTenantId,
+            tenantId: targetTenantId,
             billingPeriodStart: start.toISOString(),
             billingPeriodEnd: end.toISOString(),
             couponCode: couponCode || undefined
@@ -254,6 +270,9 @@ export default function BillingPage() {
     setCopiedPayload(true);
     setTimeout(() => setCopiedPayload(false), 2000);
   };
+
+  const invoiceMatchesPlan = currentInvoice && selectedPlan && 
+    (currentInvoice.subscription?.plan?.slug === selectedPlan.slug);
 
   const currentTenant = tenants.find(t => t.id === currentTenantId) || tenants[0] || { name: 'Empresa' };
 
@@ -436,7 +455,7 @@ export default function BillingPage() {
                   <span className="font-mono">R$ {selectedPlan ? (selectedPlan.priceCents / 100).toFixed(2) : '0.00'}</span>
                 </div>
 
-                {currentInvoice && currentInvoice.discountCents > 0 && (
+                {invoiceMatchesPlan && currentInvoice.discountCents > 0 && (
                   <div className="flex justify-between text-emerald-400 font-bold bg-emerald-950/10 p-2.5 rounded-xl border border-emerald-950/30">
                     <span className="flex items-center gap-1"><Percent size={12} /> Desconto Aplicado</span>
                     <span className="font-mono">-R$ {(currentInvoice.discountCents / 100).toFixed(2)}</span>
@@ -446,7 +465,7 @@ export default function BillingPage() {
                 <div className="flex justify-between text-sm font-extrabold text-white pt-2 border-t border-slate-900">
                   <span>Valor Total</span>
                   <span className="font-mono text-primary">
-                    R$ {currentInvoice ? (currentInvoice.totalCents / 100).toFixed(2) : selectedPlan ? (selectedPlan.priceCents / 100).toFixed(2) : '0.00'}
+                    R$ {invoiceMatchesPlan ? (currentInvoice.totalCents / 100).toFixed(2) : selectedPlan ? (selectedPlan.priceCents / 100).toFixed(2) : '0.00'}
                   </span>
                 </div>
               </div>
