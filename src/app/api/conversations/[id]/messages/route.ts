@@ -195,11 +195,17 @@ export async function POST(request: Request, { params }: RouteParams) {
         });
         if (contact) {
           // Send WhatsApp message asynchronously in the background
+          let bodyToSend = message.body;
+          if (message.senderType === 'user' && message.senderName) {
+            bodyToSend = `*${message.senderName}*\n${message.body}`;
+          }
+
+          // Send WhatsApp message asynchronously in the background
           WhatsAppMessageService.sendTextMessage(
             tenantId,
             connectionId,
             contact.phone,
-            message.body
+            bodyToSend
           ).then(async (result) => {
             if (result.status === 'sent' && result.messageId) {
               await prisma.message.update({
