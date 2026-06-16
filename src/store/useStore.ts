@@ -51,6 +51,10 @@ export interface Tenant {
   slug: string;
   plan: string;
   createdAt?: string;
+  subscription?: {
+    status: string;
+    currentPeriodEnd: string;
+  } | null;
 }
 
 export interface User {
@@ -785,14 +789,22 @@ export const useStore = create<State & Actions>((set, get) => ({
             name: meData.user.tenant.name,
             slug: meData.user.tenant.slug,
             plan: meData.user.tenant.plan || 'starter',
-            createdAt: meData.user.tenant.createdAt
+            createdAt: meData.user.tenant.createdAt,
+            subscription: meData.user.tenant.subscriptions?.[0] ? {
+              status: meData.user.tenant.subscriptions[0].status,
+              currentPeriodEnd: meData.user.tenant.subscriptions[0].currentPeriodEnd
+            } : null
           };
           const mappedTenants = meData.tenants ? meData.tenants.map((t: any) => ({
             id: t.id,
             name: t.name,
             slug: t.slug,
             plan: t.plan || 'starter',
-            createdAt: t.createdAt
+            createdAt: t.createdAt,
+            subscription: t.subscriptions?.[0] ? {
+              status: t.subscriptions[0].status,
+              currentPeriodEnd: t.subscriptions[0].currentPeriodEnd
+            } : null
           })) : [tenantMapped];
           set({
             tenants: mappedTenants,

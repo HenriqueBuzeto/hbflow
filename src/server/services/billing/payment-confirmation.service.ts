@@ -11,7 +11,9 @@ export class PaymentConfirmationService {
       include: {
         invoice: {
           include: {
-            subscription: true
+            subscription: {
+              include: { plan: true }
+            }
           }
         }
       }
@@ -58,10 +60,10 @@ export class PaymentConfirmationService {
         data: { status: 'paid' }
       });
 
-      // 4. Atualizar Assinatura
-      if (payment.invoice.subscriptionId) {
-        const sub = payment.invoice.subscription;
-        const targetStatus = sub && sub.status === 'free' ? 'free' : 'active';
+      // 4. Atualizar Assinatura e Tenant
+      if (payment.invoice.subscriptionId && payment.invoice.subscription) {
+        const sub = payment.invoice.subscription as any;
+        const targetStatus = sub.status === 'free' ? 'free' : 'active';
         
         await tx.subscription.update({
           where: { id: payment.invoice.subscriptionId },
@@ -69,6 +71,16 @@ export class PaymentConfirmationService {
             status: targetStatus,
             currentPeriodStart: now,
             currentPeriodEnd: nextPeriodEnd
+          }
+        });
+
+        // Atualizar plano e status do Tenant comercial
+        await tx.tenant.update({
+          where: { id: payment.tenantId },
+          data: {
+            status: targetStatus,
+            plan: sub.plan.slug,
+            isActive: true
           }
         });
       }

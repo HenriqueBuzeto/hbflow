@@ -12,7 +12,15 @@ export async function GET() {
     const fullUser = await prisma.user.findUnique({
       where: { id: user.userId },
       include: {
-        tenant: true,
+        tenant: {
+          include: {
+            subscriptions: {
+              where: { deletedAt: null },
+              orderBy: { createdAt: 'desc' },
+              take: 1
+            }
+          }
+        },
         role: true,
         userDepartments: {
           include: { department: true }
@@ -73,7 +81,17 @@ export async function GET() {
         isActive: true,
         tenant: { isActive: true }
       },
-      include: { tenant: true }
+      include: {
+        tenant: {
+          include: {
+            subscriptions: {
+              where: { deletedAt: null },
+              orderBy: { createdAt: 'desc' },
+              take: 1
+            }
+          }
+        }
+      }
     });
 
     const tenantsList = userTenants.map((ut: any) => ut.tenant).filter(Boolean);

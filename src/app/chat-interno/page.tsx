@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { useStore } from '@/store/useStore';
 import { MessageSquare, Send, User, ShieldCheck, ChevronRight } from 'lucide-react';
 
@@ -13,7 +14,8 @@ interface InternalMessage {
 }
 
 export default function ChatInternoPage() {
-  const { users, currentUserId } = useStore();
+  const router = useRouter();
+  const { users, currentUserId, tenants, currentTenantId } = useStore();
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [msgText, setMsgText] = useState('');
   const [chatLogs, setChatLogs] = useState<InternalMessage[]>([]);
@@ -21,8 +23,51 @@ export default function ChatInternoPage() {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0];
+  const isFeatureBlocked = activeTenant && activeTenant.plan === 'starter';
+
   const currentUser = users.find((u) => u.id === currentUserId) || users[0] || { id: '', name: 'Usuário', email: '', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces', role: 'Atendente', presence: 'offline' };
   const targetAgent = users.find((u) => u.id === selectedAgentId);
+
+  if (isFeatureBlocked) {
+    return (
+      <div className="space-y-6 max-w-4xl mx-auto py-10">
+        <div className="bg-white border border-slate-200 rounded-3xl p-10 shadow-sm text-center flex flex-col items-center justify-center gap-6 relative overflow-hidden min-h-[450px]">
+          {/* Radial gradient background accent */}
+          <div className="absolute top-[-50%] right-[-10%] w-[50%] h-[150%] bg-primary/5 rounded-full blur-[100px] pointer-events-none" />
+          
+          <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary shadow-[0_0_20px_rgba(124,58,237,0.15)] shrink-0 animate-pulse">
+            <MessageSquare size={32} />
+          </div>
+
+          <div className="space-y-2 max-w-md">
+            <span className="text-[10px] font-extrabold text-primary bg-primary/10 border border-primary/20 px-3 py-1 rounded-full uppercase tracking-wider">
+              Recurso Exclusivo Plano Pro
+            </span>
+            <h2 className="text-xl font-bold text-slate-800 pt-2">Chat Interno Corporativo</h2>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              O módulo de chat interno foi desenhado para facilitar a colaboração direta, compartilhamento de notas de leads, e suporte em tempo real entre atendentes e supervisores da sua equipe.
+            </p>
+          </div>
+
+          <div className="border-t border-slate-100 w-full max-w-sm pt-5 flex flex-col gap-3">
+            <div className="flex items-center gap-2 justify-center text-[10.5px] font-bold text-slate-500">
+              <ShieldCheck size={14} className="text-emerald-500" />
+              <span>Sua assinatura atual: <span className="uppercase text-slate-700">{activeTenant?.plan}</span></span>
+            </div>
+            
+            <button
+              onClick={() => router.push('/billing')}
+              className="bg-primary hover:bg-primary-hover text-white text-xs font-bold py-3.5 px-6 rounded-2xl transition-all shadow-md shadow-primary/20 hover:scale-[1.02] flex items-center justify-center gap-1.5 cursor-pointer uppercase tracking-wider"
+            >
+              <span>Fazer Upgrade para Plano Pro</span>
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Sync internal chat messages from the database
   const fetchMessages = async (showLoading = false) => {

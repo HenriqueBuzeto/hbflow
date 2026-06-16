@@ -38,7 +38,52 @@ export default function Header() {
   };
 
   const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0] || { id: '', name: 'Empresa', slug: '', plan: 'starter', createdAt: undefined };
-  const unreadNotifications = notifications.filter((n) => !n.isRead);
+  // Subscription countdown helper
+  const getSubscriptionCountdown = () => {
+    if (activeTenant.plan === 'free' || !activeTenant.subscription?.currentPeriodEnd) return null;
+    const end = new Date(activeTenant.subscription.currentPeriodEnd).getTime();
+    const diffMs = end - Date.now();
+    const diffDays = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
+    return {
+      daysRemaining: diffDays,
+      expired: diffMs <= 0,
+      dateStr: new Date(activeTenant.subscription.currentPeriodEnd).toLocaleDateString('pt-BR'),
+    };
+  };
+
+  const subCountdown = getSubscriptionCountdown();
+
+  // Dynamically generated billing notifications
+  const billingNotifications: any[] = [];
+  if (subCountdown) {
+    if (subCountdown.daysRemaining > 0 && subCountdown.daysRemaining <= 3) {
+      const days = subCountdown.daysRemaining;
+      const msg = days === 1
+        ? 'Amanhã seu sistema irá bloquear. Realize o pagamento para evitar suspensão!'
+        : `Sua fatura vence em ${days} dias. Evite bloqueio do sistema realizando o pagamento.`;
+      
+      billingNotifications.push({
+        id: `dynamic-billing-warning-${days}`,
+        title: '⚠️ Aviso de Vencimento',
+        message: msg,
+        type: 'system',
+        isRead: false,
+        createdAt: new Date().toISOString()
+      });
+    } else if (subCountdown.expired) {
+      billingNotifications.push({
+        id: 'dynamic-billing-expired',
+        title: '🚨 Sistema Bloqueado',
+        message: 'Sua assinatura venceu. Realize o pagamento para desbloquear o sistema.',
+        type: 'system',
+        isRead: false,
+        createdAt: new Date().toISOString()
+      });
+    }
+  }
+
+  const allNotifications = [...billingNotifications, ...notifications];
+  const unreadNotifications = allNotifications.filter((n) => !n.isRead);
   const currentUser = users.find((u) => u.id === currentUserId) || users[0] || { id: '', name: 'Usuário', email: '', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces', role: 'Atendente', presence: 'offline' };
 
   // Trial countdown helper
@@ -96,6 +141,29 @@ export default function Header() {
               className="ml-1 px-2.5 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-[9px] font-black transition-colors uppercase tracking-wider shadow-sm"
             >
               Assinar
+            </button>
+          </div>
+        )}
+
+        {subCountdown && subCountdown.daysRemaining <= 3 && (
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10.5px] font-bold shadow-sm select-none shrink-0 ${
+            subCountdown.expired
+              ? 'bg-rose-50 border-rose-200 text-rose-600'
+              : 'bg-rose-50 border-rose-200 text-rose-600 animate-pulse'
+          }`}>
+            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
+            <span>
+              {subCountdown.expired 
+                ? 'Assinatura Expirada' 
+                : subCountdown.daysRemaining === 1 
+                  ? 'Vence Amanhã!' 
+                  : `Vence em ${subCountdown.daysRemaining} dias`}
+            </span>
+            <button
+              onClick={() => router.push('/financeiro')}
+              className="ml-1 px-2.5 py-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-[9px] font-black transition-colors uppercase tracking-wider shadow-sm"
+            >
+              Renovar
             </button>
           </div>
         )}
@@ -162,22 +230,32 @@ export default function Header() {
                 )}
               </div>
               <div className="py-1">
-                {notifications.length === 0 ? (
+                {allNotifications.length === 0 ? (
                   <div className="p-4 text-center text-xs text-slate-400 dark:text-slate-500">Nenhuma notificação ativa.</div>
                 ) : (
-                  notifications.map((not) => (
+                  allNotifications.map((not) => (
                     <div
                       key={not.id}
-                      onClick={() => markNotificationRead(not.id)}
+                      onClick={() => {
+                        if (not.id.toString().startsWith('dynamic-billing')) {
+                          router.push('/financeiro');
+                        } else {
+                          markNotificationRead(not.id);
+                        }
+                      }}
                       className={`p-3 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer flex gap-2 mb-1 ${
-                        !not.isRead ? 'bg-primary/5 border-l-2 border-primary' : ''
+                        !not.isRead 
+                          ? not.id.toString().startsWith('dynamic-billing')
+                            ? 'bg-rose-50/50 dark:bg-rose-950/20 border-l-2 border-rose-500'
+                            : 'bg-primary/5 border-l-2 border-primary' 
+                          : ''
                       }`}
                     >
                       <div className="flex-1">
                         <p className="text-xs font-semibold text-slate-800 dark:text-slate-250">{not.title}</p>
                         <p className="text-[11px] text-slate-600 dark:text-slate-450 mt-0.5">{not.message}</p>
                         <span className="text-[9px] text-slate-400 dark:text-slate-500 block mt-1">
-                          {new Date(not.createdAt).toLocaleTimeString()}
+                          {not.id.toString().startsWith('dynamic-billing') ? 'Agora mesmo' : new Date(not.createdAt).toLocaleTimeString()}
                         </span>
                       </div>
                       {!not.isRead && (

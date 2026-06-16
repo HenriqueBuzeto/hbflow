@@ -15,10 +15,37 @@ export async function GET() {
 
     const access = await SubscriptionAccessService.checkAccess(tenantId);
 
+    // Fetch active tenant discount and related coupon
+    const activeDiscount = await prisma.tenantDiscount.findFirst({
+      where: {
+        tenantId,
+        isActive: true,
+        startsAt: { lte: new Date() },
+        OR: [
+          { endsAt: null },
+          { endsAt: { gte: new Date() } }
+        ],
+        deletedAt: null
+      },
+      include: { coupon: true },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Fetch last paid payment to determine payment method used
+    const lastPayment = await prisma.payment.findFirst({
+      where: {
+        tenantId,
+        status: 'paid'
+      },
+      orderBy: { paidAt: 'desc' }
+    });
+
     return NextResponse.json({
       success: true,
       subscription,
-      access
+      access,
+      activeDiscount,
+      lastPayment
     });
   } catch (error: any) {
     console.error('Error fetching subscription:', error);

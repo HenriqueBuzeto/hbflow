@@ -2,11 +2,20 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/server/middleware/auth.middleware';
 import { requireTenant } from '@/server/middleware/tenant.middleware';
 import { prisma } from '@/server/db/prisma';
+import { FeatureAccessService } from '@/server/services/billing/feature-access.service';
 
 export async function GET(request: Request) {
   try {
     const user = await requireAuth();
     const tenantId = await requireTenant();
+
+    const hasAccess = await FeatureAccessService.checkFeature(tenantId, 'chat_interno_enabled');
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: 'FEATURE_BLOCKED_ON_PLAN' },
+        { status: 403 }
+      );
+    }
 
     const messages = await prisma.internalMessage.findMany({
       where: {
@@ -34,6 +43,14 @@ export async function POST(request: Request) {
   try {
     const user = await requireAuth();
     const tenantId = await requireTenant();
+
+    const hasAccess = await FeatureAccessService.checkFeature(tenantId, 'chat_interno_enabled');
+    if (!hasAccess) {
+      return NextResponse.json(
+        { error: 'FEATURE_BLOCKED_ON_PLAN' },
+        { status: 403 }
+      );
+    }
 
     const body = await request.json();
     const { receiverId, body: messageBody } = body;

@@ -110,59 +110,29 @@ export default function BillingPage() {
     setCouponError('');
     setCouponSuccess('');
 
-    const targetTenantId = currentTenantId || useStore.getState().currentTenantId;
-
     try {
-      // Se tivermos uma fatura atual aberta correspondente ao plano selecionado, podemos aplicar a ela
-      const invoiceMatchesSelected = currentInvoice && 
-        (currentInvoice.subscription?.plan?.slug === selectedPlan?.slug);
+      const res = await fetch('/api/v1/billing/coupons/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponCode.trim().toUpperCase() })
+      });
 
-      if (!invoiceMatchesSelected) {
-        // Criar uma fatura aberta temporária para o plano selecionado
-        const start = new Date();
-        const end = new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000);
-        
-        const genRes = await fetch('/api/v1/admin/billing/invoices/generate-monthly', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tenantId: targetTenantId,
-            billingPeriodStart: start.toISOString(),
-            billingPeriodEnd: end.toISOString(),
-            couponCode: couponCode.trim().toUpperCase(),
-            planSlug: selectedPlan?.slug
-          })
-        });
-
-        const genData = await genRes.json();
-        if (!genRes.ok) {
-          throw new Error(genData.error || 'Erro ao aplicar cupom/gerar fatura.');
-        }
-
-        setCurrentInvoice(genData.invoice);
-        setCouponSuccess(`Cupom "${couponCode.toUpperCase()}" aplicado com sucesso!`);
-      } else {
-        // Se já existe fatura aberta do mesmo plano, regenera informando o cupom
-        const genRes = await fetch('/api/v1/admin/billing/invoices/generate-monthly', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tenantId: targetTenantId,
-            billingPeriodStart: currentInvoice.billingPeriodStart,
-            billingPeriodEnd: currentInvoice.billingPeriodEnd,
-            couponCode: couponCode.trim().toUpperCase(),
-            planSlug: selectedPlan?.slug
-          })
-        });
-
-        const genData = await genRes.json();
-        if (!genRes.ok) {
-          throw new Error(genData.error || 'Erro ao aplicar cupom.');
-        }
-
-        setCurrentInvoice(genData.invoice);
-        setCouponSuccess(`Cupom "${couponCode.toUpperCase()}" aplicado com sucesso!`);
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Erro ao aplicar o cupom.');
       }
+
+      if (data.duration === 'forever') {
+        setCouponSuccess(
+          `Cupom "${couponCode.toUpperCase()}" aplicado com sucesso! Este desconto será aplicado nas próximas mensalidades enquanto o cupom estiver ativo.`
+        );
+      } else {
+        setCouponSuccess(
+          `Cupom "${couponCode.toUpperCase()}" aplicado com sucesso! Este desconto é válido apenas para a primeira mensalidade.`
+        );
+      }
+
+      await initBilling();
     } catch (err: any) {
       setCouponError(err.message || 'Cupom inválido ou expirado.');
     } finally {
@@ -560,73 +530,15 @@ export default function BillingPage() {
                 </div>
               </div>
 
-              {/* Formas de Pagamento Selector Tabs (Only if not checked out yet) */}
+              {/* Forma de Pagamento - Apenas Real (InfinitePay) */}
               {!checkoutResult && !boletoResult && (
                 <div className="space-y-2.5 pt-3.5 border-t border-slate-900">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
                     Forma de Pagamento
                   </span>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800/40">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPaymentMethod('infinitepay');
-                        setGlobalError('');
-                      }}
-                      className={`py-1.5 px-1 text-[9px] font-bold rounded-lg flex flex-col items-center gap-1 cursor-pointer transition-all ${
-                        paymentMethod === 'infinitepay'
-                          ? 'bg-primary text-white shadow-md'
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                      }`}
-                    >
-                      <Sparkles size={12} className="text-amber-400" />
-                      <span>Pix/Cartão Real</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPaymentMethod('pix');
-                        setGlobalError('');
-                      }}
-                      className={`py-1.5 px-1 text-[9px] font-bold rounded-lg flex flex-col items-center gap-1 cursor-pointer transition-all ${
-                        paymentMethod === 'pix'
-                          ? 'bg-primary text-white shadow-md'
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                      }`}
-                    >
-                      <QrCode size={12} />
-                      <span>Pix Simulado</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPaymentMethod('credit_card');
-                        setGlobalError('');
-                      }}
-                      className={`py-1.5 px-1 text-[9px] font-bold rounded-lg flex flex-col items-center gap-1 cursor-pointer transition-all ${
-                        paymentMethod === 'credit_card'
-                          ? 'bg-primary text-white shadow-md'
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                      }`}
-                    >
-                      <CreditCard size={12} />
-                      <span>Cartão Simulado</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPaymentMethod('boleto');
-                        setGlobalError('');
-                      }}
-                      className={`py-1.5 px-1 text-[9px] font-bold rounded-lg flex flex-col items-center gap-1 cursor-pointer transition-all ${
-                        paymentMethod === 'boleto'
-                          ? 'bg-primary text-white shadow-md'
-                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
-                      }`}
-                    >
-                      <Ticket size={12} />
-                      <span>Boleto Simulado</span>
-                    </button>
+                  <div className="flex bg-slate-900 p-3.5 rounded-xl border border-slate-800/40 items-center justify-between text-xs font-semibold text-white">
+                    <span className="flex items-center gap-1.5"><Sparkles size={14} className="text-amber-400" /> Pix ou Cartão (Via InfinitePay)</span>
+                    <span className="bg-emerald-500/10 text-emerald-400 text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border border-emerald-500/20">Real</span>
                   </div>
                 </div>
               )}

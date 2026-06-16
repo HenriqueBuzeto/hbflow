@@ -624,11 +624,7 @@ export default function UsuariosPage() {
                 </div>
               </form>
             </div>
-          ) : (
-            <div className="bg-slate-50 border border-dashed border-slate-300 rounded-3xl p-8 text-center text-xs text-slate-400 leading-normal font-medium">
-              Selecione "Filtros" na tabela para gerenciar a quais setores de triagem do WhatsApp este atendente terá acesso.
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
 

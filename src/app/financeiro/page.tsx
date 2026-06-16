@@ -47,6 +47,8 @@ export default function FinanceiroPage() {
   // Expiration info
   const [subscriptionInfo, setSubscriptionInfo] = useState<any>(null);
   const [accessInfo, setAccessInfo] = useState<any>(null);
+  const [activeDiscount, setActiveDiscount] = useState<any>(null);
+  const [lastPayment, setLastPayment] = useState<any>(null);
 
   const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0] || { id: '', name: 'Empresa', slug: '', plan: 'starter' };
 
@@ -58,6 +60,8 @@ export default function FinanceiroPage() {
         const subData = await subRes.json();
         setSubscriptionInfo(subData.subscription);
         setAccessInfo(subData.access);
+        setActiveDiscount(subData.activeDiscount);
+        setLastPayment(subData.lastPayment);
       }
     } catch (err) {
       console.error('Failed to load financeiro data:', err);
@@ -75,61 +79,33 @@ export default function FinanceiroPage() {
     return true;
   });
 
-  // Handle Pix Checkout Activation / Details View
+  const [generatingLink, setGeneratingLink] = useState(false);
+
+  // Select Invoice
   const handleSelectInvoice = async (invoice: any) => {
     setSelectedInvoice(invoice);
     setPixCharge(null);
     setFeedbackMsg(null);
+  };
 
-    if (invoice.status === 'paid') {
-      return; // Do not fetch Pix charge for paid invoices
-    }
-
-    setLoadingPix(true);
+  // Generate real checkout link and redirect user
+  const handlePayInvoiceReal = async (invoiceId: string) => {
+    setGeneratingLink(true);
+    setFeedbackMsg(null);
     try {
-      const res = await fetch(`/api/v1/billing/invoices/${invoice.id}/pix`, {
+      const res = await fetch(`/api/v1/billing/invoices/${invoiceId}/infinitepay/link`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
       const data = await res.json();
-      if (res.ok && data.success) {
-        setPixCharge(data.pixCharge);
-      } else {
-        setFeedbackMsg({ type: 'error', text: data.error || 'Erro ao gerar QR Code Pix.' });
+      if (!res.ok) throw new Error(data.error || 'Erro ao processar checkout.');
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
       }
-    } catch (err) {
-      setFeedbackMsg({ type: 'error', text: 'Falha de conexão ao gerar o Pix.' });
+    } catch (err: any) {
+      setFeedbackMsg({ type: 'error', text: err.message || 'Falha ao gerar o link de pagamento real.' });
     } finally {
-      setLoadingPix(false);
-    }
-  };
-
-  // Confirm Simulated Payment
-  const handleConfirmPayment = async () => {
-    if (!pixCharge || !selectedInvoice) return;
-    setConfirmingPayment(true);
-    setFeedbackMsg(null);
-
-    try {
-      const res = await fetch(`/api/v1/admin/billing/payments/${pixCharge.paymentId}/confirm`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amountCents: pixCharge.amountCents })
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setFeedbackMsg({ type: 'success', text: 'Pagamento simulado com sucesso!' });
-        setSelectedInvoice(null);
-        setPixCharge(null);
-        await loadBillingData();
-        await fetchUsers(); // Refresh blockage state
-      } else {
-        setFeedbackMsg({ type: 'error', text: data.error || 'Erro ao confirmar pagamento.' });
-      }
-    } catch (err) {
-      setFeedbackMsg({ type: 'error', text: 'Erro ao conectar ao servidor.' });
-    } finally {
-      setConfirmingPayment(false);
+      setGeneratingLink(false);
     }
   };
 
@@ -165,7 +141,7 @@ export default function FinanceiroPage() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-black dark:text-black flex items-center gap-2">
             <CreditCard size={24} className="text-primary" />
             Painel Financeiro & Faturamento
           </h1>
@@ -274,6 +250,35 @@ export default function FinanceiroPage() {
                 <span className="text-slate-700 dark:text-slate-350 text-xs font-semibold flex items-center gap-1.5">
                   <Calendar size={13} className="text-slate-400" />
                   {new Date(subscriptionInfo.currentPeriodEnd).toLocaleDateString('pt-BR')}
+                </span>
+              </div>
+            )}
+
+            {activeDiscount && (
+              <div>
+                <span className="text-[10px] text-slate-400 font-bold block mb-1">Cupom de Desconto</span>
+                <span className="text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+                  {activeDiscount.coupon?.code || 'Desconto Manual'}{' '}
+                  {activeDiscount.coupon?.duration === 'forever' ? '(Permanente)' : ''} (Desconto:{' '}
+                  {activeDiscount.type === 'percentage'
+                    ? `${activeDiscount.value}%`
+                    : `R$ ${(activeDiscount.value / 100).toFixed(2)}`}
+                  )
+                </span>
+              </div>
+            )}
+
+            {lastPayment && (
+              <div>
+                <span className="text-[10px] text-slate-400 font-bold block mb-1">Última Forma de Pagamento</span>
+                <span className="text-slate-700 dark:text-slate-350 text-xs font-semibold capitalize">
+                  {lastPayment.provider === 'infinitepay'
+                    ? 'InfinitePay (Pix/Cartão)'
+                    : lastPayment.provider === 'manual_pix'
+                    ? 'Pix Simulado'
+                    : lastPayment.amountCents === 0
+                    ? 'Isenção / Cupom 100%'
+                    : lastPayment.provider}
                 </span>
               </div>
             )}
@@ -473,92 +478,80 @@ export default function FinanceiroPage() {
                 <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-2.5 text-xs self-start">
                   <h5 className="font-bold text-[10px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
                     <DollarSign size={12} className="text-primary" />
-                    Valores
+                    Detalhamento Financeiro
                   </h5>
                   <div className="flex justify-between text-slate-400">
-                    <span>Preço Base do Plano:</span>
+                    <span>Valor Original:</span>
                     <span className="font-mono">R$ {(selectedInvoice.subtotalCents / 100).toFixed(2)}</span>
                   </div>
-                  {selectedInvoice.discountCents > 0 && (
-                    <div className="flex justify-between text-emerald-400 font-semibold">
-                      <span>Descontos / Cupom:</span>
-                      <span className="font-mono">- R$ {(selectedInvoice.discountCents / 100).toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div className="pt-2 border-t border-slate-850 flex justify-between items-center text-xs font-black">
-                    <span className="text-white">Valor Líquido:</span>
+                  {(() => {
+                    let couponCode = '';
+                    let couponDetails = null;
+                    if (selectedInvoice.metadataJson) {
+                      try {
+                        const meta = JSON.parse(selectedInvoice.metadataJson);
+                        if (meta.couponCode) {
+                          couponCode = meta.couponCode;
+                          couponDetails = meta;
+                        }
+                      } catch (e) {}
+                    }
+                    return (
+                      <>
+                        {couponCode && (
+                          <div className="flex justify-between text-emerald-450">
+                            <span>Cupom Aplicado:</span>
+                            <span className="font-bold">{couponCode}</span>
+                          </div>
+                        )}
+                        {couponDetails?.discountPercentage !== undefined && couponDetails.discountPercentage !== null && (
+                          <div className="flex justify-between text-emerald-450">
+                            <span>Porcentagem Desconto:</span>
+                            <span className="font-mono">{couponDetails.discountPercentage}%</span>
+                          </div>
+                        )}
+                        {selectedInvoice.discountCents > 0 && (
+                          <div className="flex justify-between text-emerald-400 font-semibold">
+                            <span>Valor Descontado:</span>
+                            <span className="font-mono">- R$ {(selectedInvoice.discountCents / 100).toFixed(2)}</span>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                  <div className="pt-2 border-t border-slate-800 flex justify-between items-center text-xs font-black">
+                    <span className="text-white">Total:</span>
                     <strong className="text-primary font-mono text-sm">R$ {(selectedInvoice.totalCents / 100).toFixed(2)}</strong>
                   </div>
                 </div>
               </div>
 
               {/* Payment Details if not paid */}
-              {selectedInvoice.status !== 'paid' && (
-                <div>
-                  {loadingPix ? (
-                    <div className="py-8 flex flex-col items-center justify-center gap-3">
-                      <Loader2 size={24} className="animate-spin text-primary" />
-                      <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Gerando Pix...</span>
+              {selectedInvoice.status !== 'paid' && selectedInvoice.totalCents > 0 && (
+                <div className="pt-4 border-t border-slate-800">
+                  <div className="bg-slate-950/40 border border-slate-800 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 text-xs font-semibold">
+                    <div className="space-y-1">
+                      <p className="text-white font-bold">Aguardando Pagamento</p>
+                      <p className="text-slate-400 text-[10px]">Efetue o pagamento de forma segura utilizando o checkout real da InfinitePay.</p>
                     </div>
-                  ) : pixCharge ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                      {/* Pix QR Code display */}
-                      <div className="flex flex-col items-center justify-center bg-slate-950 border border-slate-850 p-4 rounded-2xl gap-3">
-                        <div className="bg-white p-3 rounded-xl w-32 h-32 flex items-center justify-center">
-                          <QrCode size={110} className="text-slate-955" />
-                        </div>
-                        <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
-                          QR Code Pix Simulado
-                        </span>
-                      </div>
-
-                      {/* Pix copy and simulated checkout button */}
-                      <div className="space-y-4">
-                        <div className="space-y-1.5">
-                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Valor a pagar</span>
-                          <strong className="text-xl font-mono text-primary">R$ {(pixCharge.amountCents / 100).toFixed(2)}</strong>
-                        </div>
-
-                        <div>
-                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                            Chave Pix Copia e Cola
-                          </label>
-                          <div className="flex bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 items-center">
-                            <input
-                              type="text"
-                              readOnly
-                              value={pixCharge.copyPasteCode}
-                              className="bg-transparent border-none text-[10px] text-slate-400 select-all font-mono outline-none flex-1 truncate"
-                            />
-                            <button
-                              onClick={handleCopyPix}
-                              className="p-1.5 text-slate-400 hover:text-white transition-colors cursor-pointer"
-                            >
-                              {copingPix ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
-                            </button>
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={handleConfirmPayment}
-                          disabled={confirmingPayment}
-                          className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/50 text-white font-bold text-xs py-3.5 rounded-2xl transition-all shadow-lg shadow-emerald-600/10 flex items-center justify-center gap-2 cursor-pointer"
-                        >
-                          {confirmingPayment ? (
-                            <>
-                              <Loader2 size={14} className="animate-spin" />
-                              <span>Processando Confirmação...</span>
-                            </>
-                          ) : (
-                            <>
-                              <DollarSign size={14} />
-                              <span>Simular Pagamento Pix</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  ) : null}
+                    <button
+                      onClick={() => handlePayInvoiceReal(selectedInvoice.id)}
+                      disabled={generatingLink}
+                      className="flex items-center gap-1.5 px-5 py-3 bg-primary hover:bg-primary-hover text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-primary/10 hover:scale-[1.02] cursor-pointer disabled:opacity-50"
+                    >
+                      {generatingLink ? (
+                        <>
+                          <Loader2 size={13} className="animate-spin" />
+                          <span>Gerando Link...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={13} className="text-amber-400" />
+                          <span>Pagar com InfinitePay</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
 

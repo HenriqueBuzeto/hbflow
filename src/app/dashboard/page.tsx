@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { useRouter } from 'next/navigation';
 import { useStore } from '@/store/useStore';
 import OnboardingChecklist from '@/components/OnboardingChecklist';
 import {
@@ -21,8 +22,25 @@ import {
 } from 'recharts';
 
 export default function DashboardPage() {
-  const { conversations, contacts, users, departments, demo_mode_enabled } = useStore();
+  const router = useRouter();
+  const { conversations, contacts, users, departments, tenants, currentTenantId, demo_mode_enabled } = useStore();
   const [nowTimestamp] = React.useState(() => Date.now());
+
+  const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0];
+
+  const getSubscriptionCountdown = () => {
+    if (!activeTenant || activeTenant.plan === 'free' || !activeTenant.subscription?.currentPeriodEnd) return null;
+    const end = new Date(activeTenant.subscription.currentPeriodEnd).getTime();
+    const diffMs = end - Date.now();
+    const diffDays = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
+    return {
+      daysRemaining: diffDays,
+      expired: diffMs <= 0,
+      dateStr: new Date(activeTenant.subscription.currentPeriodEnd).toLocaleDateString('pt-BR'),
+    };
+  };
+
+  const subCountdown = getSubscriptionCountdown();
 
   // Render empty state if there are no conversations
   if (conversations.length === 0) {
@@ -37,6 +55,35 @@ export default function DashboardPage() {
             </p>
           </div>
         </div>
+
+        {/* Subscription Expiration Alert Banner */}
+        {subCountdown && subCountdown.daysRemaining <= 3 && (
+          <div className="bg-rose-50 dark:bg-rose-955/40 border border-rose-200 dark:border-rose-900/60 rounded-3xl p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-pulse">
+            <div className="flex items-center gap-4 text-left">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 flex items-center justify-center text-rose-600 dark:text-rose-450 shrink-0">
+                <AlertTriangle size={24} />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-rose-800 dark:text-rose-400">
+                  {subCountdown.expired 
+                    ? 'Fatura Vencida - Sistema Bloqueado em Breve' 
+                    : subCountdown.daysRemaining === 1 
+                      ? 'Aviso Crítico: Sua assinatura vence amanhã!' 
+                      : `Aviso Crítico: Sua assinatura vence em ${subCountdown.daysRemaining} dias!`}
+                </h3>
+                <p className="text-xs text-rose-600 dark:text-rose-450/80 mt-1 font-medium leading-relaxed">
+                  Vencimento em {subCountdown.dateStr}. Evite o bloqueio automático de atendimentos e da API oficial efetuando o pagamento da sua fatura pendente.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => router.push('/financeiro')}
+              className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-5 py-3 rounded-2xl transition-all shadow-md shadow-rose-600/10 cursor-pointer uppercase tracking-wider shrink-0"
+            >
+              Ir para Financeiro
+            </button>
+          </div>
+        )}
 
         {/* Onboarding Checklist Widget */}
         <OnboardingChecklist />
@@ -206,6 +253,35 @@ export default function DashboardPage() {
           Filtro: <span className="font-semibold text-slate-800">Últimos 7 dias</span>
         </div>
       </div>
+
+      {/* Subscription Expiration Alert Banner */}
+      {subCountdown && subCountdown.daysRemaining <= 3 && (
+        <div className="bg-rose-50 dark:bg-rose-955/40 border border-rose-200 dark:border-rose-900/60 rounded-3xl p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4 animate-pulse">
+          <div className="flex items-center gap-4 text-left">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 flex items-center justify-center text-rose-600 dark:text-rose-450 shrink-0">
+              <AlertTriangle size={24} />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-rose-800 dark:text-rose-400">
+                {subCountdown.expired 
+                  ? 'Fatura Vencida - Sistema Bloqueado em Breve' 
+                  : subCountdown.daysRemaining === 1 
+                    ? 'Aviso Crítico: Sua assinatura vence amanhã!' 
+                    : `Aviso Crítico: Sua assinatura vence em ${subCountdown.daysRemaining} dias!`}
+              </h3>
+              <p className="text-xs text-rose-600 dark:text-rose-450/80 mt-1 font-medium leading-relaxed">
+                Vencimento em {subCountdown.dateStr}. Evite o bloqueio automático de atendimentos e da API oficial efetuando o pagamento da sua fatura pendente.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push('/financeiro')}
+            className="w-full sm:w-auto bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold px-5 py-3 rounded-2xl transition-all shadow-md shadow-rose-600/10 cursor-pointer uppercase tracking-wider shrink-0"
+          >
+            Ir para Financeiro
+          </button>
+        </div>
+      )}
 
       {/* Onboarding Checklist Widget */}
       <OnboardingChecklist />

@@ -18,6 +18,10 @@ export class PixPaymentService {
       throw new Error('INVOICE_ALREADY_PAID');
     }
 
+    if (invoice.totalCents <= 0) {
+      throw new Error('INVOICE_TOTAL_IS_ZERO_NO_PAYMENT_REQUIRED');
+    }
+
     // 1. Criar registro de Pagamento pendente
     const payment = await prisma.payment.create({
       data: {

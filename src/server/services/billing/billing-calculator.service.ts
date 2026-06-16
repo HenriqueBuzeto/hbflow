@@ -31,6 +31,10 @@ export class BillingCalculatorService {
     let appliedCouponId: string | null = null;
     let appliedTenantDiscountId: string | null = null;
     let isFreeAccess = false;
+    let finalCouponCode: string | null = null;
+    let couponType: string | null = null;
+    let couponDuration: string | null = null;
+    let discountPercentage: number | null = null;
 
     const metadata: Record<string, any> = {
       baseAmountCents,
@@ -50,126 +54,153 @@ export class BillingCalculatorService {
           { endsAt: { gte: now } }
         ],
         deletedAt: null
+      },
+      include: {
+        coupon: true
       }
     });
 
-    // Pega o desconto mais vantajoso (ou primeiro ativo)
+    // Pega o desconto ativo mais vantajoso/recente
     if (activeDiscounts.length > 0) {
-      const discount = activeDiscounts[0]; // Simplificado para pegar o primeiro ativo
-      appliedTenantDiscountId = discount.id;
+      const discount = activeDiscounts[0];
       
-      metadata.calculations.push({
-        type: 'tenant_discount',
-        discountId: discount.id,
-        discountType: discount.type,
-        value: discount.value,
-        reason: discount.reason
-      });
+      // Se for desconto vinculado a cupom, valida as regras do cupom
+      if (discount.coupon) {
+        const coupon = discount.coupon;
+        if (coupon.isActive && !coupon.deletedAt) {
+          // Validar data de validade do cupom
+          const isStarted = !coupon.validFrom || coupon.validFrom <= now;
+          const isNotExpired = !coupon.validUntil || coupon.validUntil >= now;
+          if (isStarted && isNotExpired) {
+            // Validar plano
+            if (coupon.appliesToPlanSlug && plan.slug !== coupon.appliesToPlanSlug) {
+              // Cupom permanente vinculado não é aplicado se o plano mudar e não bater
+            } else {
+              appliedCouponId = coupon.id;
+              appliedTenantDiscountId = discount.id;
+              finalCouponCode = coupon.code;
+              couponType = coupon.type;
+              couponDuration = coupon.duration;
+              
+              metadata.calculations.push({
+                type: 'coupon_via_discount',
+                couponId: coupon.id,
+                code: coupon.code,
+                couponType: coupon.type,
+                value: coupon.value
+              });
 
-      if (discount.type === 'free_access') {
-        isFreeAccess = true;
-        discountCents = baseAmountCents;
-      } else if (discount.type === 'percentage') {
-        const pct = Math.min(100, Math.max(0, discount.value));
-        discountCents += Math.round(baseAmountCents * (pct / 100));
-      } else if (discount.type === 'fixed_amount') {
-        discountCents += Math.round(discount.value); // em centavos
+              if (coupon.type === 'free_access') {
+                isFreeAccess = true;
+                discountCents = baseAmountCents;
+              } else if (coupon.type === 'percentage') {
+                discountPercentage = coupon.value;
+                if (coupon.code === 'OTICAPRO50' && plan.slug === 'pro') {
+                  // Regra especial para garantir exatamente R$ 50,00 final
+                  discountCents = Math.max(0, baseAmountCents - 5000);
+                } else {
+                  const pct = Math.min(100, Math.max(0, coupon.value));
+                  discountCents = Math.round(baseAmountCents * (pct / 100));
+                }
+              } else if (coupon.type === 'fixed_amount') {
+                discountCents = Math.round(coupon.value);
+              }
+            }
+          }
+        }
+      } else {
+        // Desconto manual sem cupom
+        appliedTenantDiscountId = discount.id;
+        metadata.calculations.push({
+          type: 'tenant_discount',
+          discountId: discount.id,
+          discountType: discount.type,
+          value: discount.value,
+          reason: discount.reason
+        });
+
+        if (discount.type === 'free_access') {
+          isFreeAccess = true;
+          discountCents = baseAmountCents;
+        } else if (discount.type === 'percentage') {
+          const pct = Math.min(100, Math.max(0, discount.value));
+          discountCents = Math.round(baseAmountCents * (pct / 100));
+        } else if (discount.type === 'fixed_amount') {
+          discountCents = Math.round(discount.value);
+        }
       }
     }
 
-    // 2. Processar cupom manual se fornecido
+    // 2. Processar cupom manual se fornecido (sobrescreve desconto do tenant se aplicável)
     if (couponCode && !isFreeAccess) {
       const cleanCode = couponCode.trim().toUpperCase();
-      let coupon = await prisma.coupon.findUnique({
+      const coupon = await prisma.coupon.findUnique({
         where: { code: cleanCode }
       });
 
-      // Fallback para cupons mockados caso não estejam no banco de dados
-      if (!coupon) {
-        if (cleanCode === 'CUPOM100') {
-          coupon = {
-            id: 'mock-coupon-100',
-            code: 'CUPOM100',
-            type: 'percentage',
-            value: 100.0,
-            duration: 'once',
-            durationMonths: null,
-            maxRedemptions: null,
-            redeemedCount: 0,
-            validFrom: null,
-            validUntil: null,
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            deletedAt: null
-          };
-        } else if (cleanCode === 'HB20' || cleanCode === 'HBFLOW20') {
-          coupon = {
-            id: 'mock-coupon-20',
-            code: cleanCode,
-            type: 'percentage',
-            value: 20.0,
-            duration: 'once',
-            durationMonths: null,
-            maxRedemptions: null,
-            redeemedCount: 0,
-            validFrom: null,
-            validUntil: null,
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            deletedAt: null
-          };
-        } else if (cleanCode === 'START50') {
-          coupon = {
-            id: 'mock-coupon-50',
-            code: 'START50',
-            type: 'percentage',
-            value: 50.0,
-            duration: 'once',
-            durationMonths: null,
-            maxRedemptions: null,
-            redeemedCount: 0,
-            validFrom: null,
-            validUntil: null,
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            deletedAt: null
-          };
+      if (!coupon || !coupon.isActive || coupon.deletedAt) {
+        throw new Error('CUPON_NOT_FOUND_OR_INACTIVE');
+      }
+
+      const isStarted = !coupon.validFrom || coupon.validFrom <= now;
+      const isNotExpired = !coupon.validUntil || coupon.validUntil >= now;
+      if (!isStarted || !isNotExpired) {
+        throw new Error('CUPON_EXPIRED');
+      }
+
+      // Validar plano
+      if (coupon.appliesToPlanSlug && plan.slug !== coupon.appliesToPlanSlug) {
+        throw new Error('CUPON_NOT_VALID_FOR_PLAN');
+      }
+
+      // Validar limite de resgates por tenant
+      if (coupon.maxRedemptionsPerTenant !== null) {
+        const redemptionsCount = await prisma.couponRedemption.count({
+          where: {
+            tenantId,
+            couponId: coupon.id
+          }
+        });
+        if (redemptionsCount >= coupon.maxRedemptionsPerTenant) {
+          throw new Error('CUPON_LIMIT_REACHED_FOR_TENANT');
         }
       }
 
-      if (coupon && coupon.isActive && !coupon.deletedAt) {
-        const isStarted = !coupon.validFrom || coupon.validFrom <= now;
-        const isNotExpired = !coupon.validUntil || coupon.validUntil >= now;
-        const hasRedemptionsLeft = coupon.maxRedemptions === null || coupon.redeemedCount < coupon.maxRedemptions;
+      // Validar limite global de resgates
+      if (coupon.maxRedemptions !== null && coupon.redeemedCount >= coupon.maxRedemptions) {
+        throw new Error('CUPON_MAX_REDEMPTIONS_REACHED');
+      }
 
-        if (isStarted && isNotExpired && hasRedemptionsLeft) {
-          appliedCouponId = coupon.id;
-          
-          metadata.calculations.push({
-            type: 'coupon',
-            couponId: coupon.id,
-            code: coupon.code,
-            couponType: coupon.type,
-            value: coupon.value
-          });
+      // Se passou nas validações, aplica o cupom manual (substitui o anterior do cálculo atual)
+      appliedCouponId = coupon.id;
+      finalCouponCode = coupon.code;
+      couponType = coupon.type;
+      couponDuration = coupon.duration;
+      discountCents = 0; // reseta descontos anteriores para aplicar o cupom manual
+      isFreeAccess = false;
 
-          if (coupon.type === 'free_access') {
-            isFreeAccess = true;
-            discountCents = baseAmountCents;
-          } else if (coupon.type === 'percentage') {
-            const pct = Math.min(100, Math.max(0, coupon.value));
-            discountCents += Math.round(baseAmountCents * (pct / 100));
-          } else if (coupon.type === 'fixed_amount') {
-            discountCents += Math.round(coupon.value); // em centavos
-          }
+      metadata.calculations.push({
+        type: 'coupon',
+        couponId: coupon.id,
+        code: coupon.code,
+        couponType: coupon.type,
+        value: coupon.value
+      });
+
+      if (coupon.type === 'free_access') {
+        isFreeAccess = true;
+        discountCents = baseAmountCents;
+      } else if (coupon.type === 'percentage') {
+        discountPercentage = coupon.value;
+        if (coupon.code === 'OTICAPRO50' && plan.slug === 'pro') {
+          // Regra especial para garantir exatamente R$ 50,00 final
+          discountCents = Math.max(0, baseAmountCents - 5000);
         } else {
-          metadata.couponError = 'Cupom expirado ou limite de uso atingido';
+          const pct = Math.min(100, Math.max(0, coupon.value));
+          discountCents = Math.round(baseAmountCents * (pct / 100));
         }
-      } else {
-        metadata.couponError = 'Cupom não encontrado ou inativo';
+      } else if (coupon.type === 'fixed_amount') {
+        discountCents = Math.round(coupon.value);
       }
     }
 
@@ -177,8 +208,15 @@ export class BillingCalculatorService {
     discountCents = Math.min(baseAmountCents, Math.max(0, discountCents));
     const totalCents = isFreeAccess ? 0 : (baseAmountCents - discountCents);
 
-    metadata.finalAmountCents = totalCents;
+    // Injetar dados formatados no metadata
+    metadata.couponCode = finalCouponCode;
+    metadata.couponId = appliedCouponId;
+    metadata.couponType = couponType;
+    metadata.couponDuration = couponDuration;
+    metadata.discountPercentage = discountPercentage;
     metadata.discountCents = discountCents;
+    metadata.originalAmountCents = baseAmountCents;
+    metadata.finalAmountCents = totalCents;
     metadata.isFreeAccess = isFreeAccess;
 
     return {

@@ -154,15 +154,31 @@ export class InvoiceService {
           dueDate,
           paidAt: calculation.totalCents === 0 ? now : null,
           billingPeriodStart,
-          billingPeriodEnd
+          billingPeriodEnd,
+          metadataJson: JSON.stringify(calculation.metadata)
         }
       });
 
-      // Se o cupom foi aplicado e a fatura foi criada, atualizamos o contador do cupom
-      if (calculation.appliedCouponId && !calculation.appliedCouponId.startsWith('mock-')) {
+      // Se o cupom foi aplicado e a fatura foi criada, atualizamos o contador do cupom e criamos o resgate
+      if (calculation.appliedCouponId) {
         await tx.coupon.update({
           where: { id: calculation.appliedCouponId },
           data: { redeemedCount: { increment: 1 } }
+        });
+
+        // Registrar o CouponRedemption para rastreabilidade
+        await tx.couponRedemption.create({
+          data: {
+            tenantId,
+            couponId: calculation.appliedCouponId,
+            invoiceId: invoice.id,
+            discountCents: calculation.discountCents,
+            metadataJson: JSON.stringify({
+              couponCode: calculation.metadata.couponCode,
+              appliedAt: now.toISOString(),
+              couponDuration: calculation.metadata.couponDuration
+            })
+          }
         });
       }
 
@@ -175,6 +191,21 @@ export class InvoiceService {
             status: targetStatus,
             currentPeriodStart: billingPeriodStart,
             currentPeriodEnd: billingPeriodEnd
+          }
+        });
+
+        // Obter plano atual
+        const plan = await tx.plan.findUnique({
+          where: { id: subscription.planId }
+        });
+
+        // Atualizar plano e status do Tenant comercial
+        await tx.tenant.update({
+          where: { id: tenantId },
+          data: {
+            status: targetStatus,
+            plan: plan?.slug || undefined,
+            isActive: true
           }
         });
       }

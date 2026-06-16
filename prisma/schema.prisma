@@ -1787,21 +1787,40 @@ model Subscription {
 }
 
 model Coupon {
-  id             String           @id @default(uuid())
-  code           String           @unique
-  type           String           @default("percentage") // percentage | fixed_amount | free_access
-  value          Float // value of discount: e.g. 20.0 for 20% or 1000 for 10.00 R$
-  duration       String           @default("once") // once | months | forever
-  durationMonths Int?
-  maxRedemptions Int?
-  redeemedCount  Int              @default(0)
-  validFrom      DateTime?
-  validUntil     DateTime?
-  isActive       Boolean          @default(true)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  deletedAt      DateTime?
-  discounts      TenantDiscount[]
+  id                      String             @id @default(uuid())
+  code                    String             @unique
+  type                    String             @default("percentage") // percentage | fixed_amount | free_access
+  value                   Float // value of discount: e.g. 20.0 for 20% or 1000 for 10.00 R$
+  duration                String             @default("once") // once | months | forever
+  durationMonths          Int?
+  maxRedemptions          Int?
+  redeemedCount           Int                @default(0)
+  validFrom               DateTime?
+  validUntil              DateTime?
+  isActive                Boolean            @default(true)
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+  deletedAt               DateTime?
+  discounts               TenantDiscount[]
+  appliesToPlanSlug       String?
+  maxRedemptionsPerTenant Int?
+  isSystemCoupon          Boolean            @default(false)
+  metadataJson            String?            @default("{}")
+  redemptions             CouponRedemption[]
+}
+
+model CouponRedemption {
+  id            String   @id @default(uuid())
+  tenantId      String
+  couponId      String
+  invoiceId     String?
+  redeemedAt    DateTime @default(now())
+  discountCents Int
+  metadataJson  String?  @default("{}")
+  coupon        Coupon   @relation(fields: [couponId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([couponId])
 }
 
 model TenantDiscount {
@@ -1826,11 +1845,11 @@ model TenantDiscount {
 }
 
 model Invoice {
-  id                 String      @id @default(uuid())
+  id                 String        @id @default(uuid())
   tenantId           String
   subscriptionId     String?
-  invoiceNumber      String      @unique
-  status             String      @default("draft") // draft | open | paid | overdue | cancelled | void
+  invoiceNumber      String        @unique
+  status             String        @default("draft") // draft | open | paid | overdue | cancelled | void
   subtotalCents      Int
   discountCents      Int
   totalCents         Int
@@ -1838,11 +1857,12 @@ model Invoice {
   paidAt             DateTime?
   billingPeriodStart DateTime
   billingPeriodEnd   DateTime
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
+  metadataJson       String?       @default("{}")
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
   deletedAt          DateTime?
   subscription       Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
-  tenant             Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant             Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   payments           Payment[]
   pixCharges         PixCharge[]
 

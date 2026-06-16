@@ -36,6 +36,11 @@ export class FeatureAccessService {
       return plan === 'pro' || plan === 'enterprise' || plan === 'pro-test';
     }
 
+    if (feature === 'chat_interno_enabled') {
+      // Starter = false, Pro = true, Enterprise = true
+      return plan === 'pro' || plan === 'enterprise' || plan === 'pro-test';
+    }
+
     return false;
   }
 }
