@@ -38,7 +38,8 @@ export const applyTenantDiscountSchema = z.object({
 export const generateInvoiceSchema = z.object({
   tenantId: z.string().min(1, "ID do Tenant é obrigatório"),
   billingPeriodStart: z.string().datetime().or(z.date()),
-  billingPeriodEnd: z.string().datetime().or(z.date())
+  billingPeriodEnd: z.string().datetime().or(z.date()),
+  planSlug: z.string().optional()
 });
 
 export const confirmPaymentSchema = z.object({

@@ -103,7 +103,7 @@ export default function OnboardingChecklist() {
       key: 'quickRepliesCreated',
       label: 'Configurar Resposta Rápida',
       desc: 'Cadastre atalhos práticos para mensagens automáticas na Inbox.',
-      href: '/setores',
+      href: '/respostas-rapidas',
       icon: Zap,
       completed: steps.quickRepliesCreated
     },

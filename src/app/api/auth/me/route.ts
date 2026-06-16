@@ -66,11 +66,24 @@ export async function GET() {
       presence: userPresence?.presence || 'offline'
     };
 
+    // Obter todas as empresas (tenants) vinculadas ao e-mail do usuário
+    const userTenants = await prisma.user.findMany({
+      where: {
+        email: fullUser.email,
+        isActive: true,
+        tenant: { isActive: true }
+      },
+      include: { tenant: true }
+    });
+
+    const tenantsList = userTenants.map((ut: any) => ut.tenant).filter(Boolean);
+
     return NextResponse.json({
       user: userWithoutPassword,
       permissions,
       isBlocked,
-      error: blockError
+      error: blockError,
+      tenants: tenantsList
     });
   } catch (error) {
     if (error instanceof Error && error.message === 'UNAUTHORIZED') {

@@ -42,6 +42,15 @@ export default function BillingPage() {
   const [isConfirmingPayment, setIsConfirmingPayment] = useState(false);
   const [globalError, setGlobalError] = useState('');
   const [copiedPayload, setCopiedPayload] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [activatedPlanName, setActivatedPlanName] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'credit_card' | 'boleto'>('pix');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardHolder, setCardHolder] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [boletoResult, setBoletoResult] = useState<any>(null);
+  const [copiedBoleto, setCopiedBoleto] = useState(false);
  
   // Fetch subscription, plans and current invoice
   const initBilling = async () => {
@@ -87,6 +96,7 @@ export default function BillingPage() {
   const handlePlanChange = (plan: any) => {
     setSelectedPlan(plan);
     setCheckoutResult(null);
+    setBoletoResult(null);
     setCouponError('');
     setCouponSuccess('');
   };
@@ -119,7 +129,8 @@ export default function BillingPage() {
             tenantId: targetTenantId,
             billingPeriodStart: start.toISOString(),
             billingPeriodEnd: end.toISOString(),
-            couponCode: couponCode.trim().toUpperCase()
+            couponCode: couponCode.trim().toUpperCase(),
+            planSlug: selectedPlan?.slug
           })
         });
 
@@ -139,7 +150,8 @@ export default function BillingPage() {
             tenantId: targetTenantId,
             billingPeriodStart: currentInvoice.billingPeriodStart,
             billingPeriodEnd: currentInvoice.billingPeriodEnd,
-            couponCode: couponCode.trim().toUpperCase()
+            couponCode: couponCode.trim().toUpperCase(),
+            planSlug: selectedPlan?.slug
           })
         });
 
@@ -158,7 +170,7 @@ export default function BillingPage() {
     }
   };
 
-  // Generate PIX qr code or activate instantly if total is 0
+  // Generate payment method checkout or activate instantly if total is 0
   const handleCheckout = async () => {
     if (!selectedPlan) return;
     setIsProcessingCheckout(true);
@@ -186,7 +198,8 @@ export default function BillingPage() {
             tenantId: targetTenantId,
             billingPeriodStart: start.toISOString(),
             billingPeriodEnd: end.toISOString(),
-            couponCode: couponCode || undefined
+            couponCode: couponCode || undefined,
+            planSlug: selectedPlan?.slug
           })
         });
 
@@ -200,24 +213,52 @@ export default function BillingPage() {
 
       // Se a fatura gerada/existente já for paga (totalCents = 0), ativa direto
       if (activeInvoice.status === 'paid' || activeInvoice.totalCents === 0) {
+        setActivatedPlanName(selectedPlan.name);
+        setShowSuccessModal(true);
         await initBilling();
-        router.push('/dashboard');
         return;
       }
 
-      // Requisitar cobrança Pix
-      const res = await fetch(`/api/v1/billing/invoices/${activeInvoice.id}/pix`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Erro ao processar cobrança Pix.');
+      // Processar conforme o método selecionado
+      if (paymentMethod === 'pix') {
+        const res = await fetch(`/api/v1/billing/invoices/${activeInvoice.id}/pix`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao processar cobrança Pix.');
+        setCheckoutResult(data.pixCharge);
+      } 
+      else if (paymentMethod === 'boleto') {
+        const res = await fetch(`/api/v1/billing/invoices/${activeInvoice.id}/boleto`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao emitir Boleto Bancário.');
+        setBoletoResult(data);
       }
-
-      setCheckoutResult(data.pixCharge);
+      else if (paymentMethod === 'credit_card') {
+        if (!cardNumber || !cardHolder || !cardExpiry || !cardCvv) {
+          throw new Error('Preencha todos os campos do cartão de crédito.');
+        }
+        const res = await fetch(`/api/v1/billing/invoices/${activeInvoice.id}/credit-card`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            number: cardNumber,
+            holder: cardHolder,
+            expiry: cardExpiry,
+            cvv: cardCvv
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao processar Cartão de Crédito.');
+        
+        setActivatedPlanName(selectedPlan.name);
+        setShowSuccessModal(true);
+        await initBilling();
+      }
     } catch (err: any) {
       setGlobalError(err.message || 'Falha ao processar checkout.');
     } finally {
@@ -232,9 +273,7 @@ export default function BillingPage() {
     setGlobalError('');
 
     try {
-      // Obter pagamento ID do checkoutResult
       const paymentId = checkoutResult.paymentId;
-
       const res = await fetch(`/api/v1/admin/billing/payments/${paymentId}/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -242,12 +281,8 @@ export default function BillingPage() {
       });
 
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha ao confirmar pagamento.');
 
-      if (!res.ok) {
-        throw new Error(data.error || 'Falha ao confirmar pagamento.');
-      }
-
-      // Play chime
       try {
         const { playNotificationSound } = await import('@/store/useStore');
         playNotificationSound();
@@ -255,8 +290,43 @@ export default function BillingPage() {
         console.warn(soundErr);
       }
 
+      setActivatedPlanName(selectedPlan.name);
+      setShowSuccessModal(true);
       await initBilling();
-      router.push('/dashboard');
+    } catch (err: any) {
+      setGlobalError(err.message || 'Falha ao confirmar pagamento. Tente novamente.');
+    } finally {
+      setIsConfirmingPayment(false);
+    }
+  };
+
+  // Confirm simulated BOLETO payment
+  const handleConfirmBoletoPayment = async () => {
+    if (!boletoResult || !currentInvoice) return;
+    setIsConfirmingPayment(true);
+    setGlobalError('');
+
+    try {
+      const paymentId = boletoResult.paymentId;
+      const res = await fetch(`/api/v1/admin/billing/payments/${paymentId}/confirm`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amountCents: boletoResult.amountCents })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Falha ao confirmar pagamento do boleto.');
+
+      try {
+        const { playNotificationSound } = await import('@/store/useStore');
+        playNotificationSound();
+      } catch (soundErr) {
+        console.warn(soundErr);
+      }
+
+      setActivatedPlanName(selectedPlan.name);
+      setShowSuccessModal(true);
+      await initBilling();
     } catch (err: any) {
       setGlobalError(err.message || 'Falha ao confirmar pagamento. Tente novamente.');
     } finally {
@@ -269,6 +339,13 @@ export default function BillingPage() {
     navigator.clipboard.writeText(checkoutResult.copyPasteCode);
     setCopiedPayload(true);
     setTimeout(() => setCopiedPayload(false), 2000);
+  };
+
+  const handleCopyBoleto = () => {
+    if (!boletoResult) return;
+    navigator.clipboard.writeText(boletoResult.lineDigit);
+    setCopiedBoleto(true);
+    setTimeout(() => setCopiedBoleto(false), 2000);
   };
 
   const invoiceMatchesPlan = currentInvoice && selectedPlan && 
@@ -470,54 +547,134 @@ export default function BillingPage() {
                 </div>
               </div>
 
-              {!checkoutResult && (
-                <button
-                  onClick={handleCheckout}
-                  disabled={isProcessingCheckout || !selectedPlan}
-                  className="w-full bg-primary hover:bg-primary-hover disabled:bg-primary/50 text-white py-3.5 rounded-2xl font-bold text-xs transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  {isProcessingCheckout ? (
-                    <>
-                      <Loader2 size={13} className="animate-spin" />
-                      <span>Processando...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>Pagar com Pix</span>
-                      <ArrowRight size={13} />
-                    </>
-                  )}
-                </button>
+              {/* Formas de Pagamento Selector Tabs (Only if not checked out yet) */}
+              {!checkoutResult && !boletoResult && (
+                <div className="space-y-2.5 pt-3.5 border-t border-slate-900">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+                    Forma de Pagamento
+                  </span>
+                  <div className="grid grid-cols-3 gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800/40">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod('pix');
+                        setGlobalError('');
+                      }}
+                      className={`py-1.5 px-1 text-[9px] font-bold rounded-lg flex flex-col items-center gap-1 cursor-pointer transition-all ${
+                        paymentMethod === 'pix'
+                          ? 'bg-primary text-white shadow-md'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      }`}
+                    >
+                      <QrCode size={12} />
+                      <span>Pix</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod('credit_card');
+                        setGlobalError('');
+                      }}
+                      className={`py-1.5 px-1 text-[9px] font-bold rounded-lg flex flex-col items-center gap-1 cursor-pointer transition-all ${
+                        paymentMethod === 'credit_card'
+                          ? 'bg-primary text-white shadow-md'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      }`}
+                    >
+                      <CreditCard size={12} />
+                      <span>Cartão</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod('boleto');
+                        setGlobalError('');
+                      }}
+                      className={`py-1.5 px-1 text-[9px] font-bold rounded-lg flex flex-col items-center gap-1 cursor-pointer transition-all ${
+                        paymentMethod === 'boleto'
+                          ? 'bg-primary text-white shadow-md'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      }`}
+                    >
+                      <Ticket size={12} />
+                      <span>Boleto</span>
+                    </button>
+                  </div>
+                </div>
               )}
 
-              {checkoutResult && (
-                <div className="space-y-4 pt-4 border-t border-slate-800 animate-scale-in">
-                  <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center gap-3">
-                    <div className="bg-white p-3 rounded-2xl w-40 h-40 flex items-center justify-center shadow">
-                      <QrCode size={120} className="text-slate-900" />
+              {/* RENDER FORMA DE PAGAMENTO: CARTÃO DE CRÉDITO */}
+              {paymentMethod === 'credit_card' && !checkoutResult && !boletoResult && (
+                <div className="space-y-4 pt-2 animate-scale-in">
+                  {/* Visual Credit Card Simulator */}
+                  <div className="w-full bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 border border-slate-700/50 rounded-2xl p-4 relative overflow-hidden shadow-lg select-none min-h-[140px] flex flex-col justify-between text-white font-mono tracking-widest">
+                    <div className="absolute top-[-20%] right-[-10%] w-[50%] h-[50%] bg-primary/10 rounded-full blur-[60px]" />
+                    
+                    <div className="flex justify-between items-start">
+                      <div className="w-8 h-6 bg-amber-500/20 border border-amber-500/30 rounded-md shrink-0 flex items-center justify-center">
+                        <div className="w-6 h-4 border border-amber-500/40 rounded bg-amber-500/10" />
+                      </div>
+                      <span className="text-[8px] font-black uppercase text-slate-500 tracking-wider">
+                        {cardNumber.startsWith('4') ? 'Visa' : cardNumber.startsWith('5') ? 'Mastercard' : cardNumber.startsWith('9999') ? 'Mock Card' : 'Cartão'}
+                      </span>
                     </div>
-                    <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
-                      QR Code PIX Gerado
-                    </span>
+                    
+                    <div className="text-xs font-bold text-slate-200 py-2 text-center">
+                      {cardNumber ? cardNumber.replace(/(\d{4})/g, '$1 ').trim() : '•••• •••• •••• ••••'}
+                    </div>
+                    
+                    <div className="flex justify-between items-end text-[8px] uppercase">
+                      <div className="max-w-[70%]">
+                        <span className="text-slate-500 text-[6px] font-bold block leading-none mb-0.5">Titular</span>
+                        <span className="text-slate-300 truncate block max-w-full">{cardHolder || 'NOME DO TITULAR'}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-slate-500 text-[6px] font-bold block leading-none mb-0.5">Validade</span>
+                        <span className="text-slate-300">{cardExpiry || 'MM/AA'}</span>
+                      </div>
+                    </div>
                   </div>
 
-                  <div>
-                    <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                      Código Copia e Cola
-                    </label>
-                    <div className="flex bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 items-center">
+                  {/* Form fields */}
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      placeholder="Número do Cartão (Simule 9999... p/ erro)"
+                      maxLength={16}
+                      value={cardNumber}
+                      onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, ''))}
+                      className="w-full bg-slate-900 border border-slate-800 focus:border-primary rounded-xl px-3 py-2 text-xs outline-none text-slate-200"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Nome do Titular"
+                      value={cardHolder}
+                      onChange={(e) => setCardHolder(e.target.value)}
+                      className="w-full bg-slate-900 border border-slate-800 focus:border-primary rounded-xl px-3 py-2 text-xs outline-none text-slate-200 uppercase"
+                    />
+                    <div className="grid grid-cols-2 gap-2">
                       <input
                         type="text"
-                        readOnly
-                        value={checkoutResult.copyPasteCode}
-                        className="bg-transparent border-none text-[10px] text-slate-350 select-all font-mono outline-none flex-1 truncate"
+                        placeholder="Validade (MM/AA)"
+                        maxLength={5}
+                        value={cardExpiry}
+                        onChange={(e) => {
+                          let val = e.target.value.replace(/\D/g, '');
+                          if (val.length > 2) {
+                            val = `${val.slice(0,2)}/${val.slice(2,4)}`;
+                          }
+                          setCardExpiry(val);
+                        }}
+                        className="bg-slate-900 border border-slate-800 focus:border-primary rounded-xl px-3 py-2 text-xs outline-none text-slate-200"
                       />
-                      <button
-                        onClick={handleCopyPayload}
-                        className="p-1 text-slate-400 hover:text-white transition-colors"
-                      >
-                        {copiedPayload ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
-                      </button>
+                      <input
+                        type="password"
+                        placeholder="CVV"
+                        maxLength={4}
+                        value={cardCvv}
+                        onChange={(e) => setCardCvv(e.target.value.replace(/\D/g, ''))}
+                        className="bg-slate-900 border border-slate-800 focus:border-primary rounded-xl px-3 py-2 text-xs outline-none text-slate-200"
+                      />
                     </div>
                   </div>
 
@@ -526,22 +683,185 @@ export default function BillingPage() {
                   )}
 
                   <button
-                    onClick={handleConfirmPayment}
-                    disabled={isConfirmingPayment}
-                    className="w-full bg-emerald-650 hover:bg-emerald-550 disabled:bg-emerald-655/50 text-white py-3.5 rounded-2xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+                    onClick={handleCheckout}
+                    disabled={isProcessingCheckout || !selectedPlan}
+                    className="w-full bg-primary hover:bg-primary-hover disabled:bg-primary/50 text-white py-3.5 rounded-2xl font-bold text-xs transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    {isConfirmingPayment ? (
+                    {isProcessingCheckout ? (
                       <>
                         <Loader2 size={13} className="animate-spin" />
-                        <span>Processando confirmação...</span>
+                        <span>Processando Transação...</span>
                       </>
                     ) : (
                       <>
                         <CreditCard size={13} />
-                        <span>Confirmar Pagamento</span>
+                        <span>Finalizar Pagamento com Cartão</span>
                       </>
                     )}
                   </button>
+                </div>
+              )}
+
+              {/* RENDER FORMA DE PAGAMENTO: BOLETO BANCÁRIO */}
+              {paymentMethod === 'boleto' && !checkoutResult && (
+                <div className="space-y-4 pt-2 animate-scale-in">
+                  {!boletoResult ? (
+                    <>
+                      <p className="text-[10px] text-slate-450 leading-relaxed font-medium">
+                        O boleto bancário será gerado e terá o vencimento para 3 dias úteis. A liberação do plano Pro ocorre logo após o registro da compensação (ou confirmação manual abaixo).
+                      </p>
+                      <button
+                        onClick={handleCheckout}
+                        disabled={isProcessingCheckout || !selectedPlan}
+                        className="w-full bg-primary hover:bg-primary-hover disabled:bg-primary/50 text-white py-3.5 rounded-2xl font-bold text-xs transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                      >
+                        {isProcessingCheckout ? (
+                          <>
+                            <Loader2 size={13} className="animate-spin" />
+                            <span>Gerando Boleto...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Ticket size={13} />
+                            <span>Emitir Boleto Bancário</span>
+                          </>
+                        )}
+                      </button>
+                    </>
+                  ) : (
+                    <div className="space-y-4 animate-scale-in">
+                      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 text-center space-y-1.5 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-amber-500" />
+                        <span className="text-[9px] font-black uppercase text-amber-500 tracking-wider">Boleto Registrado Itaú</span>
+                        <div className="text-xs font-bold text-white font-mono tracking-widest pt-2">
+                          {boletoResult.lineDigit.slice(0, 15)}...
+                        </div>
+                        <span className="text-[8px] text-slate-500 block">
+                          Vencimento: {new Date(boletoResult.dueDate).toLocaleDateString('pt-BR')}
+                        </span>
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                          Linha Digitável (Código de Barras)
+                        </label>
+                        <div className="flex bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 items-center">
+                          <input
+                            type="text"
+                            readOnly
+                            value={boletoResult.lineDigit}
+                            className="bg-transparent border-none text-[9px] text-slate-350 select-all font-mono outline-none flex-1 truncate"
+                          />
+                          <button
+                            onClick={handleCopyBoleto}
+                            className="p-1 text-slate-400 hover:text-white transition-colors"
+                          >
+                            {copiedBoleto ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {globalError && (
+                        <p className="text-[10px] text-rose-550 font-bold bg-rose-500/10 p-2 rounded border border-rose-500/20">{globalError}</p>
+                      )}
+
+                      <button
+                        onClick={handleConfirmBoletoPayment}
+                        disabled={isConfirmingPayment}
+                        className="w-full bg-emerald-650 hover:bg-emerald-550 disabled:bg-emerald-655/50 text-white py-3.5 rounded-2xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+                      >
+                        {isConfirmingPayment ? (
+                          <>
+                            <Loader2 size={13} className="animate-spin" />
+                            <span>Processando confirmação do boleto...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard size={13} />
+                            <span>Simular Pagamento do Boleto</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* RENDER FORMA DE PAGAMENTO: PIX */}
+              {paymentMethod === 'pix' && !boletoResult && (
+                <div className="space-y-4 pt-2 animate-scale-in">
+                  {!checkoutResult ? (
+                    <button
+                      onClick={handleCheckout}
+                      disabled={isProcessingCheckout || !selectedPlan}
+                      className="w-full bg-primary hover:bg-primary-hover disabled:bg-primary/50 text-white py-3.5 rounded-2xl font-bold text-xs transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      {isProcessingCheckout ? (
+                        <>
+                          <Loader2 size={13} className="animate-spin" />
+                          <span>Processando Pix...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Pagar com Pix</span>
+                          <ArrowRight size={13} />
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="space-y-4 animate-scale-in">
+                      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center gap-3">
+                        <div className="bg-white p-3 rounded-2xl w-40 h-40 flex items-center justify-center shadow">
+                          <QrCode size={120} className="text-slate-900" />
+                        </div>
+                        <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                          QR Code PIX Gerado
+                        </span>
+                      </div>
+
+                      <div>
+                        <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                          Código Copia e Cola
+                        </label>
+                        <div className="flex bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 items-center">
+                          <input
+                            type="text"
+                            readOnly
+                            value={checkoutResult.copyPasteCode}
+                            className="bg-transparent border-none text-[10px] text-slate-350 select-all font-mono outline-none flex-1 truncate"
+                          />
+                          <button
+                            onClick={handleCopyPayload}
+                            className="p-1 text-slate-400 hover:text-white transition-colors"
+                          >
+                            {copiedPayload ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                          </button>
+                        </div>
+                      </div>
+
+                      {globalError && (
+                        <p className="text-[10px] text-rose-550 font-bold bg-rose-500/10 p-2 rounded border border-rose-500/20">{globalError}</p>
+                      )}
+
+                      <button
+                        onClick={handleConfirmPayment}
+                        disabled={isConfirmingPayment}
+                        className="w-full bg-emerald-650 hover:bg-emerald-550 disabled:bg-emerald-655/50 text-white py-3.5 rounded-2xl font-bold text-xs transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg"
+                      >
+                        {isConfirmingPayment ? (
+                          <>
+                            <Loader2 size={13} className="animate-spin" />
+                            <span>Processando confirmação...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard size={13} />
+                            <span>Confirmar Pagamento Pix</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </>
@@ -550,7 +870,7 @@ export default function BillingPage() {
           <div className="bg-slate-900/40 p-3 rounded-2xl border border-slate-800/60 flex items-start gap-2">
             <ShieldCheck size={14} className="text-emerald-500 shrink-0 mt-0.5" />
             <p className="text-[9.5px] text-slate-500 leading-relaxed font-medium">
-              A renovação e cálculo do acesso comercial do HBFlow via Pix é instantânea.
+              A renovação e cálculo do acesso comercial do HBFlow via Pix, Cartão ou Boleto é instantânea e 100% segura.
             </p>
           </div>
         </div>
@@ -562,6 +882,40 @@ export default function BillingPage() {
         <span>© 2026 HBFlow. Todos os direitos reservados.</span>
         <span className="flex items-center gap-1">Suporte Comercial <HelpCircle size={10} /></span>
       </footer>
+
+      {/* Premium Animated Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4 animate-fade-in">
+          <div className="bg-slate-900 border border-emerald-500/30 rounded-3xl p-8 max-w-md w-full shadow-2xl relative overflow-hidden text-center flex flex-col items-center gap-6 animate-scale-in">
+            {/* Radial glow effect */}
+            <div className="absolute top-[-50%] left-[-50%] w-[200%] h-[200%] bg-gradient-to-br from-emerald-500/10 to-transparent pointer-events-none" />
+            
+            <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center animate-bounce shadow-lg relative z-10 shrink-0">
+              <Sparkles size={32} />
+            </div>
+
+            <div className="space-y-2 relative z-10">
+              <h3 className="text-xl font-black text-white">Assinatura Ativada! 🚀</h3>
+              <p className="text-xs text-emerald-400 font-bold uppercase tracking-widest">
+                Você agora é {activatedPlanName}!
+              </p>
+              <p className="text-xs text-slate-400 leading-relaxed font-medium pt-2">
+                Parabéns! Sua transação foi processada e confirmada. O plano do seu tenant foi alterado com sucesso. Todos os recursos adicionais, canais extras e agentes inteligentes já estão totalmente liberados para você usar!
+              </p>
+            </div>
+
+            <button
+              onClick={() => {
+                setShowSuccessModal(false);
+                router.push('/dashboard');
+              }}
+              className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 py-3.5 rounded-2xl font-black text-xs transition-all shadow-lg shadow-emerald-500/10 hover:shadow-emerald-500/20 cursor-pointer relative z-10"
+            >
+              Acessar o Painel de Controle
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

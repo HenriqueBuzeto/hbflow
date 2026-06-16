@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useStore } from '@/store/useStore';
+import { useStore, Conversation } from '@/store/useStore';
 import { AudioPlayer } from '@/components/AudioPlayer';
 import {
   Search,
@@ -34,6 +34,42 @@ import {
   Mic,
   Trash2
 } from 'lucide-react';
+
+const formatMessageTime = (dateInput: string | Date) => {
+  if (!dateInput) return '';
+  const date = new Date(dateInput);
+  if (isNaN(date.getTime())) return '';
+  const now = new Date();
+  
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  const msgDateOnly = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  
+  const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  
+  if (msgDateOnly.getTime() === today.getTime()) {
+    return `Hoje ${timeStr}`;
+  }
+  
+  if (msgDateOnly.getTime() === yesterday.getTime()) {
+    return `Ontem ${timeStr}`;
+  }
+  
+  const diffDays = Math.round((today.getTime() - msgDateOnly.getTime()) / (24 * 60 * 60 * 1000));
+  if (diffDays > 0 && diffDays < 7) {
+    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    return `${days[date.getDay()]} ${timeStr}`;
+  }
+  
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  if (date.getFullYear() === now.getFullYear()) {
+    return `${day}/${month} ${timeStr}`;
+  }
+  return `${day}/${month}/${date.getFullYear()} ${timeStr}`;
+};
 
 export default function InboxPage() {
   const {
@@ -69,6 +105,7 @@ export default function InboxPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [messageText, setMessageText] = useState('');
   const [inputMode, setInputMode] = useState<'public' | 'private' | 'whisper'>('public');
+  const [autocompleteIndex, setAutocompleteIndex] = useState(0);
 
   // Synchronize active tab based on selected conversation status/assignment
   useEffect(() => {
@@ -309,8 +346,24 @@ export default function InboxPage() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [selectedConvId, conversations]);
 
+  // Obter apenas o chamado mais recente de cada contato para evitar duplicados no sidebar
+  const contactLatestConv: Record<string, Conversation> = {};
+  conversations.forEach((c) => {
+    const existing = contactLatestConv[c.contactId];
+    if (!existing) {
+      contactLatestConv[c.contactId] = c;
+    } else {
+      const timeExisting = existing.lastMessageAt ? new Date(existing.lastMessageAt).getTime() : new Date(existing.createdAt).getTime();
+      const timeCurrent = c.lastMessageAt ? new Date(c.lastMessageAt).getTime() : new Date(c.createdAt).getTime();
+      if (timeCurrent > timeExisting) {
+        contactLatestConv[c.contactId] = c;
+      }
+    }
+  });
+  const uniqueLatestConversations = Object.values(contactLatestConv);
+
   // Filter conversations
-  const filteredConversations = conversations.filter((c) => {
+  const filteredConversations = uniqueLatestConversations.filter((c) => {
     const contact = contacts.find((ct) => ct.id === c.contactId);
     if (!contact) return false;
 
@@ -439,6 +492,43 @@ export default function InboxPage() {
   const handleApplyQuickReply = (text: string) => {
     setMessageText(text);
     setShowQuickReplies(false);
+  };
+
+  const isTrigger = messageText.startsWith('/') || messageText.startsWith('!');
+  const typedText = messageText.toLowerCase();
+  const matchingReplies = isTrigger
+    ? quickReplies.filter((qr) => {
+        const shortcutLower = qr.shortcut.toLowerCase();
+        if (typedText === '/' || typedText === '!') {
+          return shortcutLower.startsWith(typedText);
+        }
+        return (
+          shortcutLower.startsWith(typedText) ||
+          shortcutLower.includes(typedText) ||
+          (qr.title && qr.title.toLowerCase().includes(typedText)) ||
+          qr.message.toLowerCase().includes(typedText)
+        );
+      })
+    : [];
+
+  const showAutocomplete = isTrigger && matchingReplies.length > 0;
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (showAutocomplete) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setAutocompleteIndex((prev) => (prev + 1) % matchingReplies.length);
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setAutocompleteIndex((prev) => (prev - 1 + matchingReplies.length) % matchingReplies.length);
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        const selectedReply = matchingReplies[autocompleteIndex];
+        if (selectedReply) {
+          handleApplyQuickReply(selectedReply.message);
+        }
+      }
+    }
   };
 
   const handleApplyTemplate = (body: string) => {
@@ -672,6 +762,7 @@ export default function InboxPage() {
             sortedAndFilteredConvs.map((c) => {
               const contact = contacts.find((ct) => ct.id === c.contactId);
               const lastMsg = c.messages[c.messages.length - 1];
+              const lastActivity = lastMsg?.createdAt || c.lastMessageAt || c.updatedAt || c.createdAt;
               const isSelected = c.id === selectedConvId;
               const dept = departments.find((d) => d.id === c.departmentId);
               const agent = users.find((u) => u.id === c.assignedUserId);
@@ -690,8 +781,8 @@ export default function InboxPage() {
                 >
                   <div className="flex justify-between items-start">
                     <span className="text-xs font-bold text-slate-800 truncate">{contact?.name}</span>
-                    <span className="text-[9px] text-slate-400 font-semibold">
-                      {lastMsg ? new Date(lastMsg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                    <span className="text-[9px] text-slate-400 font-semibold" suppressHydrationWarning>
+                      {lastActivity ? formatMessageTime(lastActivity) : ''}
                     </span>
                   </div>
 
@@ -942,7 +1033,13 @@ export default function InboxPage() {
 
               {/* Messages list */}
               <div className="space-y-3 relative z-10">
-                {activeConv.messages.map((m) => {
+                {(activeContact 
+                  ? conversations
+                      .filter((c) => c.contactId === activeContact.id)
+                      .flatMap((c) => c.messages)
+                      .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+                  : activeConv.messages
+                ).map((m) => {
                   const isUser = m.senderType === 'user';
                   const isContact = m.senderType === 'contact';
                   const isSystem = m.senderType === 'system';
@@ -1323,46 +1420,98 @@ export default function InboxPage() {
                     </button>
                   </div>
                 ) : (
-                  <form onSubmit={handleSend} className="flex gap-2 items-center">
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileChange}
-                      className="hidden"
-                      accept="image/*,application/pdf,audio/*,video/*"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer shrink-0"
-                      title="Anexar arquivo"
-                    >
-                      <Paperclip size={16} />
-                    </button>
+                  <>
+                    {/* Autocomplete Quick Replies */}
+                    {showAutocomplete && (
+                      <div className="absolute bottom-full left-4 right-4 mb-2 bg-white dark:bg-slate-900 border border-slate-250 dark:border-slate-800 shadow-2xl rounded-2xl p-2 max-h-60 overflow-y-auto z-50 flex flex-col gap-1 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                        <div className="px-2.5 py-1.5 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center text-[10px] text-slate-400 font-extrabold uppercase tracking-wider select-none">
+                          <span className="flex items-center gap-1">
+                            <Smile size={12} className="text-primary" />
+                            Sugestões de Atalhos ({matchingReplies.length})
+                          </span>
+                          <span className="text-[9px] font-medium lowercase">Use ↑↓ para navegar, Enter ou Tab para escolher</span>
+                        </div>
+                        {matchingReplies.map((qr, idx) => (
+                          <button
+                            key={qr.id}
+                            type="button"
+                            onClick={() => handleApplyQuickReply(qr.message)}
+                            onMouseEnter={() => setAutocompleteIndex(idx)}
+                            className={`w-full text-left text-xs p-2.5 rounded-xl border transition-all duration-150 group flex items-start justify-between gap-3 cursor-pointer ${
+                              idx === autocompleteIndex
+                                ? 'bg-primary/10 border-primary/20 text-slate-850 dark:text-slate-150'
+                                : 'bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
+                            }`}
+                          >
+                            <div className="flex flex-col gap-1 min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="inline-block bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-md font-mono text-[9px] font-bold tracking-wide uppercase select-none">
+                                  {qr.shortcut}
+                                </span>
+                                {qr.title && (
+                                  <span className="text-[10px] font-bold text-slate-700 dark:text-slate-300 truncate">
+                                    {qr.title}
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-[11px] leading-relaxed break-all font-medium block max-w-full">
+                                {qr.message}
+                              </span>
+                            </div>
+                            <span className={`text-[10px] font-extrabold text-primary transition-all duration-150 shrink-0 self-center flex items-center gap-0.5 ${
+                              idx === autocompleteIndex ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-1'
+                            }`}>
+                              Selecionar <ArrowRight size={10} />
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
 
-                    <input
-                      type="text"
-                      value={messageText}
-                      onChange={(e) => setMessageText(e.target.value)}
-                      onPaste={handlePaste}
-                      disabled={activeConv.status === 'new'}
-                      placeholder={
-                        activeConv.status === 'new'
-                          ? 'Assuma o atendimento para digitar...'
-                          : inputMode === 'whisper'
-                          ? 'Sussurrar para o atendente (Cliente não lê)...'
-                          : inputMode === 'private'
-                          ? 'Escreva uma nota interna privada...'
-                          : 'Digite sua mensagem aqui...'
-                      }
-                      className={`flex-1 border rounded-xl py-2.5 px-4 text-xs outline-none transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
-                        inputMode === 'whisper'
-                          ? 'bg-sky-50 border-sky-300 focus:border-sky-500 focus:bg-sky-50 text-sky-900 placeholder-sky-500/70'
-                          : inputMode === 'private'
-                          ? 'bg-amber-50 border-amber-300 focus:border-amber-500 focus:bg-amber-50 text-amber-900 placeholder-amber-500/70'
-                          : 'bg-slate-50 border-slate-200 focus:border-primary focus:bg-white text-slate-800'
-                      }`}
-                    />
+                    <form onSubmit={handleSend} className="flex gap-2 items-center">
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        className="hidden"
+                        accept="image/*,application/pdf,audio/*,video/*"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer shrink-0"
+                        title="Anexar arquivo"
+                      >
+                        <Paperclip size={16} />
+                      </button>
+
+                      <input
+                        type="text"
+                        value={messageText}
+                        onChange={(e) => {
+                          setMessageText(e.target.value);
+                          setAutocompleteIndex(0);
+                        }}
+                        onKeyDown={handleKeyDown}
+                        onPaste={handlePaste}
+                        disabled={activeConv.status === 'new'}
+                        placeholder={
+                          activeConv.status === 'new'
+                            ? 'Assuma o atendimento para digitar...'
+                            : inputMode === 'whisper'
+                            ? 'Sussurrar para o atendente (Cliente não lê)...'
+                            : inputMode === 'private'
+                            ? 'Escreva uma nota interna privada...'
+                            : 'Digite sua mensagem aqui...'
+                        }
+                        className={`flex-1 border rounded-xl py-2.5 px-4 text-xs outline-none transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
+                          inputMode === 'whisper'
+                            ? 'bg-sky-50 border-sky-300 focus:border-sky-500 focus:bg-sky-50 text-sky-900 placeholder-sky-500/70'
+                            : inputMode === 'private'
+                            ? 'bg-amber-50 border-amber-300 focus:border-amber-500 focus:bg-amber-50 text-amber-900 placeholder-amber-500/70'
+                            : 'bg-slate-50 border-slate-200 focus:border-primary focus:bg-white text-slate-800'
+                        }`}
+                      />
 
                     {(!messageText.trim() && !attachedFile) ? (
                       <button
@@ -1390,7 +1539,8 @@ export default function InboxPage() {
                       </button>
                     )}
                   </form>
-                )}
+                </>
+              )}
               </div>
             ) : (
               <div className="p-4 text-center text-xs font-bold text-slate-400 bg-slate-100 border-t shrink-0">

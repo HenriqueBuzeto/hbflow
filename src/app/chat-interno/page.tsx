@@ -16,15 +16,40 @@ export default function ChatInternoPage() {
   const { users, currentUserId } = useStore();
   const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
   const [msgText, setMsgText] = useState('');
-  const [chatLogs, setChatLogs] = useState<InternalMessage[]>([
-    { id: '1', senderId: 'user-2', receiverId: 'user-1', body: 'Olá João! O boleto da Ana Costa já foi emitido e anexado no CRM dela.', createdAt: '2026-06-08T18:50:00Z' },
-    { id: '2', senderId: 'user-1', receiverId: 'user-2', body: 'Excelente Maria! Vou mandar o link para ela no chat do WhatsApp.', createdAt: '2026-06-08T18:52:00Z' }
-  ]);
+  const [chatLogs, setChatLogs] = useState<InternalMessage[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const currentUser = users.find((u) => u.id === currentUserId) || users[0] || { id: '', name: 'Usuário', email: '', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces', role: 'Atendente', presence: 'offline' };
   const targetAgent = users.find((u) => u.id === selectedAgentId);
+
+  // Sync internal chat messages from the database
+  const fetchMessages = async (showLoading = false) => {
+    if (showLoading) setIsLoading(true);
+    try {
+      const res = await fetch('/api/chat-interno');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setChatLogs(data.data);
+      }
+    } catch (err) {
+      console.error('Error fetching internal messages:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchMessages(true);
+
+    // Periodic synchronization to check for new messages from team members
+    const interval = setInterval(() => {
+      fetchMessages(false);
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -37,33 +62,44 @@ export default function ChatInternoPage() {
       (m.senderId === selectedAgentId && m.receiverId === currentUserId)
   );
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!msgText.trim() || !selectedAgentId) return;
 
-    const newMsg: InternalMessage = {
-      id: `int-${Date.now()}`,
+    const bodyText = msgText.trim();
+    setMsgText('');
+
+    // Optimistic UI update
+    const tempMsg: InternalMessage = {
+      id: `int-temp-${Date.now()}`,
       senderId: currentUserId,
       receiverId: selectedAgentId,
-      body: msgText.trim(),
+      body: bodyText,
       createdAt: new Date().toISOString()
     };
 
-    setChatLogs((prev) => [...prev, newMsg]);
-    setMsgText('');
+    setChatLogs((prev) => [...prev, tempMsg]);
 
-    // Trigger dynamic reply mock
-    if (selectedAgentId === 'user-2') {
-      setTimeout(() => {
-        const autoReply: InternalMessage = {
-          id: `int-reply-${Date.now()}`,
-          senderId: 'user-2',
-          receiverId: currentUserId,
-          body: 'Estou online. Qualquer dúvida com outros boletos me avise aqui no chat interno.',
-          createdAt: new Date().toISOString()
-        };
-        setChatLogs((prev) => [...prev, autoReply]);
-      }, 1500);
+    try {
+      const res = await fetch('/api/chat-interno', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          receiverId: selectedAgentId,
+          body: bodyText
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        // Replace temp msg with real database message
+        setChatLogs((prev) => prev.map(m => m.id === tempMsg.id ? data.data : m));
+      } else {
+        // Fallback on error
+        fetchMessages(false);
+      }
+    } catch (err) {
+      console.error('Error sending internal message:', err);
+      fetchMessages(false);
     }
   };
 

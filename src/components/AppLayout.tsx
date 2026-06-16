@@ -8,7 +8,7 @@ import Header from './Header';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { darkMode, fetchUsers, syncDatabaseState, demo_mode_enabled } = useStore();
+  const { darkMode, fetchUsers, syncDatabaseState, demo_mode_enabled, conversations } = useStore();
 
   useEffect(() => {
     document.documentElement.classList.remove('dark');
@@ -26,6 +26,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       fetchUsers().catch((err) => console.error('Error fetching user profile in layout:', err));
     }
   }, [isPublicPage, demo_mode_enabled, fetchUsers]);
+
+  // Atualiza dinamicamente o título da aba do navegador de acordo com chamados ativos ou mensagens não lidas
+  useEffect(() => {
+    if (isPublicPage || demo_mode_enabled) return;
+    const activeCount = conversations.filter(
+      (c) => c.status === 'new' || c.status === 'open' || (c.status !== 'closed' && c.unreadCount > 0)
+    ).length;
+
+    if (activeCount > 0) {
+      document.title = `(${activeCount}) Atendimentos | HBFlow`;
+    } else {
+      document.title = 'HBFlow';
+    }
+  }, [conversations, isPublicPage, demo_mode_enabled]);
 
   // Sincronização global de conversas, mensagens e contatos a cada 5 segundos nas rotas autenticadas
   useEffect(() => {

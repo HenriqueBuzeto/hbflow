@@ -273,6 +273,7 @@ export class WhatsAppMessageService {
       let processedCount = 0;
       for (const payload of payloads) {
         let contactId: string | null = null;
+        let conversationId: string | null = null;
 
         // Enforce Transaction to map Contact + Conversation + Message
         await prisma.$transaction(async (tx) => {
@@ -318,6 +319,8 @@ export class WhatsAppMessageService {
               }
             });
           }
+
+          conversationId = conversation.id;
 
           // 5.2.1 Verificar se a mensagem já existe para evitar duplicados (ex: quando enviada do próprio sistema)
           if (payload.providerMessageId) {
@@ -379,17 +382,29 @@ export class WhatsAppMessageService {
           processedCount++;
         });
 
-        // Opt-Out checking for incoming text messages from contacts
+        // Opt-Out and Chatbot Flow Engine checking for incoming text messages from contacts
         if (!payload.fromMe && payload.body && contactId) {
           try {
             const { OptOutHandler } = await import('./optout-handler');
-            await OptOutHandler.handleIncomingMessage(
+            const wasOptOut = await OptOutHandler.handleIncomingMessage(
               connection.tenantId,
               contactId,
               payload.body
             );
+
+            // Se a mensagem não foi um pedido de cancelamento (opt-out), processa pelo fluxo/chatbot de triagem
+            if (!wasOptOut && conversationId) {
+              const { FlowEngineService } = await import('./flow-engine.service');
+              await FlowEngineService.processMessage(
+                connection.tenantId,
+                conversationId,
+                contactId,
+                payload.body,
+                connection.id
+              );
+            }
           } catch (optErr) {
-            console.error('Error in OptOutHandler checking:', optErr);
+            console.error('Error in OptOutHandler/FlowEngine checking:', optErr);
           }
         }
       }

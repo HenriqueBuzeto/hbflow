@@ -39,13 +39,17 @@ export default function Sidebar() {
   const hasAfterSales = userPlan ? userPlan.toLowerCase() !== 'starter' : false;
 
   const currentUser = users.find((u) => u.id === currentUserId) || users[0] || { id: '', name: 'Usuário', email: '', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces', role: 'Atendente', presence: 'offline' };
-  const unreadCount = conversations.reduce((acc, c) => acc + (c.status !== 'closed' && c.unreadCount > 0 ? 1 : 0), 0);
+  
+  // Exibe a quantidade de chamados em aberto, novos ou com mensagens não lidas
+  const activeCount = conversations.filter(
+    (c) => c.status === 'new' || c.status === 'open' || (c.status !== 'closed' && c.unreadCount > 0)
+  ).length;
 
   const operationalMenu = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Atendimentos', href: '/inbox', icon: MessageSquare, badge: unreadCount },
+    { name: 'Atendimentos', href: '/inbox', icon: MessageSquare, badge: activeCount },
     { name: 'Painel de Atendimentos', href: '/painel', icon: ShieldAlert },
-    { name: 'Respostas Rápidas', href: '/setores', icon: Zap },
+    { name: 'Respostas Rápidas', href: '/respostas-rapidas', icon: Zap },
     { name: 'Kanban', href: '/pipeline', icon: Layers },
     { name: 'Contatos', href: '/clientes', icon: Users },
     { name: 'Agendamentos', href: '/agendamentos', icon: Clock },

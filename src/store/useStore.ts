@@ -149,6 +149,10 @@ export interface QuickReply {
   id: string;
   shortcut: string;
   message: string;
+  title?: string | null;
+  category?: string | null;
+  departmentId?: string | null;
+  isActive?: boolean;
 }
 
 export interface MessageTemplate {
@@ -311,7 +315,7 @@ interface Actions {
   setUserPresence: (userId: string, presence: 'online' | 'away' | 'lunch' | 'meeting' | 'break' | 'offline') => void;
   // Config & Switches
   setCurrentUserId: (id: string) => void;
-  setCurrentTenantId: (id: string) => void;
+  setCurrentTenantId: (id: string) => Promise<void> | void;
   updateWhatsappConnection: (config: Partial<WhatsappConnection>) => void;
 
   // Messaging & Claiming
@@ -371,6 +375,7 @@ interface Actions {
   fetchUsers: () => Promise<void>;
   fetchContacts: () => Promise<void>;
   fetchConversations: () => Promise<void>;
+  fetchQuickReplies: () => Promise<void>;
   syncDatabaseState: () => Promise<void>;
   fetchInvoices: () => Promise<void>;
   triggerConfidencePayment: () => Promise<{ success: boolean; message?: string; error?: string }>;
@@ -601,11 +606,46 @@ export const useStore = create<State & Actions>((set, get) => ({
       localStorage.setItem('hbflow-dark-mode', nextDark ? 'true' : 'false');
     }
   },
-  setUserPresence: (userId, presence) => set((s) => ({
-    users: s.users.map((u) => u.id === userId ? { ...u, presence, isOnline: presence !== 'offline' } : u)
-  })),
+  setUserPresence: async (userId, presence) => {
+    // Atualização otimista no estado local do frontend
+    set((s) => ({
+      users: s.users.map((u) => u.id === userId ? { ...u, presence, isOnline: presence !== 'offline' } : u)
+    }));
+
+    if (get().demo_mode_enabled) return;
+
+    try {
+      await fetch('/api/auth/presence', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ presence })
+      });
+    } catch (err) {
+      console.error('Error syncing presence status with database:', err);
+    }
+  },
   setCurrentUserId: (id) => set({ currentUserId: id }),
-  setCurrentTenantId: (id) => set({ currentTenantId: id }),
+  setCurrentTenantId: async (id) => {
+    if (get().demo_mode_enabled) {
+      set({ currentTenantId: id });
+      return;
+    }
+    try {
+      const res = await fetch('/api/v1/auth/switch-tenant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId: id })
+      });
+      if (res.ok) {
+        window.location.href = '/dashboard';
+      } else {
+        const data = await res.json();
+        console.error('Falha ao trocar de empresa:', data.error);
+      }
+    } catch (err) {
+      console.error('Error switching tenant:', err);
+    }
+  },
   updateWhatsappConnection: (config) => set((state) => ({
     whatsappConnection: { ...state.whatsappConnection, ...config }
   })),
@@ -747,8 +787,15 @@ export const useStore = create<State & Actions>((set, get) => ({
             plan: meData.user.tenant.plan || 'starter',
             createdAt: meData.user.tenant.createdAt
           };
+          const mappedTenants = meData.tenants ? meData.tenants.map((t: any) => ({
+            id: t.id,
+            name: t.name,
+            slug: t.slug,
+            plan: t.plan || 'starter',
+            createdAt: t.createdAt
+          })) : [tenantMapped];
           set({
-            tenants: [tenantMapped],
+            tenants: mappedTenants,
             currentTenantId: tenantMapped.id
           });
         }
@@ -812,6 +859,18 @@ export const useStore = create<State & Actions>((set, get) => ({
       }
     } catch (err) {
       console.error('Error fetching contacts in store:', err);
+    }
+  },
+  fetchQuickReplies: async () => {
+    if (get().demo_mode_enabled) return;
+    try {
+      const res = await fetch('/api/v1/quick-replies');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        set({ quickReplies: data.data });
+      }
+    } catch (err) {
+      console.error('Error fetching quick replies in store:', err);
     }
   },
   fetchConversations: async () => {
@@ -891,6 +950,20 @@ export const useStore = create<State & Actions>((set, get) => ({
   syncDatabaseState: async () => {
     await get().fetchContacts();
     await get().fetchConversations();
+    await get().fetchQuickReplies();
+
+    // Sincronizar fluxos do localStorage com o banco de dados
+    if (!get().demo_mode_enabled && get().flows.length > 0) {
+      try {
+        await fetch('/api/v1/flows/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ flows: get().flows })
+        });
+      } catch (err) {
+        console.error('Error syncing flows to database:', err);
+      }
+    }
   },
   fetchInvoices: async () => {
     if (get().demo_mode_enabled) return;
@@ -1965,12 +2038,28 @@ export const useStore = create<State & Actions>((set, get) => ({
     if (typeof window !== 'undefined') {
       localStorage.setItem('hbflow-flows', JSON.stringify(nextFlows));
     }
+    // Sincronização em segundo plano após adicionar fluxo
+    if (!get().demo_mode_enabled) {
+      fetch('/api/v1/flows/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flows: nextFlows })
+      }).catch((err) => console.error('Error syncing flow after add:', err));
+    }
   },
   updateFlow: (flowId, updates) => {
     const nextFlows = get().flows.map(f => f.id === flowId ? { ...f, ...updates } : f);
     set({ flows: nextFlows });
     if (typeof window !== 'undefined') {
       localStorage.setItem('hbflow-flows', JSON.stringify(nextFlows));
+    }
+    // Sincronização em segundo plano após atualizar fluxo
+    if (!get().demo_mode_enabled) {
+      fetch('/api/v1/flows/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ flows: nextFlows })
+      }).catch((err) => console.error('Error syncing flow after update:', err));
     }
   },
 

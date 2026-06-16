@@ -584,4 +584,109 @@ export class AuthService {
       },
     });
   }
+
+  static async switchTenant(email: string, targetTenantId: string): Promise<AuthResult> {
+    const user = await prisma.user.findFirst({
+      where: {
+        email,
+        tenantId: targetTenantId,
+        isActive: true,
+      },
+      include: {
+        tenant: true,
+        role: true,
+      },
+    });
+
+    if (!user) {
+      throw new Error('Você não tem acesso a esta empresa.');
+    }
+
+    if (!user.tenant.isActive) {
+      throw new Error('Esta empresa está inativa.');
+    }
+
+    const payload: TokenPayload = {
+      userId: user.id,
+      tenantId: user.tenantId,
+      email: user.email,
+      roleId: user.roleId || undefined,
+    };
+
+    const accessToken = TokenService.generateAccessToken(payload);
+    const refreshToken = TokenService.generateRefreshToken(payload);
+
+    return {
+      user,
+      tenant: user.tenant,
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  static async linkNewTenant(email: string, name: string, slug: string): Promise<any> {
+    const existingUser = await prisma.user.findFirst({
+      where: { email },
+    });
+
+    if (!existingUser) {
+      throw new Error('Usuário de origem não encontrado.');
+    }
+
+    const existingTenant = await prisma.tenant.findUnique({
+      where: { slug },
+    });
+
+    if (existingTenant) {
+      throw new Error('Já existe uma empresa com esse slug/subdomínio.');
+    }
+
+    const tenant = await prisma.tenant.create({
+      data: {
+        name,
+        slug,
+        plan: 'starter',
+        status: 'active',
+        isActive: true,
+      },
+    });
+
+    const adminRole = await prisma.role.create({
+      data: {
+        tenantId: tenant.id,
+        name: 'Admin',
+        description: 'Administrador com acesso total',
+      },
+    });
+
+    const user = await prisma.user.create({
+      data: {
+        tenantId: tenant.id,
+        name: existingUser.name,
+        email: existingUser.email,
+        passwordHash: existingUser.passwordHash,
+        roleId: adminRole.id,
+        isActive: true,
+      },
+    });
+
+    await prisma.tenantSettings.create({
+      data: {
+        tenantId: tenant.id,
+      },
+    });
+
+    await prisma.tenantAICost.create({
+      data: {
+        tenantId: tenant.id,
+        monthlyLimit: 100.0,
+        monthlySpent: 0.0,
+      },
+    });
+
+    await RBACBootstrapService.bootstrapTenantRBAC(tenant.id, adminRole.id);
+    await DepartmentBootstrapService.bootstrapDefaultDepartments(tenant.id);
+
+    return { tenant, user };
+  }
 }

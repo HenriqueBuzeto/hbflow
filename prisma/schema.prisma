@@ -75,6 +75,7 @@ model Tenant {
   contactJourneys      ContactJourney[]
   scheduledMessages    ScheduledMessage[]
   journeyEventLogs     JourneyEventLog[]
+  internalMessages     InternalMessage[]
 }
 
 model TenantSettings {
@@ -193,6 +194,8 @@ model User {
   profile             UserProfile?
   userRoutingFilters  UserRoutingFilter[]
   tenantDiscountsCreated TenantDiscount[]
+  sentInternalMessages     InternalMessage[] @relation("SentInternalMessages")
+  receivedInternalMessages InternalMessage[] @relation("ReceivedInternalMessages")
 }
 
 model UserProfile {
@@ -1964,4 +1967,20 @@ model JourneyEventLog {
 
   @@index([tenantId])
   @@index([journeyId])
+}
+
+model InternalMessage {
+  id         String   @id @default(uuid())
+  tenantId   String
+  senderId   String
+  receiverId String
+  body       String
+  createdAt  DateTime @default(now())
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sender     User     @relation("SentInternalMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver   User     @relation("ReceivedInternalMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, senderId, receiverId])
+  @@index([tenantId, createdAt])
 }

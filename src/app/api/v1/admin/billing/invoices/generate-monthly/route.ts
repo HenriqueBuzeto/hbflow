@@ -32,6 +32,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Assinatura não encontrada para o inquilino informado' }, { status: 400 });
     }
 
+    let activeSubscription = subscription;
+    const planSlug = data.planSlug;
+
+    if (planSlug) {
+      const plan = await prisma.plan.findFirst({
+        where: { slug: planSlug, isActive: true }
+      });
+      if (plan) {
+        if (subscription.planId !== plan.id) {
+          // Atualizar a assinatura com o novo plano no banco
+          activeSubscription = await prisma.subscription.update({
+            where: { id: subscription.id },
+            data: { planId: plan.id }
+          });
+
+          // Atualizar o plano no cadastro do Tenant
+          await prisma.tenant.update({
+            where: { id: data.tenantId },
+            data: { plan: plan.slug }
+          });
+        }
+      }
+    }
+
     const invoice = await InvoiceService.generateMonthlyInvoice(
       data.tenantId,
       subscription.id,
