@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { requireTenant } from '@/server/middleware/tenant.middleware';
 import { prisma } from '@/server/db/prisma';
+import { InvoiceService } from '@/server/services/billing/invoice.service';
 
 export async function GET() {
   try {
     // Permite buscar faturas mesmo com acesso expirado para permitir o pagamento
     const tenantId = await requireTenant();
+
+    // Saneia faturas duplicadas antes de listar
+    await InvoiceService.cleanupDuplicateInvoices(tenantId);
 
     const invoices = await prisma.invoice.findMany({
       where: { tenantId, deletedAt: null },

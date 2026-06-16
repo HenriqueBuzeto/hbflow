@@ -49,3 +49,21 @@ export const confirmPaymentSchema = z.object({
 export const createPixChargeSchema = z.object({
   amountCents: z.number().int().positive("Valor da cobrança deve ser maior que zero")
 });
+
+export const createInfinitePayLinkSchema = z.object({});
+
+export const infinitePayWebhookSchema = z.object({
+  invoice_slug: z.string(),
+  amount: z.number().int(),
+  paid_amount: z.number().int(),
+  installments: z.number().int().optional().default(1),
+  capture_method: z.string().optional().default('pix'),
+  transaction_nsu: z.string(),
+  order_nsu: z.string(),
+  receipt_url: z.string().optional().nullable()
+});
+
+export const paymentCheckSchema = z.object({
+  transaction_nsu: z.string().optional(),
+  slug: z.string().optional()
+});

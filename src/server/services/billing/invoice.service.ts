@@ -4,6 +4,62 @@ import { AuditService } from '../../audit/audit.service';
 
 export class InvoiceService {
   /**
+   * Remove faturas duplicadas para o mesmo período civil do inquilino.
+   * Preserva a fatura paga (se existir) ou a mais recente.
+   */
+  static async cleanupDuplicateInvoices(tenantId: string) {
+    const invoices = await prisma.invoice.findMany({
+      where: { tenantId, deletedAt: null },
+      orderBy: { createdAt: 'desc' },
+      include: {
+        subscription: {
+          include: { plan: true }
+        }
+      }
+    });
+
+    const periodsSeen = new Map<string, typeof invoices>();
+
+    for (const inv of invoices) {
+      const periodKey = `${inv.billingPeriodStart.getFullYear()}-${inv.billingPeriodStart.getMonth()}`;
+      if (!periodsSeen.has(periodKey)) {
+        periodsSeen.set(periodKey, []);
+      }
+      periodsSeen.get(periodKey)!.push(inv);
+    }
+
+    const idsToDelete: string[] = [];
+
+    for (const [_, invList] of periodsSeen.entries()) {
+      if (invList.length <= 1) continue;
+
+      // 1. Encontrar uma fatura paga
+      const paidInvoice = invList.find(i => i.status === 'paid');
+
+      if (paidInvoice) {
+        // Mantém a paga, marca todas as outras para exclusão
+        for (const i of invList) {
+          if (i.id !== paidInvoice.id) {
+            idsToDelete.push(i.id);
+          }
+        }
+      } else {
+        // Se nenhuma for paga, mantém a mais recente (primeira por conta do orderBy: createdAt: desc)
+        const [keepInvoice, ...others] = invList;
+        for (const i of others) {
+          idsToDelete.push(i.id);
+        }
+      }
+    }
+
+    if (idsToDelete.length > 0) {
+      await prisma.invoice.deleteMany({
+        where: { id: { in: idsToDelete } }
+      });
+    }
+  }
+
+  /**
    * Gera a fatura mensal para o tenant
    */
   static async generateMonthlyInvoice(
@@ -13,22 +69,48 @@ export class InvoiceService {
     billingPeriodEnd: Date,
     couponCode?: string
   ) {
-    // 1. Evitar duplicidade de faturas para o mesmo período
+    // Limpar duplicidades antes de iniciar
+    await InvoiceService.cleanupDuplicateInvoices(tenantId);
+
+    // 1. Evitar duplicidade de faturas para o mesmo período (mês/ano)
+    const startOfInvoiceMonth = new Date(billingPeriodStart.getFullYear(), billingPeriodStart.getMonth(), 1);
+    const endOfInvoiceMonth = new Date(billingPeriodStart.getFullYear(), billingPeriodStart.getMonth() + 1, 0, 23, 59, 59, 999);
+
     const existingInvoice = await prisma.invoice.findFirst({
       where: {
         tenantId,
-        subscriptionId,
-        billingPeriodStart,
-        billingPeriodEnd,
+        billingPeriodStart: {
+          gte: startOfInvoiceMonth,
+          lte: endOfInvoiceMonth
+        },
         status: { in: ['open', 'paid', 'overdue'] }
+      },
+      include: {
+        subscription: {
+          include: { plan: true }
+        },
+        payments: {
+          orderBy: { createdAt: 'desc' }
+        },
+        pixCharges: {
+          orderBy: { createdAt: 'desc' }
+        }
       }
     });
 
     if (existingInvoice) {
-      if (existingInvoice.status === 'paid') {
-        throw new Error('INVOICE_ALREADY_PAID_FOR_PERIOD');
+      const currentPlan = await prisma.subscription.findUnique({
+        where: { id: subscriptionId },
+        select: { planId: true }
+      });
+
+      if (existingInvoice.status === 'paid' && existingInvoice.subscription?.planId === currentPlan?.planId) {
+        // Se a fatura já estiver paga e for para o mesmo plano, apenas retorna a fatura existente
+        return existingInvoice;
       }
-      // Se a fatura existente não estiver paga, podemos deletá-la para gerar a nova recalculada
+
+      // Se a fatura existente não estiver paga, ou se o plano mudou (upgrade/downgrade), 
+      // deletamos a fatura antiga para gerar a nova recalculada sem acumular lixo
       await prisma.invoice.delete({
         where: { id: existingInvoice.id }
       });

@@ -44,7 +44,7 @@ export default function BillingPage() {
   const [copiedPayload, setCopiedPayload] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [activatedPlanName, setActivatedPlanName] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'credit_card' | 'boleto'>('pix');
+  const [paymentMethod, setPaymentMethod] = useState<'infinitepay' | 'pix' | 'credit_card' | 'boleto'>('infinitepay');
   const [cardNumber, setCardNumber] = useState('');
   const [cardHolder, setCardHolder] = useState('');
   const [cardExpiry, setCardExpiry] = useState('');
@@ -186,8 +186,9 @@ export default function BillingPage() {
       const invoiceMatchesSelected = activeInvoice && 
         (activeInvoice.subscription?.plan?.slug === selectedPlan.slug);
 
-      // Se não houver fatura ativa aberta, ou for de outro plano, gera uma nova mensalidade
-      if (!invoiceMatchesSelected || activeInvoice?.status === 'paid') {
+      // Se não houver fatura ativa aberta, ou for de outro plano, gera uma nova mensalidade.
+      // Se a fatura ativa já corresponder ao plano selecionado e estiver paga, não gera outra fatura duplicada.
+      if (!invoiceMatchesSelected || (activeInvoice?.status === 'paid' && activeInvoice.subscription?.plan?.slug !== selectedPlan.slug)) {
         const start = new Date();
         const end = new Date(start.getTime() + 30 * 24 * 60 * 60 * 1000);
         
@@ -220,7 +221,19 @@ export default function BillingPage() {
       }
 
       // Processar conforme o método selecionado
-      if (paymentMethod === 'pix') {
+      if (paymentMethod === 'infinitepay') {
+        const res = await fetch(`/api/v1/billing/invoices/${activeInvoice.id}/infinitepay/link`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Erro ao processar checkout InfinitePay.');
+        if (data.checkoutUrl) {
+          window.location.href = data.checkoutUrl;
+          return;
+        }
+      }
+      else if (paymentMethod === 'pix') {
         const res = await fetch(`/api/v1/billing/invoices/${activeInvoice.id}/pix`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
@@ -553,7 +566,22 @@ export default function BillingPage() {
                   <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
                     Forma de Pagamento
                   </span>
-                  <div className="grid grid-cols-3 gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800/40">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800/40">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPaymentMethod('infinitepay');
+                        setGlobalError('');
+                      }}
+                      className={`py-1.5 px-1 text-[9px] font-bold rounded-lg flex flex-col items-center gap-1 cursor-pointer transition-all ${
+                        paymentMethod === 'infinitepay'
+                          ? 'bg-primary text-white shadow-md'
+                          : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                      }`}
+                    >
+                      <Sparkles size={12} className="text-amber-400" />
+                      <span>Pix/Cartão Real</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => {
@@ -567,7 +595,7 @@ export default function BillingPage() {
                       }`}
                     >
                       <QrCode size={12} />
-                      <span>Pix</span>
+                      <span>Pix Simulado</span>
                     </button>
                     <button
                       type="button"
@@ -582,7 +610,7 @@ export default function BillingPage() {
                       }`}
                     >
                       <CreditCard size={12} />
-                      <span>Cartão</span>
+                      <span>Cartão Simulado</span>
                     </button>
                     <button
                       type="button"
@@ -597,9 +625,41 @@ export default function BillingPage() {
                       }`}
                     >
                       <Ticket size={12} />
-                      <span>Boleto</span>
+                      <span>Boleto Simulado</span>
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* RENDER FORMA DE PAGAMENTO: INFINITEPAY */}
+              {paymentMethod === 'infinitepay' && !checkoutResult && !boletoResult && (
+                <div className="space-y-4 pt-2 animate-scale-in">
+                  <p className="text-[10px] text-slate-400 leading-relaxed font-medium">
+                    Você será redirecionado para a plataforma segura da <strong>InfinitePay</strong> para concluir seu pagamento via <strong>Pix ou Cartão de Crédito</strong> de forma real.
+                  </p>
+                  
+                  {globalError && (
+                    <p className="text-[10px] text-rose-550 font-bold bg-rose-500/10 p-2 rounded border border-rose-500/20">{globalError}</p>
+                  )}
+
+                  <button
+                    onClick={handleCheckout}
+                    disabled={isProcessingCheckout || !selectedPlan}
+                    className="w-full bg-primary hover:bg-primary-hover disabled:bg-primary/50 text-white py-3.5 rounded-2xl font-bold text-xs transition-all shadow-lg flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    {isProcessingCheckout ? (
+                      <>
+                        <Loader2 size={13} className="animate-spin" />
+                        <span>Gerando Link de Checkout...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles size={13} className="text-amber-400" />
+                        <span>Pagar agora (InfinitePay)</span>
+                        <ArrowRight size={13} />
+                      </>
+                    )}
+                  </button>
                 </div>
               )}
 

@@ -75,14 +75,17 @@ export default function FinanceiroPage() {
     return true;
   });
 
-  // Handle Pix Checkout Activation
+  // Handle Pix Checkout Activation / Details View
   const handleSelectInvoice = async (invoice: any) => {
-    if (invoice.status === 'paid') return;
     setSelectedInvoice(invoice);
     setPixCharge(null);
-    setLoadingPix(true);
     setFeedbackMsg(null);
 
+    if (invoice.status === 'paid') {
+      return; // Do not fetch Pix charge for paid invoices
+    }
+
+    setLoadingPix(true);
     try {
       const res = await fetch(`/api/v1/billing/invoices/${invoice.id}/pix`, {
         method: 'POST',
@@ -389,16 +392,12 @@ export default function FinanceiroPage() {
                           </span>
                         </td>
                         <td className="py-3 text-right">
-                          {inv.status !== 'paid' ? (
-                            <button
-                              onClick={() => handleSelectInvoice(inv)}
-                              className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-primary hover:text-white dark:hover:bg-primary text-slate-700 dark:text-slate-300 text-[10px] font-bold rounded-lg border border-slate-200/60 dark:border-slate-700/60 transition-all cursor-pointer"
-                            >
-                              Pagar Fatura
-                            </button>
-                          ) : (
-                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">✓ Paga</span>
-                          )}
+                          <button
+                            onClick={() => handleSelectInvoice(inv)}
+                            className="px-3 py-1 bg-slate-100 dark:bg-slate-800 hover:bg-primary hover:text-white dark:hover:bg-primary text-slate-700 dark:text-slate-300 text-[10px] font-bold rounded-lg border border-slate-200/60 dark:border-slate-700/60 transition-all cursor-pointer"
+                          >
+                            {inv.status === 'paid' ? 'Ver Detalhes' : 'Pagar Fatura'}
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -408,12 +407,13 @@ export default function FinanceiroPage() {
             )}
           </div>
 
-          {/* Pix Checkout Drawer / Card */}
+          {/* Fatura Dossier & Checkout Details */}
           {selectedInvoice && (
             <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl text-white space-y-6 animate-scale-in">
+              {/* Header */}
               <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                 <div>
-                  <h4 className="text-sm font-bold text-white uppercase tracking-wider">Checkout Pix</h4>
+                  <h4 className="text-sm font-bold text-white uppercase tracking-wider">Detalhamento da Fatura</h4>
                   <p className="text-[10px] text-slate-400 font-medium mt-0.5">Fatura: {selectedInvoice.invoiceNumber}</p>
                 </div>
                 <button
@@ -421,77 +421,167 @@ export default function FinanceiroPage() {
                     setSelectedInvoice(null);
                     setPixCharge(null);
                   }}
-                  className="text-xs text-slate-400 hover:text-white cursor-pointer bg-slate-800 border border-slate-700/40 px-2.5 py-1 rounded-lg"
+                  className="text-xs text-slate-400 hover:text-white cursor-pointer bg-slate-800 border border-slate-700/40 px-3 py-1.5 rounded-xl transition-all hover:bg-slate-700"
                 >
                   Fechar
                 </button>
               </div>
 
-              {loadingPix ? (
-                <div className="py-12 flex flex-col items-center justify-center gap-3">
-                  <Loader2 size={24} className="animate-spin text-primary" />
-                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Gerando Pix...</span>
-                </div>
-              ) : pixCharge ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
-                  
-                  {/* Pix QR Code display */}
-                  <div className="flex flex-col items-center justify-center bg-slate-950 border border-slate-800/80 p-5 rounded-2xl gap-3">
-                    <div className="bg-white p-3 rounded-xl w-36 h-36 flex items-center justify-center">
-                      <QrCode size={120} className="text-slate-950" />
+              {/* Informative breakdown */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pb-2 border-b border-slate-800/40">
+                {/* Details list */}
+                <div className="space-y-3 text-xs">
+                  <div className="flex justify-between border-b border-slate-800/40 pb-1.5">
+                    <span className="text-slate-400">Plano Contratado:</span>
+                    <strong className="text-white capitalize">{selectedInvoice.subscription?.plan?.name || activeTenant.plan}</strong>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-800/40 pb-1.5">
+                    <span className="text-slate-400">Período de Uso:</span>
+                    <strong className="text-white">
+                      {new Date(selectedInvoice.billingPeriodStart).toLocaleDateString('pt-BR')} a {new Date(selectedInvoice.billingPeriodEnd).toLocaleDateString('pt-BR')}
+                    </strong>
+                  </div>
+                  <div className="flex justify-between border-b border-slate-800/40 pb-1.5">
+                    <span className="text-slate-400">Vencimento:</span>
+                    <strong className="text-white">
+                      {new Date(selectedInvoice.dueDate).toLocaleDateString('pt-BR')}
+                    </strong>
+                  </div>
+                  {selectedInvoice.status === 'paid' && (
+                    <div className="flex justify-between border-b border-slate-800/40 pb-1.5">
+                      <span className="text-slate-400">Pago em:</span>
+                      <strong className="text-emerald-400">
+                        {selectedInvoice.paidAt ? new Date(selectedInvoice.paidAt).toLocaleDateString('pt-BR') : 'Confirmado'}
+                      </strong>
                     </div>
-                    <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
-                      QR Code Pix Simulado
+                  )}
+                  <div className="flex justify-between pb-1.5">
+                    <span className="text-slate-400">Status:</span>
+                    <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full border ${
+                      selectedInvoice.status === 'paid'
+                        ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                        : selectedInvoice.status === 'overdue'
+                        ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
+                        : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                    }`}>
+                      {selectedInvoice.status === 'paid' ? 'Pago' : selectedInvoice.status === 'overdue' ? 'Vencido' : 'Em Aberto'}
                     </span>
                   </div>
+                </div>
 
-                  {/* Pix copy and simulated checkout button */}
-                  <div className="space-y-4">
-                    <div className="space-y-1.5">
-                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Valor a pagar</span>
-                      <strong className="text-xl font-mono text-primary">R$ {(pixCharge.amountCents / 100).toFixed(2)}</strong>
+                {/* Values Dossier (Breakdown) */}
+                <div className="bg-slate-950/60 border border-slate-800/80 rounded-2xl p-4 space-y-2.5 text-xs self-start">
+                  <h5 className="font-bold text-[10px] text-slate-500 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                    <DollarSign size={12} className="text-primary" />
+                    Valores
+                  </h5>
+                  <div className="flex justify-between text-slate-400">
+                    <span>Preço Base do Plano:</span>
+                    <span className="font-mono">R$ {(selectedInvoice.subtotalCents / 100).toFixed(2)}</span>
+                  </div>
+                  {selectedInvoice.discountCents > 0 && (
+                    <div className="flex justify-between text-emerald-400 font-semibold">
+                      <span>Descontos / Cupom:</span>
+                      <span className="font-mono">- R$ {(selectedInvoice.discountCents / 100).toFixed(2)}</span>
                     </div>
+                  )}
+                  <div className="pt-2 border-t border-slate-850 flex justify-between items-center text-xs font-black">
+                    <span className="text-white">Valor Líquido:</span>
+                    <strong className="text-primary font-mono text-sm">R$ {(selectedInvoice.totalCents / 100).toFixed(2)}</strong>
+                  </div>
+                </div>
+              </div>
 
-                    <div>
-                      <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
-                        Chave Pix Copia e Cola
-                      </label>
-                      <div className="flex bg-slate-950 border border-slate-800/80 rounded-xl px-3 py-2 items-center">
-                        <input
-                          type="text"
-                          readOnly
-                          value={pixCharge.copyPasteCode}
-                          className="bg-transparent border-none text-[10px] text-slate-400 select-all font-mono outline-none flex-1 truncate"
-                        />
+              {/* Payment Details if not paid */}
+              {selectedInvoice.status !== 'paid' && (
+                <div>
+                  {loadingPix ? (
+                    <div className="py-8 flex flex-col items-center justify-center gap-3">
+                      <Loader2 size={24} className="animate-spin text-primary" />
+                      <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Gerando Pix...</span>
+                    </div>
+                  ) : pixCharge ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                      {/* Pix QR Code display */}
+                      <div className="flex flex-col items-center justify-center bg-slate-950 border border-slate-850 p-4 rounded-2xl gap-3">
+                        <div className="bg-white p-3 rounded-xl w-32 h-32 flex items-center justify-center">
+                          <QrCode size={110} className="text-slate-955" />
+                        </div>
+                        <span className="text-[9px] text-slate-500 font-bold uppercase tracking-widest">
+                          QR Code Pix Simulado
+                        </span>
+                      </div>
+
+                      {/* Pix copy and simulated checkout button */}
+                      <div className="space-y-4">
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Valor a pagar</span>
+                          <strong className="text-xl font-mono text-primary">R$ {(pixCharge.amountCents / 100).toFixed(2)}</strong>
+                        </div>
+
+                        <div>
+                          <label className="text-[9px] font-bold uppercase tracking-wider text-slate-500 block mb-1">
+                            Chave Pix Copia e Cola
+                          </label>
+                          <div className="flex bg-slate-950 border border-slate-850 rounded-xl px-3 py-2 items-center">
+                            <input
+                              type="text"
+                              readOnly
+                              value={pixCharge.copyPasteCode}
+                              className="bg-transparent border-none text-[10px] text-slate-400 select-all font-mono outline-none flex-1 truncate"
+                            />
+                            <button
+                              onClick={handleCopyPix}
+                              className="p-1.5 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                            >
+                              {copingPix ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                            </button>
+                          </div>
+                        </div>
+
                         <button
-                          onClick={handleCopyPix}
-                          className="p-1.5 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                          onClick={handleConfirmPayment}
+                          disabled={confirmingPayment}
+                          className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/50 text-white font-bold text-xs py-3.5 rounded-2xl transition-all shadow-lg shadow-emerald-600/10 flex items-center justify-center gap-2 cursor-pointer"
                         >
-                          {copingPix ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+                          {confirmingPayment ? (
+                            <>
+                              <Loader2 size={14} className="animate-spin" />
+                              <span>Processando Confirmação...</span>
+                            </>
+                          ) : (
+                            <>
+                              <DollarSign size={14} />
+                              <span>Simular Pagamento Pix</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     </div>
+                  ) : null}
+                </div>
+              )}
 
-                    <button
-                      onClick={handleConfirmPayment}
-                      disabled={confirmingPayment}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/50 text-white font-bold text-xs py-3.5 rounded-2xl transition-all shadow-lg shadow-emerald-600/10 flex items-center justify-center gap-2 cursor-pointer"
-                    >
-                      {confirmingPayment ? (
-                        <>
-                          <Loader2 size={14} className="animate-spin" />
-                          <span>Processando Confirmação...</span>
-                        </>
-                      ) : (
-                        <>
-                          <DollarSign size={14} />
-                          <span>Simular Pagamento Pix</span>
-                        </>
-                      )}
-                    </button>
+              {/* Paid confirmation display */}
+              {selectedInvoice.status === 'paid' && (
+                <div className="bg-slate-950/40 border border-slate-800/80 rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between gap-4 text-xs font-semibold">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-emerald-500/10 text-emerald-400 rounded-xl">
+                      <ShieldCheck size={20} />
+                    </div>
+                    <div>
+                      <p className="text-white font-bold">Fatura Quitada</p>
+                      <p className="text-slate-400 text-[10px] mt-0.5">Esta fatura já foi devidamente processada e paga.</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-slate-500 block text-[10px] uppercase font-bold">Método Utilizado</span>
+                    <strong className="text-white capitalize">
+                      {selectedInvoice.totalCents === 0 ? 'Isenção / Desconto 100%' : 'Pix Automático'}
+                    </strong>
                   </div>
                 </div>
-              ) : null}
+              )}
             </div>
           )}
 
