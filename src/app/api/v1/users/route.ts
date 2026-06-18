@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/prisma';
 import { requirePermission } from '@/server/middleware/permission.middleware';
+import { requireAuth } from '@/server/middleware/auth.middleware';
+import { PermissionService } from '@/server/auth/permission.service';
 import { requireActiveSubscription } from '@/server/middleware/subscription.middleware';
 import { PasswordService } from '@/server/auth/password.service';
 import { AuditService } from '@/server/audit/audit.service';
@@ -51,7 +53,7 @@ async function getOrCreateRole(tenantId: string, roleName: string) {
       'messages.read', 'messages.create',
       'deals.read', 'deals.create', 'deals.update',
       'tasks.read', 'tasks.create', 'tasks.update',
-      'dashboard.read'
+      'dashboard.read', 'users.teammates.read'
     ];
     allowedNames = atendentePerms;
   } else if (roleName === 'Financeiro') {
@@ -109,8 +111,22 @@ async function getOrCreateDepartment(tenantId: string, deptName: string) {
 
 export async function GET(request: NextRequest) {
   try {
-    // 1. Authenticate & require permission
-    await requirePermission('users.read');
+    const { searchParams } = new URL(request.url);
+    const scope = searchParams.get('scope') || 'full';
+
+    // 1. Authenticate and check correct permissions
+    const user = await requireAuth();
+    const hasFullRead = await PermissionService.hasPermission(user.userId, 'users.read');
+    const hasTeammatesRead = await PermissionService.hasPermission(user.userId, 'users.teammates.read');
+
+    if (!hasFullRead && !hasTeammatesRead) {
+      throw new Error('FORBIDDEN');
+    }
+
+    if (scope === 'full' && !hasFullRead) {
+      throw new Error('FORBIDDEN');
+    }
+
     const tenantId = await requireActiveSubscription();
 
     // Bootstrap default departments (Vendas and Atendimento)
@@ -150,17 +166,33 @@ export async function GET(request: NextRequest) {
           }
         });
 
-        return {
+        // Determine dynamic online status based on presence and lastSeen heartbeat
+        const lastSeen = u.presence?.lastSeen ? new Date(u.presence.lastSeen) : null;
+        const secondsSinceLastSeen = lastSeen ? (Date.now() - lastSeen.getTime()) / 1000 : null;
+        const isActuallyOnline = u.presence?.presence !== 'offline' && secondsSinceLastSeen !== null && secondsSinceLastSeen <= 30;
+
+        const baseData = {
           id: u.id,
           name: u.name,
-          email: u.email,
           avatarUrl: u.avatarUrl || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces',
           role: u.role?.name || 'Atendente',
+          departments: u.userDepartments.map(ud => ud.department?.name).filter(Boolean),
+          isOnline: isActuallyOnline
+        };
+
+        if (scope === 'teammates') {
+          // Sanitized: return only safe teammate properties
+          return baseData;
+        }
+
+        // Full profile data (for users.read)
+        return {
+          ...baseData,
+          email: u.email,
           signature: u.signature || '',
           sigPosition: u.sigPosition as 'start' | 'end' | 'disabled',
           filters: u.userDepartments.map(ud => ud.department?.name?.toLowerCase() || '').filter(Boolean),
-          isOnline: u.isOnline,
-          presence: u.presence?.presence || 'offline',
+          presence: isActuallyOnline ? (u.presence?.presence || 'online') : 'offline',
           workload: workloadCount
         };
       })

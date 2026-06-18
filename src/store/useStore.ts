@@ -312,6 +312,15 @@ interface State {
   isBlocked: boolean;
   subscriptionStatus: string;
   selectedConversationId: string | null;
+  permissions: string[];
+  inboxCounters: {
+    total: number;
+    new: number;
+    mine: number;
+    unassigned: number;
+    resolved: number;
+    waiting: number;
+  };
 }
 
 interface Actions {
@@ -321,6 +330,8 @@ interface Actions {
   setCurrentUserId: (id: string) => void;
   setCurrentTenantId: (id: string) => Promise<void> | void;
   updateWhatsappConnection: (config: Partial<WhatsappConnection>) => void;
+  resetUserSessionState: () => void;
+  fetchInboxCounters: () => Promise<void>;
 
   // Messaging & Claiming
   sendMessage: (
@@ -601,6 +612,15 @@ export const useStore = create<State & Actions>((set, get) => ({
   isBlocked: false,
   subscriptionStatus: 'active',
   selectedConversationId: null,
+  permissions: [],
+  inboxCounters: {
+    total: 0,
+    new: 0,
+    mine: 0,
+    unassigned: 0,
+    resolved: 0,
+    waiting: 0
+  },
 
   // Setters
   toggleDarkMode: () => {
@@ -648,6 +668,41 @@ export const useStore = create<State & Actions>((set, get) => ({
       }
     } catch (err) {
       console.error('Error switching tenant:', err);
+    }
+  },
+  resetUserSessionState: () => {
+    // Clear generic caches to prevent cross-contamination
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('hbflow-departments');
+      localStorage.removeItem('hbflow-flows');
+    }
+    set({
+      currentUserId: '',
+      currentTenantId: '',
+      users: [],
+      permissions: [],
+      inboxCounters: { total: 0, new: 0, mine: 0, unassigned: 0, resolved: 0, waiting: 0 },
+      conversations: [],
+      contacts: [],
+      quickReplies: [],
+      deals: [],
+      tasks: [],
+      routingLogs: [],
+      notifications: [],
+      departments: initialDepartments,
+      flows: initialFlows
+    });
+  },
+  fetchInboxCounters: async () => {
+    if (get().demo_mode_enabled) return;
+    try {
+      const res = await fetch('/api/v1/inbox/counters');
+      const data = await res.json();
+      if (res.ok && data.success) {
+        set({ inboxCounters: data.data });
+      }
+    } catch (err) {
+      console.error('Error fetching inbox counters:', err);
     }
   },
   updateWhatsappConnection: (config) => set((state) => ({
@@ -761,26 +816,60 @@ export const useStore = create<State & Actions>((set, get) => ({
   fetchUsers: async () => {
     if (get().demo_mode_enabled) return;
     try {
-      const res = await fetch('/api/v1/users');
-      const data = await res.json();
-      if (res.ok && data.success) {
-        set({
-          users: data.users,
-          userPlan: data.plan || 'starter',
-          userLimit: data.limit || 3,
-          userCount: data.count || 0
-        });
-      }
-
-      // Fetch current logged-in user profile
+      // 1. Fetch current logged-in user profile First to detect session boundaries
       const meRes = await fetch('/api/auth/me');
+      if (!meRes.ok) {
+        get().resetUserSessionState();
+        return;
+      }
+      
       const meData = await meRes.json();
-      if (meRes.ok && meData.user?.id) {
+      if (meData.user?.id) {
+        const currentUserId = get().currentUserId;
+        const currentTenantId = get().currentTenantId;
+        const newUserId = meData.user.id;
+        const newTenantId = meData.user.tenant?.id || '';
+        
+        // If profile mismatched, wipe old cache
+        if ((currentUserId && currentUserId !== newUserId) || (currentTenantId && currentTenantId !== newTenantId)) {
+          get().resetUserSessionState();
+        }
+
         set({ 
-          currentUserId: meData.user.id,
+          currentUserId: newUserId,
           isBlocked: meData.isBlocked || false,
-          subscriptionStatus: meData.user.tenant?.status || 'active'
+          subscriptionStatus: meData.user.tenant?.status || 'active',
+          permissions: meData.permissions || []
         });
+
+        // Load specific tenant/user Cache for Departments & Flows
+        if (typeof window !== 'undefined' && newTenantId && newUserId) {
+          const deptKey = `hbflow-${newTenantId}-${newUserId}-departments`;
+          const flowsKey = `hbflow-${newTenantId}-${newUserId}-flows`;
+          
+          const cachedDepts = localStorage.getItem(deptKey);
+          if (cachedDepts) set({ departments: JSON.parse(cachedDepts) });
+          else {
+            // Check legacy cache migration
+            const legacyDepts = localStorage.getItem('hbflow-departments');
+            if (legacyDepts) {
+              set({ departments: JSON.parse(legacyDepts) });
+              localStorage.setItem(deptKey, legacyDepts);
+              localStorage.removeItem('hbflow-departments');
+            }
+          }
+
+          const cachedFlows = localStorage.getItem(flowsKey);
+          if (cachedFlows) set({ flows: JSON.parse(cachedFlows) });
+          else {
+            const legacyFlows = localStorage.getItem('hbflow-flows');
+            if (legacyFlows) {
+              set({ flows: JSON.parse(legacyFlows) });
+              localStorage.setItem(flowsKey, legacyFlows);
+              localStorage.removeItem('hbflow-flows');
+            }
+          }
+        }
 
         // Map and populate active tenant info
         if (meData.user.tenant) {
@@ -839,6 +928,25 @@ export const useStore = create<State & Actions>((set, get) => ({
             };
           }
         });
+        
+        // 2. Fetch specific users listing securely according to permissions
+        const perms = meData.permissions || [];
+        const canReadFull = perms.includes('users.read');
+        const canReadTeammates = perms.includes('users.teammates.read');
+        
+        if (canReadFull || canReadTeammates) {
+          const scopeParam = canReadFull ? 'full' : 'teammates';
+          const res = await fetch(`/api/v1/users?scope=${scopeParam}`);
+          const data = await res.json();
+          if (res.ok && data.success) {
+            set({
+              users: data.users,
+              userPlan: data.plan || 'starter',
+              userLimit: data.limit || 3,
+              userCount: data.count || 0
+            });
+          }
+        }
       }
     } catch (err) {
       console.error('Error fetching users/me in store:', err);
@@ -963,6 +1071,7 @@ export const useStore = create<State & Actions>((set, get) => ({
     await get().fetchContacts();
     await get().fetchConversations();
     await get().fetchQuickReplies();
+    await get().fetchInboxCounters();
 
     // Sincronizar fluxos do localStorage com o banco de dados
     if (!get().demo_mode_enabled && get().flows.length > 0) {
@@ -2033,14 +2142,24 @@ export const useStore = create<State & Actions>((set, get) => ({
     const nextDepts = [...get().departments, dept];
     set({ departments: nextDepts });
     if (typeof window !== 'undefined') {
-      localStorage.setItem('hbflow-departments', JSON.stringify(nextDepts));
+      const state = get();
+      if (state.currentTenantId && state.currentUserId) {
+        localStorage.setItem(`hbflow-${state.currentTenantId}-${state.currentUserId}-departments`, JSON.stringify(nextDepts));
+      } else {
+        localStorage.setItem('hbflow-departments', JSON.stringify(nextDepts));
+      }
     }
   },
   updateDepartment: (deptId, updates) => {
     const nextDepts = get().departments.map(d => d.id === deptId ? { ...d, ...updates } : d);
     set({ departments: nextDepts });
     if (typeof window !== 'undefined') {
-      localStorage.setItem('hbflow-departments', JSON.stringify(nextDepts));
+      const state = get();
+      if (state.currentTenantId && state.currentUserId) {
+        localStorage.setItem(`hbflow-${state.currentTenantId}-${state.currentUserId}-departments`, JSON.stringify(nextDepts));
+      } else {
+        localStorage.setItem('hbflow-departments', JSON.stringify(nextDepts));
+      }
     }
   },
 
@@ -2048,7 +2167,12 @@ export const useStore = create<State & Actions>((set, get) => ({
     const nextFlows = [...get().flows, flow];
     set({ flows: nextFlows });
     if (typeof window !== 'undefined') {
-      localStorage.setItem('hbflow-flows', JSON.stringify(nextFlows));
+      const state = get();
+      if (state.currentTenantId && state.currentUserId) {
+        localStorage.setItem(`hbflow-${state.currentTenantId}-${state.currentUserId}-flows`, JSON.stringify(nextFlows));
+      } else {
+        localStorage.setItem('hbflow-flows', JSON.stringify(nextFlows));
+      }
     }
     // Sincronização em segundo plano após adicionar fluxo
     if (!get().demo_mode_enabled) {
@@ -2063,7 +2187,12 @@ export const useStore = create<State & Actions>((set, get) => ({
     const nextFlows = get().flows.map(f => f.id === flowId ? { ...f, ...updates } : f);
     set({ flows: nextFlows });
     if (typeof window !== 'undefined') {
-      localStorage.setItem('hbflow-flows', JSON.stringify(nextFlows));
+      const state = get();
+      if (state.currentTenantId && state.currentUserId) {
+        localStorage.setItem(`hbflow-${state.currentTenantId}-${state.currentUserId}-flows`, JSON.stringify(nextFlows));
+      } else {
+        localStorage.setItem('hbflow-flows', JSON.stringify(nextFlows));
+      }
     }
     // Sincronização em segundo plano após atualizar fluxo
     if (!get().demo_mode_enabled) {

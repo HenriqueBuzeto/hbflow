@@ -164,12 +164,29 @@ export async function POST(request: Request, { params }: RouteParams) {
       );
     }
 
-    // Override conversationId from params
+    // Retrieve user details from database securely
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.userId }
+    });
+
+    const isUserType = ['user', 'internal_note', 'whisper'].includes(validatedData.senderType);
+
+    // Strip out senderId and senderName to prevent frontend spoofing
+    const { senderId: _spoofedId, senderName: _spoofedName, ...safeData } = validatedData as any;
+
+    // Override conversationId from params and enforce secure sender identity
     const messageData = {
-      ...validatedData,
+      ...safeData,
       conversationId,
       tenantId,
       deletedAt: null,
+      ...(isUserType && dbUser ? {
+        senderId: dbUser.id,
+        senderName: dbUser.name
+      } : {
+        senderId: null,
+        senderName: validatedData.senderType === 'automation' ? 'Automação' : 'Sistema'
+      })
     };
 
     // Create message

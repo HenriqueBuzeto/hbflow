@@ -29,11 +29,33 @@ export async function GET(request: Request) {
     const validSortBy = sortBy && allowedSortFields.includes(sortBy) ? sortBy : 'lastMessageAt';
     const validSortOrder = sortOrder || 'desc';
 
+    // Check user role and departments
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.userId },
+      include: {
+        role: true,
+        userDepartments: true
+      }
+    });
+
+    const roleName = dbUser?.role?.name || 'Atendente';
+    const deptIds = dbUser?.userDepartments.map((ud) => ud.departmentId) || [];
+
     // Build where clause
     const where: any = {
       tenantId,
       deletedAt: null,
     };
+
+    // Filter by department if not Admin or Gestor
+    if (roleName !== 'Admin' && roleName !== 'Gestor') {
+      if (deptIds.length > 0) {
+        where.departmentId = { in: deptIds };
+      } else {
+        // If no departments are assigned, they can only see their own assigned chats or none
+        where.assignedUserId = dbUser?.id || '';
+      }
+    }
 
     // Status filter
     if (status) {

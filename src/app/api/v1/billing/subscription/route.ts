@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
 import { requireTenant } from '@/server/middleware/tenant.middleware';
+import { requirePermission } from '@/server/middleware/permission.middleware';
 import { prisma } from '@/server/db/prisma';
 import { SubscriptionAccessService } from '@/server/services/billing/subscription-access.service';
 
 export async function GET() {
   try {
     const tenantId = await requireTenant();
+    await requirePermission('billing.read');
 
     const subscription = await prisma.subscription.findFirst({
       where: { tenantId, deletedAt: null },

@@ -69,7 +69,7 @@ async function getOrCreateRoleTx(tx: any, tenantId: string, roleName: string) {
       'messages.read', 'messages.create',
       'deals.read', 'deals.create', 'deals.update',
       'tasks.read', 'tasks.create', 'tasks.update',
-      'dashboard.read'
+      'dashboard.read', 'users.teammates.read'
     ];
     allowedNames = atendentePerms;
   } else if (roleName === 'Financeiro') {

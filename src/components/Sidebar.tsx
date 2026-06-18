@@ -35,12 +35,15 @@ import {
 export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname();
-  const { users, currentUserId, conversations, userPlan } = useStore();
+  const { users, currentUserId, conversations, userPlan, permissions = [] } = useStore();
   const hasAfterSales = userPlan ? userPlan.toLowerCase() !== 'starter' : false;
   const hasChatInterno = userPlan ? userPlan.toLowerCase() !== 'starter' : false;
 
   const currentUser = users.find((u) => u.id === currentUserId) || users[0] || { id: '', name: 'Usuário', email: '', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces', role: 'Atendente', presence: 'offline' };
   
+  const isAdmin = currentUser.role?.toLowerCase() === 'admin' || currentUser.role?.toLowerCase() === 'gestor';
+  const hasPerm = (perm: string) => isAdmin || permissions.includes(perm);
+
   // Exibe a quantidade de chamados em aberto, novos ou com mensagens não lidas
   const activeCount = conversations.filter(
     (c) => c.status === 'new' || c.status === 'open' || (c.status !== 'closed' && c.unreadCount > 0)
@@ -49,29 +52,33 @@ export default function Sidebar() {
   const operationalMenu = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
     { name: 'Atendimentos', href: '/inbox', icon: MessageSquare, badge: activeCount },
-    { name: 'Painel de Atendimentos', href: '/painel', icon: ShieldAlert },
-    { name: 'Respostas Rápidas', href: '/respostas-rapidas', icon: Zap },
-    { name: 'Kanban', href: '/pipeline', icon: Layers },
+    ...(hasPerm('reports.read') || isAdmin ? [{ name: 'Painel de Atendimentos', href: '/painel', icon: ShieldAlert }] : []),
+    ...(hasPerm('quickreplies.manage') || isAdmin ? [{ name: 'Respostas Rápidas', href: '/respostas-rapidas', icon: Zap }] : []),
+    ...(hasPerm('deals.read') || isAdmin ? [{ name: 'Kanban', href: '/pipeline', icon: Layers }] : []),
     { name: 'Contatos', href: '/clientes', icon: Users },
     { name: 'Agendamentos', href: '/agendamentos', icon: Clock },
-    { name: 'Tags', href: '/tags', icon: Tag },
+    ...(hasPerm('tags.manage') || isAdmin ? [{ name: 'Tags', href: '/tags', icon: Tag }] : []),
     ...(hasChatInterno ? [{ name: 'Chat Interno', href: '/chat-interno', icon: MessageSquare }] : []),
     { name: 'Ajuda', href: '/ajuda', icon: HelpCircle }
   ];
 
   const adminMenu = [
-    { name: 'Campanhas', href: '/campanhas', icon: Megaphone },
-    ...(hasAfterSales ? [{ name: 'Pós-Venda', href: '/after-sales', icon: Route }] : []),
-    { name: 'Informativos', href: '/informativos', icon: Info },
-    { name: 'API', href: '/api-keys', icon: Code },
-    { name: 'Usuários', href: '/usuarios', icon: UserCheck },
-    { name: 'Filas & Chatbot', href: '/fluxos', icon: GitFork },
-    { name: 'Agentes IA', href: '/dashboard/agentes', icon: Bot },
-    { name: 'Conexões', href: '/conexao', icon: Link2 },
-    { name: 'Configurações', href: '/configuracoes', icon: Settings },
-    { name: 'Empresas', href: '/empresas', icon: Building2 },
-    { name: 'Financeiro', href: '/financeiro', icon: CreditCard },
-    { name: 'Auditoria', href: '/admin/audit', icon: ShieldCheck }
+    ...(hasPerm('marketing.manage') || isAdmin ? [{ name: 'Campanhas', href: '/campanhas', icon: Megaphone }] : []),
+    ...(hasAfterSales && (hasPerm('aftersales.manage') || isAdmin) ? [{ name: 'Pós-Venda', href: '/after-sales', icon: Route }] : []),
+    ...(hasPerm('articles.manage') || isAdmin ? [{ name: 'Informativos', href: '/informativos', icon: Info }] : []),
+    ...(hasPerm('developer.manage') || isAdmin ? [{ name: 'API', href: '/api-keys', icon: Code }] : []),
+    ...(hasPerm('users.read') || isAdmin ? [{ name: 'Usuários', href: '/usuarios', icon: UserCheck }] : []),
+    ...(hasPerm('settings.manage') || isAdmin ? [
+      { name: 'Filas & Chatbot', href: '/fluxos', icon: GitFork },
+      { name: 'Agentes IA', href: '/dashboard/agentes', icon: Bot },
+      { name: 'Conexões', href: '/conexao', icon: Link2 },
+      { name: 'Configurações', href: '/configuracoes', icon: Settings }
+    ] : []),
+    ...(hasPerm('billing.read') || isAdmin ? [
+      { name: 'Empresas', href: '/empresas', icon: Building2 },
+      { name: 'Financeiro', href: '/financeiro', icon: CreditCard }
+    ] : []),
+    ...(hasPerm('audit.read') || isAdmin ? [{ name: 'Auditoria', href: '/admin/audit', icon: ShieldCheck }] : [])
   ];
 
 

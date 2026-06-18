@@ -67,11 +67,16 @@ export async function GET() {
       where: { userId: fullUser.id }
     });
 
+    const lastSeen = userPresence?.lastSeen ? new Date(userPresence.lastSeen) : null;
+    const secondsSinceLastSeen = lastSeen ? (Date.now() - lastSeen.getTime()) / 1000 : null;
+    const isActuallyOnline = userPresence?.presence !== 'offline' && secondsSinceLastSeen !== null && secondsSinceLastSeen <= 30;
+
     // Remover senha hash da resposta e injetar valores calculados em tempo real
     const { passwordHash, ...userWithoutPassword } = {
       ...fullUser,
       workload: workloadCount,
-      presence: userPresence?.presence || 'offline'
+      isOnline: isActuallyOnline,
+      presence: isActuallyOnline ? (userPresence?.presence || 'online') : 'offline'
     };
 
     // Obter todas as empresas (tenants) vinculadas ao e-mail do usuário

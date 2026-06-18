@@ -28,6 +28,7 @@ export class RBACBootstrapService {
     'users.read',
     'users.create',
     'users.update',
+    'users.teammates.read',
     'feature_flags.read',
     'health.read',
     'whatsapp.connection.manage',

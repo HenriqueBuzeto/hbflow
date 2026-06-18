@@ -18,7 +18,8 @@ export default function Header() {
     toggleDarkMode,
     users,
     currentUserId,
-    setUserPresence
+    setUserPresence,
+    resetUserSessionState
   } = useStore();
 
   const [showNotifications, setShowNotifications] = useState(false);
@@ -27,6 +28,7 @@ export default function Header() {
 
   const handleLogout = async () => {
     try {
+      resetUserSessionState();
       await fetch('/api/auth/logout', {
         method: 'POST',
       });

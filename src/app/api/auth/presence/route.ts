@@ -19,14 +19,17 @@ export async function POST(request: Request) {
       );
     }
 
+    const now = new Date();
+
     // Update UserPresence in database (upsert to handle missing records)
     await prisma.userPresence.upsert({
       where: { userId: user.userId },
-      update: { presence },
+      update: { presence, lastSeen: now },
       create: {
         userId: user.userId,
         tenantId,
         presence,
+        lastSeen: now,
       },
     });
 

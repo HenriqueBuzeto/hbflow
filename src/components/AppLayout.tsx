@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { useStore } from '@/store/useStore';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import ServerStatusBanner from './ServerStatusBanner';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -41,30 +42,49 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [conversations, isPublicPage, demo_mode_enabled]);
 
-  // Sincronização global de conversas, mensagens e contatos a cada 5 segundos nas rotas autenticadas
+  // Sincronização global de conversas, mensagens e contatos a cada 3 segundos nas rotas autenticadas
   useEffect(() => {
     if (isPublicPage || demo_mode_enabled) return;
 
-    // Dispara a sincronização inicial imediatamente
-    syncDatabaseState().catch((err) => console.error('Erro na sincronização inicial:', err));
+    let pollTimeout: NodeJS.Timeout;
+    let isSyncing = false;
 
-    const handleSync = () => {
-      if (document.visibilityState === 'visible') {
-        syncDatabaseState().catch((err) => console.error('Erro na sincronização de foco:', err));
+    const doSync = async () => {
+      // Prevent sync if tab is hidden or already syncing to save resources and avoid duplicates
+      if (document.visibilityState !== 'visible' || isSyncing) {
+        pollTimeout = setTimeout(doSync, 3000);
+        return;
+      }
+      
+      isSyncing = true;
+      try {
+        await syncDatabaseState();
+      } catch (err) {
+        console.error('Erro na sincronização de background:', err);
+      } finally {
+        isSyncing = false;
+        pollTimeout = setTimeout(doSync, 3000);
       }
     };
 
-    const pollInterval = setInterval(() => {
-      syncDatabaseState().catch((err) => console.error('Erro no polling de background:', err));
-    }, 5000);
+    // Dispara a sincronização inicial imediatamente
+    doSync();
 
-    window.addEventListener('focus', handleSync);
-    document.addEventListener('visibilitychange', handleSync);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && !isSyncing) {
+        // Immediately sync when the user focuses the tab
+        clearTimeout(pollTimeout);
+        doSync();
+      }
+    };
+
+    window.addEventListener('focus', handleVisibilityChange);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      clearInterval(pollInterval);
-      window.removeEventListener('focus', handleSync);
-      document.removeEventListener('visibilitychange', handleSync);
+      clearTimeout(pollTimeout);
+      window.removeEventListener('focus', handleVisibilityChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [isPublicPage, demo_mode_enabled, syncDatabaseState]);
 
@@ -81,6 +101,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* White Header with simulator */}
         <Header />
+
+        {/* Banner de status do servidor local — aparece apenas quando há problema */}
+        <ServerStatusBanner />
 
         {/* Dynamic page content */}
         <main className="flex-1 overflow-y-auto p-6 bg-[#F8FAFC]">
