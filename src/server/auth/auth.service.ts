@@ -35,6 +35,7 @@ export interface RegisterTrialData {
   userName: string;
   couponCode?: string | null;
   password?: string | null;
+  isTrial?: boolean | null;
 }
 
 export class AuthService {
@@ -337,7 +338,7 @@ export class AuthService {
       .replace(/^-|-$/g, '');
     const tenantSlug = `${normalizedCompany || 'trial'}-${Date.now()}`;
 
-    // 6. Generate Login Email: firstlast@hbflow.com
+    // 6. Generate Login Email: first + last (for commercial) or first + second (for trial)
     const normalizedName = userName
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
@@ -345,9 +346,18 @@ export class AuthService {
       .trim();
     const nameParts = normalizedName.split(/\s+/).filter(Boolean);
     const firstName = nameParts[0] || 'user';
-    const lastSurname = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
     
-    let baseLoginEmail = lastSurname ? `${firstName}${lastSurname}` : firstName;
+    let baseLoginEmail = '';
+    if (data.isTrial) {
+      // Free trial: first name and second name
+      const secondName = nameParts.length > 1 ? nameParts[1] : '';
+      baseLoginEmail = secondName ? `${firstName}${secondName}` : firstName;
+    } else {
+      // Commercial: first name and last name
+      const lastSurname = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+      baseLoginEmail = lastSurname ? `${firstName}${lastSurname}` : firstName;
+    }
+    
     baseLoginEmail = baseLoginEmail.replace(/[^a-z0-9]/g, '');
     let loginEmail = `${baseLoginEmail}@hbflow.com`;
 

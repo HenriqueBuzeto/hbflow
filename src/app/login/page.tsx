@@ -221,7 +221,8 @@ export default function LoginPage() {
           email: realEmailReg,
           phone: realPhone,
           couponCode: realCoupon || null,
-          password: realPassword
+          password: realPassword,
+          isTrial: false
         })
       });
 
@@ -304,7 +305,8 @@ export default function LoginPage() {
           email: trialEmail,
           phone: trialPhone,
           couponCode: null, // Forçando nulo no teste grátis (sem cupom)
-          password: trialPassword
+          password: trialPassword,
+          isTrial: true
         })
       });
 
@@ -402,7 +404,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4 py-12 relative overflow-hidden always-dark">
+    <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4 py-12 relative overflow-y-auto always-dark">
       {/* Back to Home Button */}
       <button
         onClick={() => router.push('/')}
