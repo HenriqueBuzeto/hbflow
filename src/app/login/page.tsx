@@ -51,6 +51,30 @@ export default function LoginPage() {
 
   const [realPassword, setRealPassword] = useState('');
   const [realConfirmPassword, setRealConfirmPassword] = useState('');
+  const [realStep, setRealStep] = useState<1 | 2 | 3>(1);
+
+  const getPricingDetails = () => {
+    const basePrice = realPlan === 'pro' ? 199.90 : 99.90;
+    let discount = 0;
+    const cleanCoupon = realCoupon.trim().toUpperCase();
+
+    if (couponFeedback?.type === 'success') {
+      if (cleanCoupon === 'CUPOM100') {
+        discount = basePrice;
+      } else if (cleanCoupon === 'START50') {
+        discount = basePrice * 0.5;
+      } else if (cleanCoupon === 'HB20' || cleanCoupon === 'HBFLOW20') {
+        discount = basePrice * 0.2;
+      }
+    }
+
+    const total = Math.max(0, basePrice - discount);
+    return {
+      basePrice,
+      discount,
+      total
+    };
+  };
 
   // Free Trial (3 Days) tab state
   const [trialPassword, setTrialPassword] = useState('');
@@ -434,7 +458,7 @@ export default function LoginPage() {
           <div className="flex bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800/80 mb-6 gap-1">
             <button
               type="button"
-              onClick={() => setActiveTab('login')}
+              onClick={() => { setActiveTab('login'); setRealStep(1); }}
               className={`flex-1 text-center py-2.5 text-[11px] font-extrabold rounded-xl transition-all cursor-pointer ${
                 activeTab === 'login'
                   ? 'bg-slate-800 text-white shadow-md border border-slate-700/30'
@@ -445,7 +469,7 @@ export default function LoginPage() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('real')}
+              onClick={() => { setActiveTab('real'); setRealStep(1); }}
               className={`flex-1 text-center py-2.5 text-[11px] font-extrabold rounded-xl transition-all cursor-pointer ${
                 activeTab === 'real'
                   ? 'bg-slate-800 text-white shadow-md border border-slate-700/30'
@@ -456,7 +480,7 @@ export default function LoginPage() {
             </button>
             <button
               type="button"
-              onClick={() => setActiveTab('trial')}
+              onClick={() => { setActiveTab('trial'); setRealStep(1); }}
               className={`flex-1 text-center py-2.5 text-[11px] font-extrabold rounded-xl transition-all cursor-pointer relative ${
                 activeTab === 'trial'
                   ? 'bg-slate-800 text-white shadow-md border border-slate-700/30'
@@ -531,195 +555,31 @@ export default function LoginPage() {
             </form>
           )}
 
-          {/* TAB 2: Acesso Real (Plan Subscription Sign Up) */}
+          {/* TAB 2: Acesso Real (Plan Subscription Sign Up Wizard) */}
           {activeTab === 'real' && (
-            <form onSubmit={handleRealRegister} className="space-y-4">
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
-                  Nome Completo
-                </label>
-                <div className="relative">
-                  <User size={16} className="absolute left-4 top-3 text-slate-500" />
-                  <input
-                    type="text"
-                    placeholder="Seu nome"
-                    value={realName}
-                    onChange={(e) => setRealName(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
-                  Nome da Empresa
-                </label>
-                <div className="relative">
-                  <Building size={16} className="absolute left-4 top-3 text-slate-500" />
-                  <input
-                    type="text"
-                    placeholder="Nome da sua empresa"
-                    value={realCompany}
-                    onChange={(e) => setRealCompany(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
-                  CNPJ
-                </label>
-                <div className="relative">
-                  <CreditCard size={16} className="absolute left-4 top-3 text-slate-500" />
-                  <input
-                    type="text"
-                    placeholder="00.000.000/0000-00"
-                    value={realCnpj}
-                    onChange={handleRealCnpjChange}
-                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
-                  E-mail Principal
-                </label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-4 top-3 text-slate-500" />
-                  <input
-                    type="email"
-                    placeholder="nome@empresa.com"
-                    value={realEmailReg}
-                    onChange={(e) => setRealEmailReg(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
-                  Telefone
-                </label>
-                <div className="relative">
-                  <Phone size={16} className="absolute left-4 top-3 text-slate-500" />
-                  <input
-                    type="text"
-                    placeholder="(00) 00000-0000"
-                    value={realPhone}
-                    onChange={handleRealPhoneChange}
-                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
-                  Senha
-                </label>
-                <div className="relative">
-                  <Lock size={16} className="absolute left-4 top-3 text-slate-500" />
-                  <input
-                    type="password"
-                    placeholder="Defina sua senha"
-                    value={realPassword}
-                    onChange={(e) => setRealPassword(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
-                  Confirmar Senha
-                </label>
-                <div className="relative">
-                  <Lock size={16} className="absolute left-4 top-3 text-slate-500" />
-                  <input
-                    type="password"
-                    placeholder="Confirme sua senha"
-                    value={realConfirmPassword}
-                    onChange={(e) => setRealConfirmPassword(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Plan Selection Cards */}
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                  Escolha o Plano Comercial
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <div 
-                    onClick={() => setRealPlan('starter')}
-                    className={`bg-slate-900 border rounded-2xl p-3 cursor-pointer transition-all ${
-                      realPlan === 'starter' 
-                        ? 'border-primary ring-1 ring-primary/30 bg-slate-900/60' 
-                        : 'border-slate-800 hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs font-bold text-white">Starter</span>
-                      <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${realPlan === 'starter' ? 'border-primary bg-primary' : 'border-slate-600'}`}>
-                        {realPlan === 'starter' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-                      </div>
-                    </div>
-                    <span className="text-[10px] text-slate-400 block">R$ 99,90 / mês</span>
+            <div className="space-y-6">
+              {/* Step Indicator */}
+              <div className="flex items-center justify-between mb-6 px-1">
+                <div className="flex flex-col items-center flex-1">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${realStep >= 1 ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-slate-900 text-slate-500 border border-slate-800'}`}>
+                    1
                   </div>
-
-                  <div 
-                    onClick={() => setRealPlan('pro')}
-                    className={`bg-slate-900 border rounded-2xl p-3 cursor-pointer transition-all ${
-                      realPlan === 'pro' 
-                        ? 'border-primary ring-1 ring-primary/30 bg-slate-900/60' 
-                        : 'border-slate-800 hover:border-slate-700'
-                    }`}
-                  >
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-xs font-bold text-white">Pro</span>
-                      <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${realPlan === 'pro' ? 'border-primary bg-primary' : 'border-slate-600'}`}>
-                        {realPlan === 'pro' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
-                      </div>
-                    </div>
-                    <span className="text-[10px] text-slate-400 block">R$ 199,90 / mês</span>
+                  <span className={`text-[10px] mt-1.5 font-bold transition-colors ${realStep >= 1 ? 'text-primary' : 'text-slate-500'}`}>Triagem</span>
+                </div>
+                <div className={`h-[2px] flex-1 mx-2 transition-all duration-500 ${realStep >= 2 ? 'bg-primary' : 'bg-slate-800'}`} />
+                <div className="flex flex-col items-center flex-1">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${realStep >= 2 ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-slate-900 text-slate-500 border border-slate-800'}`}>
+                    2
                   </div>
+                  <span className={`text-[10px] mt-1.5 font-bold transition-colors ${realStep >= 2 ? 'text-primary' : 'text-slate-500'}`}>Planos</span>
                 </div>
-              </div>
-
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
-                  Cupom de Desconto (Opcional)
-                </label>
-                <div className="relative flex items-center">
-                  <Ticket size={16} className="absolute left-4 text-slate-500" />
-                  <input
-                    type="text"
-                    placeholder="Digite seu cupom de desconto"
-                    value={realCoupon}
-                    onChange={(e) => setRealCoupon(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-24 text-sm text-slate-200 outline-none transition-all uppercase font-mono tracking-wider"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleApplyCoupon}
-                    disabled={isCheckingCoupon || !realCoupon.trim()}
-                    className="absolute right-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold text-[9px] uppercase tracking-wider px-3 py-1.5 rounded-lg border border-slate-700 transition-all cursor-pointer active:scale-95"
-                  >
-                    {isCheckingCoupon ? '...' : 'Aplicar'}
-                  </button>
+                <div className={`h-[2px] flex-1 mx-2 transition-all duration-500 ${realStep >= 3 ? 'bg-primary' : 'bg-slate-800'}`} />
+                <div className="flex flex-col items-center flex-1">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${realStep >= 3 ? 'bg-primary text-white shadow-md shadow-primary/20' : 'bg-slate-900 text-slate-500 border border-slate-800'}`}>
+                    3
+                  </div>
+                  <span className={`text-[10px] mt-1.5 font-bold transition-colors ${realStep >= 3 ? 'text-primary' : 'text-slate-500'}`}>Confirmar</span>
                 </div>
-                {couponFeedback && (
-                  <p className={`text-[10.5px] font-bold mt-1.5 ${couponFeedback.type === 'success' ? 'text-emerald-400' : 'text-rose-500'}`}>
-                    {couponFeedback.message}
-                  </p>
-                )}
-              </div>
-
-              <div className="bg-slate-900/40 border border-slate-800 p-3 rounded-2xl flex items-center justify-between text-[11px]">
-                <span className="text-slate-400">Método de Ativação:</span>
-                <span className="text-amber-400 font-bold flex items-center gap-1"><Sparkles size={12} /> Checkout InfinitePay</span>
               </div>
 
               {realError && (
@@ -728,24 +588,310 @@ export default function LoginPage() {
                 </p>
               )}
 
-              <button
-                type="submit"
-                disabled={isRegisteringReal}
-                className="w-full bg-primary hover:bg-primary-hover disabled:bg-primary/50 disabled:cursor-not-allowed text-white py-3.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-primary/20 hover:shadow-primary/35 flex items-center justify-center gap-2 group active:scale-[0.98] cursor-pointer"
-              >
-                {isRegisteringReal ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    <span>Processando Cadastro...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>Criar Conta e Pagar</span>
+              {/* STEP 1: Triagem */}
+              {realStep === 1 && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                      Nome Completo
+                    </label>
+                    <div className="relative">
+                      <User size={16} className="absolute left-4 top-3 text-slate-500" />
+                      <input
+                        type="text"
+                        placeholder="Seu nome"
+                        value={realName}
+                        onChange={(e) => setRealName(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                      Nome da Empresa
+                    </label>
+                    <div className="relative">
+                      <Building size={16} className="absolute left-4 top-3 text-slate-500" />
+                      <input
+                        type="text"
+                        placeholder="Nome da sua empresa"
+                        value={realCompany}
+                        onChange={(e) => setRealCompany(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                      CNPJ
+                    </label>
+                    <div className="relative">
+                      <CreditCard size={16} className="absolute left-4 top-3 text-slate-500" />
+                      <input
+                        type="text"
+                        placeholder="00.000.000/0000-00"
+                        value={realCnpj}
+                        onChange={handleRealCnpjChange}
+                        className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                      E-mail Principal
+                    </label>
+                    <div className="relative">
+                      <Mail size={16} className="absolute left-4 top-3 text-slate-500" />
+                      <input
+                        type="email"
+                        placeholder="nome@empresa.com"
+                        value={realEmailReg}
+                        onChange={(e) => setRealEmailReg(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                      Telefone
+                    </label>
+                    <div className="relative">
+                      <Phone size={16} className="absolute left-4 top-3 text-slate-500" />
+                      <input
+                        type="text"
+                        placeholder="(00) 00000-0000"
+                        value={realPhone}
+                        onChange={handleRealPhoneChange}
+                        className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                      Senha
+                    </label>
+                    <div className="relative">
+                      <Lock size={16} className="absolute left-4 top-3 text-slate-500" />
+                      <input
+                        type="password"
+                        placeholder="Defina sua senha"
+                        value={realPassword}
+                        onChange={(e) => setRealPassword(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                      Confirmar Senha
+                    </label>
+                    <div className="relative">
+                      <Lock size={16} className="absolute left-4 top-3 text-slate-500" />
+                      <input
+                        type="password"
+                        placeholder="Confirme sua senha"
+                        value={realConfirmPassword}
+                        onChange={(e) => setRealConfirmPassword(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!realName || !realCompany || !realCnpj || !realEmailReg || !realPhone || !realPassword || !realConfirmPassword) {
+                        setRealError('Por favor, preencha todos os campos obrigatórios.');
+                        return;
+                      }
+                      if (realPassword.length < 6) {
+                        setRealError('A senha deve ter pelo menos 6 caracteres.');
+                        return;
+                      }
+                      if (realPassword !== realConfirmPassword) {
+                        setRealError('As senhas digitadas não conferem.');
+                        return;
+                      }
+                      setRealError('');
+                      setRealStep(2);
+                    }}
+                    className="w-full bg-primary hover:bg-primary-hover text-white py-3.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-primary/20 hover:shadow-primary/35 flex items-center justify-center gap-2 group cursor-pointer active:scale-[0.98]"
+                  >
+                    <span>Avançar para Planos</span>
                     <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
-            </form>
+                  </button>
+                </div>
+              )}
+
+              {/* STEP 2: Planos & Cupom */}
+              {realStep === 2 && (
+                <div className="space-y-5">
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                      Escolha o Plano Comercial
+                    </label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div 
+                        onClick={() => setRealPlan('starter')}
+                        className={`bg-slate-900 border rounded-2xl p-4 cursor-pointer transition-all ${
+                          realPlan === 'starter' 
+                            ? 'border-primary ring-1 ring-primary/30 bg-slate-900/60' 
+                            : 'border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center mb-1.5">
+                          <span className="text-xs font-bold text-white">Starter</span>
+                          <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${realPlan === 'starter' ? 'border-primary bg-primary' : 'border-slate-600'}`}>
+                            {realPlan === 'starter' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-slate-400 block">R$ 99,90 / mês</span>
+                      </div>
+
+                      <div 
+                        onClick={() => setRealPlan('pro')}
+                        className={`bg-slate-900 border rounded-2xl p-4 cursor-pointer transition-all ${
+                          realPlan === 'pro' 
+                            ? 'border-primary ring-1 ring-primary/30 bg-slate-900/60' 
+                            : 'border-slate-800 hover:border-slate-700'
+                        }`}
+                      >
+                        <div className="flex justify-between items-center mb-1.5">
+                          <span className="text-xs font-bold text-white">Pro</span>
+                          <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${realPlan === 'pro' ? 'border-primary bg-primary' : 'border-slate-600'}`}>
+                            {realPlan === 'pro' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-slate-400 block">R$ 199,90 / mês</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                      Cupom de Desconto (Opcional)
+                    </label>
+                    <div className="relative flex items-center">
+                      <Ticket size={16} className="absolute left-4 text-slate-500" />
+                      <input
+                        type="text"
+                        placeholder="Digite seu cupom"
+                        value={realCoupon}
+                        onChange={(e) => setRealCoupon(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-24 text-sm text-slate-200 outline-none transition-all uppercase font-mono tracking-wider"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyCoupon}
+                        disabled={isCheckingCoupon || !realCoupon.trim()}
+                        className="absolute right-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold text-[9px] uppercase tracking-wider px-3 py-1.5 rounded-lg border border-slate-700 transition-all cursor-pointer active:scale-95"
+                      >
+                        {isCheckingCoupon ? '...' : 'Aplicar'}
+                      </button>
+                    </div>
+                    {couponFeedback && (
+                      <p className={`text-[10.5px] font-bold mt-1.5 ${couponFeedback.type === 'success' ? 'text-emerald-400' : 'text-rose-500'}`}>
+                        {couponFeedback.message}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setRealStep(1)}
+                      className="flex-1 bg-slate-905 border border-slate-800 hover:bg-slate-900 text-slate-300 py-3 rounded-xl font-bold text-xs transition-all cursor-pointer active:scale-95 text-center"
+                    >
+                      Voltar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRealStep(3)}
+                      className="flex-1 bg-primary hover:bg-primary-hover text-white py-3 rounded-xl font-bold text-xs transition-all shadow-lg shadow-primary/20 hover:shadow-primary/35 flex items-center justify-center gap-1 group cursor-pointer active:scale-[0.98]"
+                    >
+                      <span>Avançar para Resumo</span>
+                      <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: Resumo & Confirmação de Pagamento */}
+              {realStep === 3 && (
+                <form onSubmit={handleRealRegister} className="space-y-5">
+                  <div className="bg-slate-900 border border-slate-850 rounded-2xl p-4.5 space-y-3">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-400 border-b border-slate-800/80 pb-2">
+                      Descrição do Pagamento
+                    </h4>
+                    
+                    {(() => {
+                      const { basePrice, discount, total } = getPricingDetails();
+                      return (
+                        <div className="space-y-2 text-xs">
+                          <div className="flex justify-between items-center text-slate-300">
+                            <span>Plano Selecionado:</span>
+                            <span className="font-bold text-white uppercase">{realPlan}</span>
+                          </div>
+                          <div className="flex justify-between items-center text-slate-300">
+                            <span>Valor Mensal Base:</span>
+                            <span className="font-semibold text-slate-100">R$ {basePrice.toFixed(2).replace('.', ',')}</span>
+                          </div>
+                          {discount > 0 && (
+                            <div className="flex justify-between items-center text-emerald-400 font-medium bg-emerald-500/5 px-2 py-1 rounded-lg border border-emerald-500/10">
+                              <span>Desconto Aplicado:</span>
+                              <span className="font-bold">- R$ {discount.toFixed(2).replace('.', ',')}</span>
+                            </div>
+                          )}
+                          <div className="border-t border-slate-800/80 pt-2 flex justify-between items-center text-sm">
+                            <span className="font-bold text-slate-300">Valor Total Final:</span>
+                            <span className="font-black text-white text-base">R$ {total.toFixed(2).replace('.', ',')} / mês</span>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="bg-slate-900/40 border border-slate-800 p-3.5 rounded-2xl flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">Método de Ativação:</span>
+                    <span className="text-amber-400 font-bold flex items-center gap-1"><Sparkles size={12} /> Checkout InfinitePay</span>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setRealStep(2)}
+                      disabled={isRegisteringReal}
+                      className="flex-1 bg-slate-905 border border-slate-800 hover:bg-slate-900 text-slate-300 py-3.5 rounded-xl font-bold text-xs transition-all cursor-pointer active:scale-95 text-center disabled:opacity-50"
+                    >
+                      Voltar
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={isRegisteringReal}
+                      className="flex-[2] bg-primary hover:bg-primary-hover disabled:bg-primary/50 disabled:cursor-not-allowed text-white py-3.5 rounded-xl font-bold text-xs transition-all shadow-lg shadow-primary/20 hover:shadow-primary/35 flex items-center justify-center gap-1.5 group cursor-pointer active:scale-[0.98]"
+                    >
+                      {isRegisteringReal ? (
+                        <>
+                          <Loader2 size={14} className="animate-spin" />
+                          <span>Processando...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Criar Conta e Pagar</span>
+                          <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
           )}
 
           {/* TAB 3: Free Trial Registration (NO COUPON FIELD) */}
