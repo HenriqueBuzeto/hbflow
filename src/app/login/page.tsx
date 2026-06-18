@@ -98,6 +98,7 @@ export default function LoginPage() {
     userName: string;
     plan?: string;
     isRealPlan?: boolean;
+    totalAmountCents?: number;
   } | null>(null);
   const [copiedType, setCopiedType] = useState<'email' | 'password' | null>(null);
   const [isLoggingInAuto, setIsLoggingInAuto] = useState(false);
