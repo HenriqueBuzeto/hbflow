@@ -49,7 +49,12 @@ export default function LoginPage() {
   const [isCheckingCoupon, setIsCheckingCoupon] = useState(false);
   const [couponFeedback, setCouponFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  const [realPassword, setRealPassword] = useState('');
+  const [realConfirmPassword, setRealConfirmPassword] = useState('');
+
   // Free Trial (3 Days) tab state
+  const [trialPassword, setTrialPassword] = useState('');
+  const [trialConfirmPassword, setTrialConfirmPassword] = useState('');
   const [trialName, setTrialName] = useState('');
   const [trialCompany, setTrialCompany] = useState('');
   const [trialCnpj, setTrialCnpj] = useState('');
@@ -186,8 +191,20 @@ export default function LoginPage() {
     setRealError('');
     setIsRegisteringReal(true);
 
-    if (!realName || !realCompany || !realCnpj || !realEmailReg || !realPhone) {
-      setRealError('Por favor, preencha todos os campos obrigatórios.');
+    if (!realName || !realCompany || !realCnpj || !realEmailReg || !realPhone || !realPassword || !realConfirmPassword) {
+      setRealError('Por favor, preencha todos os campos obrigatórios, incluindo a senha.');
+      setIsRegisteringReal(false);
+      return;
+    }
+
+    if (realPassword.length < 6) {
+      setRealError('A senha deve ter pelo menos 6 caracteres.');
+      setIsRegisteringReal(false);
+      return;
+    }
+
+    if (realPassword !== realConfirmPassword) {
+      setRealError('As senhas digitadas não conferem.');
       setIsRegisteringReal(false);
       return;
     }
@@ -203,7 +220,8 @@ export default function LoginPage() {
           cnpj: realCnpj,
           email: realEmailReg,
           phone: realPhone,
-          couponCode: realCoupon || null
+          couponCode: realCoupon || null,
+          password: realPassword
         })
       });
 
@@ -232,18 +250,14 @@ export default function LoginPage() {
     setIsCheckingCoupon(true);
     setCouponFeedback(null);
     try {
-      const res = await fetch('/api/v1/billing/coupons/apply', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: realCoupon.trim().toUpperCase() })
-      });
+      const res = await fetch(`/api/v1/billing/coupons/validate?code=${encodeURIComponent(realCoupon.trim().toUpperCase())}`);
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.error || 'Cupom inválido.');
+      if (!res.ok || !data.valid) {
+        throw new Error(data.reason || data.error || 'Cupom inválido.');
       }
       setCouponFeedback({
         type: 'success',
-        message: `Cupom "${realCoupon.toUpperCase()}" aplicado com sucesso! Desconto ativo.`
+        message: `Cupom "${realCoupon.toUpperCase()}" validado com sucesso! Desconto ativo.`
       });
     } catch (err: any) {
       setCouponFeedback({
@@ -261,8 +275,20 @@ export default function LoginPage() {
     setTrialError('');
     setIsRegisteringTrial(true);
 
-    if (!trialName || !trialCompany || !trialCnpj || !trialEmail || !trialPhone) {
-      setTrialError('Por favor, preencha todos os campos do cadastro.');
+    if (!trialName || !trialCompany || !trialCnpj || !trialEmail || !trialPhone || !trialPassword || !trialConfirmPassword) {
+      setTrialError('Por favor, preencha todos os campos do cadastro, incluindo a senha.');
+      setIsRegisteringTrial(false);
+      return;
+    }
+
+    if (trialPassword.length < 6) {
+      setTrialError('A senha deve ter pelo menos 6 caracteres.');
+      setIsRegisteringTrial(false);
+      return;
+    }
+
+    if (trialPassword !== trialConfirmPassword) {
+      setTrialError('As senhas digitadas não conferem.');
       setIsRegisteringTrial(false);
       return;
     }
@@ -277,7 +303,8 @@ export default function LoginPage() {
           cnpj: trialCnpj,
           email: trialEmail,
           phone: trialPhone,
-          couponCode: null // Forçando nulo no teste grátis (sem cupom)
+          couponCode: null, // Forçando nulo no teste grátis (sem cupom)
+          password: trialPassword
         })
       });
 
@@ -585,6 +612,38 @@ export default function LoginPage() {
                 </div>
               </div>
 
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                  Senha
+                </label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-4 top-3 text-slate-500" />
+                  <input
+                    type="password"
+                    placeholder="Defina sua senha"
+                    value={realPassword}
+                    onChange={(e) => setRealPassword(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                  Confirmar Senha
+                </label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-4 top-3 text-slate-500" />
+                  <input
+                    type="password"
+                    placeholder="Confirme sua senha"
+                    value={realConfirmPassword}
+                    onChange={(e) => setRealConfirmPassword(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
               {/* Plan Selection Cards */}
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
@@ -776,9 +835,36 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div className="bg-slate-900/40 border border-slate-800 p-3 rounded-2xl flex items-center justify-between text-[11px]">
-                <span className="text-slate-400">Tempo de Teste:</span>
-                <span className="text-emerald-400 font-bold flex items-center gap-1">3 Dias Grátis</span>
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                  Senha
+                </label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-4 top-3 text-slate-500" />
+                  <input
+                    type="password"
+                    placeholder="Defina sua senha"
+                    value={trialPassword}
+                    onChange={(e) => setTrialPassword(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                  Confirmar Senha
+                </label>
+                <div className="relative">
+                  <Lock size={16} className="absolute left-4 top-3 text-slate-500" />
+                  <input
+                    type="password"
+                    placeholder="Confirme sua senha"
+                    value={trialConfirmPassword}
+                    onChange={(e) => setTrialConfirmPassword(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
+                  />
+                </div>
               </div>
 
               {trialError && (

@@ -34,6 +34,7 @@ export interface RegisterTrialData {
   phone: string;
   userName: string;
   couponCode?: string | null;
+  password?: string | null;
 }
 
 export class AuthService {
@@ -365,11 +366,16 @@ export class AuthService {
       }
     }
 
-    // 7. Generate password: DDMMhbflow
-    const now = new Date();
-    const day = String(now.getDate()).padStart(2, '0');
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const rawPassword = `${day}${month}hbflow`;
+    // 7. Generate or use provided password
+    let rawPassword = '';
+    if (data.password) {
+      rawPassword = data.password;
+    } else {
+      const now = new Date();
+      const day = String(now.getDate()).padStart(2, '0');
+      const month = String(now.getMonth() + 1).padStart(2, '0');
+      rawPassword = `${day}${month}hbflow`;
+    }
     const passwordHash = await PasswordService.hash(rawPassword);
 
     // 8. Create database records in a transaction
