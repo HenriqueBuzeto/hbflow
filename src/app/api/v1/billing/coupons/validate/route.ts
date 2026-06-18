@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
         valid: false,
         reason: 'Cupom inválido ou expirado',
         appliesToPlan: null,
-        discountPreview: null
+        coupon: null
       });
     }
 
@@ -99,7 +99,11 @@ export async function GET(request: NextRequest) {
       valid: true,
       reason: null,
       appliesToPlan: coupon.appliesToPlanSlug || null,
-      discountPreview: null
+      coupon: {
+        code: coupon.code,
+        type: coupon.type,
+        value: coupon.value
+      }
     });
   } catch (error: any) {
     console.error('Error validating coupon:', error);

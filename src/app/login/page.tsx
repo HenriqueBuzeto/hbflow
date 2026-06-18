@@ -48,6 +48,7 @@ export default function LoginPage() {
   // Coupon apply validation state
   const [isCheckingCoupon, setIsCheckingCoupon] = useState(false);
   const [couponFeedback, setCouponFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [validatedCouponData, setValidatedCouponData] = useState<{ code: string; type: string; value: number } | null>(null);
 
   const [realPassword, setRealPassword] = useState('');
   const [realConfirmPassword, setRealConfirmPassword] = useState('');
@@ -56,15 +57,15 @@ export default function LoginPage() {
   const getPricingDetails = () => {
     const basePrice = realPlan === 'pro' ? 199.90 : 99.90;
     let discount = 0;
-    const cleanCoupon = realCoupon.trim().toUpperCase();
 
-    if (couponFeedback?.type === 'success') {
-      if (cleanCoupon === 'CUPOM100') {
+    if (couponFeedback?.type === 'success' && validatedCouponData) {
+      const { type, value } = validatedCouponData;
+      if (type === 'percentage') {
+        discount = basePrice * (value / 100);
+      } else if (type === 'fixed_amount') {
+        discount = value;
+      } else if (type === 'free_access') {
         discount = basePrice;
-      } else if (cleanCoupon === 'START50') {
-        discount = basePrice * 0.5;
-      } else if (cleanCoupon === 'HB20' || cleanCoupon === 'HBFLOW20') {
-        discount = basePrice * 0.2;
       }
     }
 
@@ -284,6 +285,7 @@ export default function LoginPage() {
         type: 'success',
         message: `Cupom "${realCoupon.toUpperCase()}" validado com sucesso! Desconto ativo.`
       });
+      setValidatedCouponData(data.coupon);
     } catch (err: any) {
       setCouponFeedback({
         type: 'error',
@@ -783,7 +785,11 @@ export default function LoginPage() {
                         type="text"
                         placeholder="Digite seu cupom"
                         value={realCoupon}
-                        onChange={(e) => setRealCoupon(e.target.value)}
+                        onChange={(e) => {
+                          setRealCoupon(e.target.value);
+                          setCouponFeedback(null);
+                          setValidatedCouponData(null);
+                        }}
                         className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-24 text-sm text-slate-200 outline-none transition-all uppercase font-mono tracking-wider"
                       />
                       <button
@@ -844,7 +850,7 @@ export default function LoginPage() {
                           </div>
                           {discount > 0 && (
                             <div className="flex justify-between items-center text-emerald-400 font-medium bg-emerald-500/5 px-2 py-1 rounded-lg border border-emerald-500/10">
-                              <span>Desconto Aplicado:</span>
+                              <span>Desconto Aplicado ({validatedCouponData?.code}):</span>
                               <span className="font-bold">- R$ {discount.toFixed(2).replace('.', ',')}</span>
                             </div>
                           )}

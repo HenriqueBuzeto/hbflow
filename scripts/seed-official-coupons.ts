@@ -17,6 +17,19 @@ const OFFICIAL_COUPONS = [
     metadataJson: JSON.stringify({ description: 'Cortesia/Uso Interno 100% Permanente' })
   },
   {
+    code: 'CUPOM100',
+    type: 'percentage',
+    value: 100.0,
+    duration: 'forever',
+    durationMonths: null,
+    maxRedemptions: null,
+    isActive: true,
+    appliesToPlanSlug: null,
+    maxRedemptionsPerTenant: null,
+    isSystemCoupon: true,
+    metadataJson: JSON.stringify({ description: 'Cupom de Teste 100% Desconto' })
+  },
+  {
     code: 'OTICAPRO50',
     type: 'percentage',
     value: 73.67, // Para fazer R$ 189,90 virar exatamente R$ 50,00

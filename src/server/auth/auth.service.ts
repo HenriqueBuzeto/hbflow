@@ -290,14 +290,29 @@ export class AuthService {
       throw new Error('Todos os campos obrigatórios devem ser preenchidos');
     }
 
-    // Validar cupom se fornecido
+    // Validar cupom se fornecido (pesquisa apenas no banco de dados)
     let isCoupon100 = false;
     if (couponCode) {
       const cleanCoupon = couponCode.trim().toUpperCase();
-      if (cleanCoupon === 'CUPOM100') {
-        isCoupon100 = true;
-      } else if (cleanCoupon !== 'HB20' && cleanCoupon !== 'HBFLOW20' && cleanCoupon !== 'START50') {
+      
+      const dbCoupon = await prisma.coupon.findFirst({
+        where: {
+          code: cleanCoupon,
+          isActive: true,
+          deletedAt: null,
+          OR: [
+            { validUntil: null },
+            { validUntil: { gte: new Date() } }
+          ]
+        }
+      });
+
+      if (!dbCoupon) {
         throw new Error('Cupom inválido ou expirado');
+      }
+
+      if ((dbCoupon.type === 'percentage' && dbCoupon.value === 100.0) || dbCoupon.type === 'free_access') {
+        isCoupon100 = true;
       }
     }
 
