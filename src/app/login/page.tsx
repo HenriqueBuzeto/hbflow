@@ -1153,7 +1153,7 @@ export default function LoginPage() {
                 </>
               ) : (
                 <>
-                  <span>{credentials.isRealPlan && credentials.totalAmountCents > 0 ? 'Ir para o Pagamento' : 'Acessar Sistema'}</span>
+                  <span>{credentials.isRealPlan && (credentials.totalAmountCents ?? 0) > 0 ? 'Ir para o Pagamento' : 'Acessar Sistema'}</span>
                   <ArrowRight size={16} />
                 </>
               )}
