@@ -21,6 +21,7 @@ export async function POST(request: NextRequest) {
       loginEmail: result.loginEmail,
       password: result.password,
       trialEndsAt: result.trialEndsAt.toISOString(),
+      totalAmountCents: result.totalAmountCents,
     }, { status: 201 });
   } catch (error: any) {
     console.error('Register trial error:', error);

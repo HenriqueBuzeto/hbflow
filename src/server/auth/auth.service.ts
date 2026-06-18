@@ -36,6 +36,7 @@ export interface RegisterTrialData {
   couponCode?: string | null;
   password?: string | null;
   isTrial?: boolean | null;
+  planSlug?: string | null;
 }
 
 export class AuthService {
@@ -292,6 +293,7 @@ export class AuthService {
 
     // Validar cupom se fornecido (pesquisa apenas no banco de dados)
     let isCoupon100 = false;
+    let couponToApply: any = null;
     if (couponCode) {
       const cleanCoupon = couponCode.trim().toUpperCase();
       
@@ -311,6 +313,7 @@ export class AuthService {
         throw new Error('Cupom inválido ou expirado');
       }
 
+      couponToApply = dbCoupon;
       if ((dbCoupon.type === 'percentage' && dbCoupon.value === 100.0) || dbCoupon.type === 'free_access') {
         isCoupon100 = true;
       }
@@ -405,13 +408,30 @@ export class AuthService {
 
     // 8. Create database records in a transaction
     const transactionResult = await prisma.$transaction(async (tx) => {
+      // Resolve selected plan slug
+      const selectedPlanSlug = data.planSlug || 'starter';
+      let chosenPlan = await tx.plan.findUnique({
+        where: { slug: selectedPlanSlug }
+      });
+      if (!chosenPlan) {
+        chosenPlan = await tx.plan.create({
+          data: {
+            name: selectedPlanSlug === 'pro' ? 'Plano Pro' : 'Plano Starter',
+            slug: selectedPlanSlug,
+            priceCents: selectedPlanSlug === 'pro' ? 19990 : 9990,
+            billingCycle: 'monthly',
+            isActive: true
+          }
+        });
+      }
+
       // Create tenant
       const tenant = await tx.tenant.create({
         data: {
           name: companyName,
           slug: tenantSlug,
-          plan: 'starter',
-          status: 'trial',
+          plan: selectedPlanSlug,
+          status: isCoupon100 ? 'active' : 'trial',
           email: cleanEmail,
           phone: cleanPhone,
           document: cleanCnpj,
@@ -457,22 +477,6 @@ export class AuthService {
         },
       });
 
-      // Ensure the 'starter' Plan exists
-      let planStarter = await tx.plan.findUnique({
-        where: { slug: 'starter' }
-      });
-      if (!planStarter) {
-        planStarter = await tx.plan.create({
-          data: {
-            name: 'Plano Starter',
-            slug: 'starter',
-            priceCents: 9990, // R$ 99.90
-            billingCycle: 'monthly',
-            isActive: true
-          }
-        });
-      }
-
       const trialDays = isCoupon100 ? 30 : 3;
       const trialEndsAt = new Date(Date.now() + trialDays * 24 * 60 * 60 * 1000);
 
@@ -486,10 +490,10 @@ export class AuthService {
       });
 
       // Create Subscription entry
-      await tx.subscription.create({
+      const subscription = await tx.subscription.create({
         data: {
           tenantId: tenant.id,
-          planId: planStarter.id,
+          planId: chosenPlan.id,
           status: isCoupon100 ? 'active' : 'trialing',
           currentPeriodStart: new Date(),
           currentPeriodEnd: trialEndsAt,
@@ -497,8 +501,85 @@ export class AuthService {
         }
       });
 
+      // Apply coupon details in database
+      let discountCents = 0;
+      if (couponToApply) {
+        // Increment redemption count
+        await tx.coupon.update({
+          where: { id: couponToApply.id },
+          data: { redeemedCount: { increment: 1 } }
+        });
 
-      return { tenant, user, loginEmail, rawPassword, adminRoleId: adminRole.id, trialEndsAt };
+        // Create TenantDiscount
+        await tx.tenantDiscount.create({
+          data: {
+            tenantId: tenant.id,
+            couponId: couponToApply.id,
+            type: couponToApply.type,
+            value: couponToApply.value,
+            reason: `Cupom ${couponToApply.code} aplicado no cadastro`,
+            isActive: true
+          }
+        });
+
+        // Calculate discount cents
+        if (couponToApply.type === 'percentage') {
+          discountCents = Math.round(chosenPlan.priceCents * (couponToApply.value / 100));
+        } else if (couponToApply.type === 'fixed_amount') {
+          discountCents = Math.round(couponToApply.value * 100);
+        } else if (couponToApply.type === 'free_access') {
+          discountCents = chosenPlan.priceCents;
+        }
+        discountCents = Math.min(chosenPlan.priceCents, discountCents);
+
+        // Create CouponRedemption
+        await tx.couponRedemption.create({
+          data: {
+            tenantId: tenant.id,
+            couponId: couponToApply.id,
+            discountCents
+          }
+        });
+      }
+
+      // Create Invoice
+      const totalCents = Math.max(0, chosenPlan.priceCents - discountCents);
+      const invoice = await tx.invoice.create({
+        data: {
+          tenantId: tenant.id,
+          subscriptionId: subscription.id,
+          invoiceNumber: `INV-${Date.now()}`,
+          status: totalCents === 0 ? 'paid' : 'open',
+          subtotalCents: chosenPlan.priceCents,
+          discountCents,
+          totalCents,
+          dueDate: new Date(),
+          paidAt: totalCents === 0 ? new Date() : null,
+          billingPeriodStart: new Date(),
+          billingPeriodEnd: trialEndsAt,
+          metadataJson: couponToApply ? JSON.stringify({
+            couponCode: couponToApply.code,
+            discountPercentage: couponToApply.type === 'percentage' ? couponToApply.value : null
+          }) : '{}'
+        }
+      });
+
+      if (totalCents === 0) {
+        // Create Payment record for 100% discount
+        await tx.payment.create({
+          data: {
+            tenantId: tenant.id,
+            invoiceId: invoice.id,
+            provider: 'internal',
+            method: 'coupon',
+            status: 'paid',
+            amountCents: 0,
+            paidAt: new Date()
+          }
+        });
+      }
+
+      return { tenant, user, loginEmail, rawPassword, adminRoleId: adminRole.id, trialEndsAt, totalCents };
     });
 
     // Run bootstrap RBAC outside Prisma transaction but using the same connection context
@@ -512,6 +593,7 @@ export class AuthService {
       loginEmail: transactionResult.loginEmail,
       password: transactionResult.rawPassword,
       trialEndsAt: transactionResult.trialEndsAt,
+      totalAmountCents: transactionResult.totalCents
     };
   }
 

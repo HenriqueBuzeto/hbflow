@@ -44,6 +44,7 @@ export const registerTrialSchema = z.object({
   couponCode: z.string().optional().nullable(),
   password: z.string().min(6, 'Senha deve ter pelo menos 6 caracteres').optional().nullable(),
   isTrial: z.boolean().optional().nullable(),
+  planSlug: z.string().optional().nullable(),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;

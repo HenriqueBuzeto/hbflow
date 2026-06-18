@@ -247,7 +247,8 @@ export default function LoginPage() {
           phone: realPhone,
           couponCode: realCoupon || null,
           password: realPassword,
-          isTrial: false
+          isTrial: false,
+          planSlug: realPlan
         })
       });
 
@@ -332,7 +333,8 @@ export default function LoginPage() {
           phone: trialPhone,
           couponCode: null, // Forçando nulo no teste grátis (sem cupom)
           password: trialPassword,
-          isTrial: true
+          isTrial: true,
+          planSlug: 'starter'
         })
       });
 
@@ -410,8 +412,9 @@ export default function LoginPage() {
 
       setShowModal(false);
       
-      // Se for plano real, redireciona direto para a tela de faturamento
-      if (credentials.isRealPlan) {
+      // Se for plano real e tiver valor a pagar (> 0), redireciona para a tela de faturamento (/billing)
+      // Se for isento (totalAmountCents === 0), redireciona direto para a tela inicial (/dashboard)
+      if (credentials.isRealPlan && (credentials.totalAmountCents ?? 0) > 0) {
         router.push('/billing');
       } else {
         router.push('/dashboard');
@@ -1073,6 +1076,7 @@ export default function LoginPage() {
             {/* Header */}
             {(() => {
               const isCommercial = credentials.isRealPlan;
+              const isFreeCommercial = isCommercial && credentials.totalAmountCents === 0;
               return (
                 <>
                   <h3 className="text-xl font-bold text-center text-slate-100 mb-2">
@@ -1080,7 +1084,9 @@ export default function LoginPage() {
                   </h3>
                   <p className="text-xs text-center text-slate-400 mb-6 px-4 leading-relaxed">
                     {isCommercial 
-                      ? 'Sua conta comercial foi pré-registrada. Prossiga para efetuar o pagamento da assinatura e ativar o seu acesso completo.' 
+                      ? (isFreeCommercial 
+                        ? 'Sua conta comercial com desconto de 100% foi ativada com sucesso. Prossiga para acessar o seu painel de controle.' 
+                        : 'Sua conta comercial foi pré-registrada. Prossiga para efetuar o pagamento da assinatura e ativar o seu acesso completo.')
                       : 'Sua conta de teste grátis foi criada. Salve as credenciais abaixo para não perder o acesso ao sistema.'}
                   </p>
                 </>
@@ -1146,7 +1152,7 @@ export default function LoginPage() {
                 </>
               ) : (
                 <>
-                  <span>{credentials.isRealPlan ? 'Ir para o Pagamento' : 'Acessar Sistema'}</span>
+                  <span>{credentials.isRealPlan && credentials.totalAmountCents > 0 ? 'Ir para o Pagamento' : 'Acessar Sistema'}</span>
                   <ArrowRight size={16} />
                 </>
               )}

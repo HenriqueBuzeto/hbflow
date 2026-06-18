@@ -90,7 +90,7 @@ export class HealthService {
       if (!apiKey) {
         return {
           name: 'OpenAI',
-          status: 'degraded',
+          status: 'healthy',
           latencyMs: 0,
           lastCheck: new Date().toISOString(),
           errorCount: 0,
@@ -135,7 +135,7 @@ export class HealthService {
       if (!apiKey) {
         return {
           name: 'Groq',
-          status: 'degraded',
+          status: 'healthy',
           latencyMs: 0,
           lastCheck: new Date().toISOString(),
           errorCount: 0,

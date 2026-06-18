@@ -236,13 +236,58 @@ export default function FinanceiroPage() {
               </div>
             </div>
 
-            <div>
-              <span className="text-[10px] text-slate-400 font-bold block mb-1">Valor do Plano</span>
-              <strong className="text-slate-800 dark:text-white text-lg font-mono">
-                R$ {subscriptionInfo?.plan?.priceCents ? (subscriptionInfo.plan.priceCents / 100).toFixed(2) : '0.00'}
-              </strong>
-              <span className="text-slate-400 dark:text-slate-500 text-xs font-medium">/mês</span>
-            </div>
+            {(() => {
+              const basePriceCents = subscriptionInfo?.plan?.priceCents ?? (activeTenant.plan === 'pro' ? 19990 : 9990);
+              let discountCents = 0;
+              if (activeDiscount) {
+                if (activeDiscount.type === 'percentage') {
+                  discountCents = Math.round(basePriceCents * (activeDiscount.value / 100));
+                } else if (activeDiscount.type === 'fixed_amount') {
+                  discountCents = Math.round(activeDiscount.value * 100);
+                } else if (activeDiscount.type === 'free_access') {
+                  discountCents = basePriceCents;
+                }
+              }
+              const finalPriceCents = Math.max(0, basePriceCents - discountCents);
+
+              return (
+                <>
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold block mb-1">Valor Original do Plano</span>
+                    <strong className="text-slate-600 dark:text-slate-400 text-sm font-mono font-bold line-through">
+                      R$ {(basePriceCents / 100).toFixed(2)}
+                    </strong>
+                    <span className="text-slate-400 dark:text-slate-500 text-xs font-medium">/mês</span>
+                  </div>
+
+                  {activeDiscount && (
+                    <div>
+                      <span className="text-[10px] text-slate-400 font-bold block mb-1">Cupom de Desconto Ativo</span>
+                      <div className="bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-100 dark:border-emerald-900/30 rounded-2xl p-3 mt-1">
+                        <span className="text-emerald-700 dark:text-emerald-450 text-xs font-bold block uppercase tracking-wider">
+                          {activeDiscount.coupon?.code || 'DESCONTO ATIVO'}
+                        </span>
+                        <span className="text-emerald-600 dark:text-emerald-500 text-[10px] font-semibold block mt-0.5">
+                          Desconto de {activeDiscount.type === 'percentage'
+                            ? `${activeDiscount.value}%`
+                            : activeDiscount.type === 'free_access'
+                            ? '100%'
+                            : `R$ ${activeDiscount.value.toFixed(2)}`} {activeDiscount.coupon?.duration === 'forever' ? '(Permanente)' : ''}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div>
+                    <span className="text-[10px] text-slate-400 font-bold block mb-1">Valor Líquido (A Pagar)</span>
+                    <strong className="text-emerald-600 dark:text-emerald-400 text-xl font-mono font-black">
+                      R$ {(finalPriceCents / 100).toFixed(2)}
+                    </strong>
+                    <span className="text-slate-400 dark:text-slate-500 text-xs font-medium">/mês</span>
+                  </div>
+                </>
+              );
+            })()}
 
             {subscriptionInfo?.currentPeriodEnd && (
               <div>
@@ -250,20 +295,6 @@ export default function FinanceiroPage() {
                 <span className="text-slate-700 dark:text-slate-350 text-xs font-semibold flex items-center gap-1.5">
                   <Calendar size={13} className="text-slate-400" />
                   {new Date(subscriptionInfo.currentPeriodEnd).toLocaleDateString('pt-BR')}
-                </span>
-              </div>
-            )}
-
-            {activeDiscount && (
-              <div>
-                <span className="text-[10px] text-slate-400 font-bold block mb-1">Cupom de Desconto</span>
-                <span className="text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
-                  {activeDiscount.coupon?.code || 'Desconto Manual'}{' '}
-                  {activeDiscount.coupon?.duration === 'forever' ? '(Permanente)' : ''} (Desconto:{' '}
-                  {activeDiscount.type === 'percentage'
-                    ? `${activeDiscount.value}%`
-                    : `R$ ${(activeDiscount.value / 100).toFixed(2)}`}
-                  )
                 </span>
               </div>
             )}
