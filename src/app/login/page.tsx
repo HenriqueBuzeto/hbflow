@@ -17,30 +17,42 @@ import {
   Copy, 
   Check, 
   Loader2, 
-  Calendar 
+  Calendar,
+  Sparkles,
+  Ticket
 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   
-  // Navigation tab state
-  const [activeTab, setActiveTab] = useState<'real' | 'trial'>('real');
+  // Navigation tab state: login, real (subscription), trial (free trial)
+  const [activeTab, setActiveTab] = useState<'login' | 'real' | 'trial'>('login');
 
-  // Real Login tab state
-  const [realEmail, setRealEmail] = useState('');
-  const [realPassword, setRealPassword] = useState('');
+  // Login tab state
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // Acesso Real (Subscription Registration) tab state
+  const [realName, setRealName] = useState('');
+  const [realCompany, setRealCompany] = useState('');
+  const [realCnpj, setRealCnpj] = useState('');
+  const [realEmailReg, setRealEmailReg] = useState('');
+  const [realPhone, setRealPhone] = useState('');
+  const [realCoupon, setRealCoupon] = useState('');
+  const [realPlan, setRealPlan] = useState<'starter' | 'pro'>('starter');
   const [realError, setRealError] = useState('');
-  const [isLoggingInReal, setIsLoggingInReal] = useState(false);
+  const [isRegisteringReal, setIsRegisteringReal] = useState(false);
 
-  // Free Trial tab state
+  // Free Trial (3 Days) tab state
   const [trialName, setTrialName] = useState('');
   const [trialCompany, setTrialCompany] = useState('');
   const [trialCnpj, setTrialCnpj] = useState('');
   const [trialEmail, setTrialEmail] = useState('');
   const [trialPhone, setTrialPhone] = useState('');
-  const [trialCoupon, setTrialCoupon] = useState('');
   const [trialError, setTrialError] = useState('');
-  const [isRegistering, setIsRegistering] = useState(false);
+  const [isRegisteringTrial, setIsRegisteringTrial] = useState(false);
 
   // Modal / Credentials Showbox state
   const [showModal, setShowModal] = useState(false);
@@ -50,6 +62,8 @@ export default function LoginPage() {
     trialEndsAt: string;
     companyName: string;
     userName: string;
+    plan?: string;
+    isRealPlan?: boolean;
   } | null>(null);
   const [copiedType, setCopiedType] = useState<'email' | 'password' | null>(null);
   const [isLoggingInAuto, setIsLoggingInAuto] = useState(false);
@@ -80,23 +94,31 @@ export default function LoginPage() {
     }
   };
 
-  const handleCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleRealCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRealCnpj(formatCNPJ(e.target.value));
+  };
+
+  const handleRealPhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRealPhone(formatPhone(e.target.value));
+  };
+
+  const handleTrialCnpjChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTrialCnpj(formatCNPJ(e.target.value));
   };
 
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleTrialPhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setTrialPhone(formatPhone(e.target.value));
   };
 
-  // Handlers
-  const handleRealLogin = async (e: React.FormEvent) => {
+  // Login Handler
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setRealError('');
-    setIsLoggingInReal(true);
+    setLoginError('');
+    setIsLoggingIn(true);
 
-    if (!realEmail || !realPassword) {
-      setRealError('Por favor, preencha todos os campos.');
-      setIsLoggingInReal(false);
+    if (!loginEmail || !loginPassword) {
+      setLoginError('Por favor, preencha todos os campos.');
+      setIsLoggingIn(false);
       return;
     }
 
@@ -105,8 +127,8 @@ export default function LoginPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: realEmail,
-          password: realPassword
+          email: loginEmail,
+          password: loginPassword
         })
       });
 
@@ -138,7 +160,6 @@ export default function LoginPage() {
         plan: data.tenant.plan || 'starter'
       };
 
-      // Clear mock lists and disable demo mode
       useStore.getState().setDemoModeEnabled(false);
       useStore.setState({
         tenants: [newTenant],
@@ -149,20 +170,67 @@ export default function LoginPage() {
 
       router.push('/dashboard');
     } catch (err: any) {
-      setRealError(err.message || 'Falha ao autenticar.');
+      setLoginError(err.message || 'Falha ao autenticar.');
     } finally {
-      setIsLoggingInReal(false);
+      setIsLoggingIn(false);
     }
   };
 
+  // Acesso Real Register Handler
+  const handleRealRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRealError('');
+    setIsRegisteringReal(true);
+
+    if (!realName || !realCompany || !realCnpj || !realEmailReg || !realPhone) {
+      setRealError('Por favor, preencha todos os campos obrigatórios.');
+      setIsRegisteringReal(false);
+      return;
+    }
+
+    try {
+      // Usamos o endpoint register-trial passando o cupom e plano escolhido
+      const res = await fetch('/api/auth/register-trial', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userName: realName,
+          companyName: realCompany,
+          cnpj: realCnpj,
+          email: realEmailReg,
+          phone: realPhone,
+          couponCode: realCoupon || null
+        })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Falha no cadastro comercial.');
+      }
+
+      setCredentials({
+        ...data,
+        plan: realPlan,
+        isRealPlan: true
+      });
+      setShowModal(true);
+    } catch (err: any) {
+      setRealError(err.message || 'Falha no cadastro comercial.');
+    } finally {
+      setIsRegisteringReal(false);
+    }
+  };
+
+  // Free Trial Register Handler (Without Coupon Field)
   const handleTrialRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setTrialError('');
-    setIsRegistering(true);
+    setIsRegisteringTrial(true);
 
     if (!trialName || !trialCompany || !trialCnpj || !trialEmail || !trialPhone) {
       setTrialError('Por favor, preencha todos os campos do cadastro.');
-      setIsRegistering(false);
+      setIsRegisteringTrial(false);
       return;
     }
 
@@ -176,7 +244,7 @@ export default function LoginPage() {
           cnpj: trialCnpj,
           email: trialEmail,
           phone: trialPhone,
-          couponCode: trialCoupon
+          couponCode: null // Forçando nulo no teste grátis (sem cupom)
         })
       });
 
@@ -186,12 +254,15 @@ export default function LoginPage() {
         throw new Error(data.error || 'Falha no cadastro de teste grátis.');
       }
 
-      setCredentials(data);
+      setCredentials({
+        ...data,
+        isRealPlan: false
+      });
       setShowModal(true);
     } catch (err: any) {
       setTrialError(err.message || 'Falha no cadastro.');
     } finally {
-      setIsRegistering(false);
+      setIsRegisteringTrial(false);
     }
   };
 
@@ -220,7 +291,6 @@ export default function LoginPage() {
         throw new Error(data.error || 'Erro ao realizar login automático.');
       }
 
-      // Populate Zustand store
       const newUser = {
         id: data.user.id,
         name: data.user.name,
@@ -242,7 +312,6 @@ export default function LoginPage() {
         plan: data.tenant.plan || 'starter'
       };
 
-      // Clear mock lists and disable demo mode
       useStore.getState().setDemoModeEnabled(false);
       useStore.setState({
         tenants: [newTenant],
@@ -252,10 +321,20 @@ export default function LoginPage() {
       });
 
       setShowModal(false);
-      router.push('/dashboard');
+      
+      // Se for plano real, redireciona direto para a tela de faturamento
+      if (credentials.isRealPlan) {
+        router.push('/billing');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err: any) {
       console.error(err);
-      setTrialError(err.message || 'Erro ao acessar o sistema automaticamente.');
+      if (credentials.isRealPlan) {
+        setRealError(err.message || 'Erro ao acessar o sistema automaticamente.');
+      } else {
+        setTrialError(err.message || 'Erro ao acessar o sistema automaticamente.');
+      }
       setShowModal(false);
     } finally {
       setIsLoggingInAuto(false);
@@ -281,7 +360,7 @@ export default function LoginPage() {
         {/* Brand logo header */}
         <div className="text-center mb-8 flex flex-col items-center justify-center">
           <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-[420px] w-auto object-contain my-[-175px] mx-[-145px] mb-[-135px]" />
-          <p className="text-sm text-slate-400 mt-2">
+          <p className="text-sm text-slate-400 mt-2 font-medium">
             Gestão de WhatsApp + CRM Omnichannel Multi-tenant
           </p>
         </div>
@@ -289,12 +368,23 @@ export default function LoginPage() {
         {/* Card */}
         <div className="bg-slate-950 border border-slate-800 rounded-3xl p-8 shadow-2xl relative">
           
-          {/* Tab Navigation bar */}
-          <div className="flex bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800/80 mb-6">
+          {/* Tab Navigation bar (3 tabs) */}
+          <div className="flex bg-slate-900/80 p-1.5 rounded-2xl border border-slate-800/80 mb-6 gap-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab('login')}
+              className={`flex-1 text-center py-2.5 text-[11px] font-extrabold rounded-xl transition-all cursor-pointer ${
+                activeTab === 'login'
+                  ? 'bg-slate-800 text-white shadow-md border border-slate-700/30'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Entrar
+            </button>
             <button
               type="button"
               onClick={() => setActiveTab('real')}
-              className={`flex-1 text-center py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+              className={`flex-1 text-center py-2.5 text-[11px] font-extrabold rounded-xl transition-all cursor-pointer ${
                 activeTab === 'real'
                   ? 'bg-slate-800 text-white shadow-md border border-slate-700/30'
                   : 'text-slate-400 hover:text-slate-200'
@@ -305,7 +395,7 @@ export default function LoginPage() {
             <button
               type="button"
               onClick={() => setActiveTab('trial')}
-              className={`flex-1 text-center py-2.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+              className={`flex-1 text-center py-2.5 text-[11px] font-extrabold rounded-xl transition-all cursor-pointer ${
                 activeTab === 'trial'
                   ? 'bg-slate-800 text-white shadow-md border border-slate-700/30'
                   : 'text-slate-400 hover:text-slate-200'
@@ -315,20 +405,20 @@ export default function LoginPage() {
             </button>
           </div>
 
-          {/* TAB 2: Real Login */}
-          {activeTab === 'real' && (
-            <form onSubmit={handleRealLogin} className="space-y-5">
+          {/* TAB 1: Existing User Login */}
+          {activeTab === 'login' && (
+            <form onSubmit={handleLogin} className="space-y-5">
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
-                  E-mail Principal (Real)
+                  E-mail de Login
                 </label>
                 <div className="relative">
                   <Mail size={16} className="absolute left-4 top-3.5 text-slate-500" />
                   <input
                     type="email"
                     placeholder="exemplo@hbflow.com"
-                    value={realEmail}
-                    onChange={(e) => setRealEmail(e.target.value)}
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-3 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
                   />
                 </div>
@@ -343,25 +433,25 @@ export default function LoginPage() {
                   <input
                     type="password"
                     placeholder="Sua senha"
-                    value={realPassword}
-                    onChange={(e) => setRealPassword(e.target.value)}
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-3 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
                   />
                 </div>
               </div>
 
-              {realError && (
+              {loginError && (
                 <p className="text-xs text-rose-500 font-semibold bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">
-                  {realError}
+                  {loginError}
                 </p>
               )}
 
               <button
                 type="submit"
-                disabled={isLoggingInReal}
+                disabled={isLoggingIn}
                 className="w-full bg-primary hover:bg-primary-hover disabled:bg-primary/50 disabled:cursor-not-allowed text-white py-3.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-primary/20 hover:shadow-primary/35 flex items-center justify-center gap-2 group active:scale-[0.98] cursor-pointer"
               >
-                {isLoggingInReal ? (
+                {isLoggingIn ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
                     <span>Autenticando...</span>
@@ -376,7 +466,179 @@ export default function LoginPage() {
             </form>
           )}
 
-          {/* TAB 3: Free Trial Registration */}
+          {/* TAB 2: Acesso Real (Plan Subscription Sign Up) */}
+          {activeTab === 'real' && (
+            <form onSubmit={handleRealRegister} className="space-y-4">
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                  Nome Completo
+                </label>
+                <div className="relative">
+                  <User size={16} className="absolute left-4 top-3 text-slate-500" />
+                  <input
+                    type="text"
+                    placeholder="Seu nome"
+                    value={realName}
+                    onChange={(e) => setRealName(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                  Nome da Empresa
+                </label>
+                <div className="relative">
+                  <Building size={16} className="absolute left-4 top-3 text-slate-500" />
+                  <input
+                    type="text"
+                    placeholder="Nome da sua empresa"
+                    value={realCompany}
+                    onChange={(e) => setRealCompany(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                  CNPJ
+                </label>
+                <div className="relative">
+                  <CreditCard size={16} className="absolute left-4 top-3 text-slate-500" />
+                  <input
+                    type="text"
+                    placeholder="00.000.000/0000-00"
+                    value={realCnpj}
+                    onChange={handleRealCnpjChange}
+                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                  E-mail Principal
+                </label>
+                <div className="relative">
+                  <Mail size={16} className="absolute left-4 top-3 text-slate-500" />
+                  <input
+                    type="email"
+                    placeholder="nome@empresa.com"
+                    value={realEmailReg}
+                    onChange={(e) => setRealEmailReg(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                  Telefone
+                </label>
+                <div className="relative">
+                  <Phone size={16} className="absolute left-4 top-3 text-slate-500" />
+                  <input
+                    type="text"
+                    placeholder="(00) 00000-0000"
+                    value={realPhone}
+                    onChange={handleRealPhoneChange}
+                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
+                  />
+                </div>
+              </div>
+
+              {/* Plan Selection Cards */}
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-2">
+                  Escolha o Plano Comercial
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div 
+                    onClick={() => setRealPlan('starter')}
+                    className={`bg-slate-900 border rounded-2xl p-3 cursor-pointer transition-all ${
+                      realPlan === 'starter' 
+                        ? 'border-primary ring-1 ring-primary/30 bg-slate-900/60' 
+                        : 'border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-bold text-white">Starter</span>
+                      <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${realPlan === 'starter' ? 'border-primary bg-primary' : 'border-slate-600'}`}>
+                        {realPlan === 'starter' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-slate-400 block">R$ 99,90 / mês</span>
+                  </div>
+
+                  <div 
+                    onClick={() => setRealPlan('pro')}
+                    className={`bg-slate-900 border rounded-2xl p-3 cursor-pointer transition-all ${
+                      realPlan === 'pro' 
+                        ? 'border-primary ring-1 ring-primary/30 bg-slate-900/60' 
+                        : 'border-slate-800 hover:border-slate-700'
+                    }`}
+                  >
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-xs font-bold text-white">Pro</span>
+                      <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${realPlan === 'pro' ? 'border-primary bg-primary' : 'border-slate-600'}`}>
+                        {realPlan === 'pro' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-slate-400 block">R$ 199,90 / mês</span>
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
+                  Cupom de Desconto (Opcional)
+                </label>
+                <div className="relative">
+                  <Ticket size={16} className="absolute left-4 top-3 text-slate-500" />
+                  <input
+                    type="text"
+                    placeholder="Digite seu cupom de desconto"
+                    value={realCoupon}
+                    onChange={(e) => setRealCoupon(e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all uppercase font-mono tracking-wider"
+                  />
+                </div>
+              </div>
+
+              <div className="bg-slate-900/40 border border-slate-800 p-3 rounded-2xl flex items-center justify-between text-[11px]">
+                <span className="text-slate-400">Método de Ativação:</span>
+                <span className="text-amber-400 font-bold flex items-center gap-1"><Sparkles size={12} /> Checkout InfinitePay</span>
+              </div>
+
+              {realError && (
+                <p className="text-xs text-rose-500 font-semibold bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">
+                  {realError}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={isRegisteringReal}
+                className="w-full bg-primary hover:bg-primary-hover disabled:bg-primary/50 disabled:cursor-not-allowed text-white py-3.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-primary/20 hover:shadow-primary/35 flex items-center justify-center gap-2 group active:scale-[0.98] cursor-pointer"
+              >
+                {isRegisteringReal ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Processando Cadastro...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Criar Conta e Pagar</span>
+                    <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+                  </>
+                )}
+              </button>
+            </form>
+          )}
+
+          {/* TAB 3: Free Trial Registration (NO COUPON FIELD) */}
           {activeTab === 'trial' && (
             <form onSubmit={handleTrialRegister} className="space-y-4">
               <div>
@@ -387,7 +649,7 @@ export default function LoginPage() {
                   <User size={16} className="absolute left-4 top-3 text-slate-500" />
                   <input
                     type="text"
-                    placeholder="João Silva Santos"
+                    placeholder="Seu nome"
                     value={trialName}
                     onChange={(e) => setTrialName(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
@@ -403,7 +665,7 @@ export default function LoginPage() {
                   <Building size={16} className="absolute left-4 top-3 text-slate-500" />
                   <input
                     type="text"
-                    placeholder="Sua Empresa Ltda"
+                    placeholder="Nome da sua empresa"
                     value={trialCompany}
                     onChange={(e) => setTrialCompany(e.target.value)}
                     className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
@@ -421,7 +683,7 @@ export default function LoginPage() {
                     type="text"
                     placeholder="00.000.000/0000-00"
                     value={trialCnpj}
-                    onChange={handleCnpjChange}
+                    onChange={handleTrialCnpjChange}
                     className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
                   />
                 </div>
@@ -453,26 +715,15 @@ export default function LoginPage() {
                     type="text"
                     placeholder="(00) 00000-0000"
                     value={trialPhone}
-                    onChange={handlePhoneChange}
+                    onChange={handleTrialPhoneChange}
                     className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all"
                   />
                 </div>
               </div>
 
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
-                  Cupom de Desconto (Opcional)
-                </label>
-                <div className="relative">
-                  <Copy size={16} className="absolute left-4 top-3 text-slate-500" />
-                  <input
-                    type="text"
-                    placeholder="Ex: CUPOM100"
-                    value={trialCoupon}
-                    onChange={(e) => setTrialCoupon(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all uppercase font-mono"
-                  />
-                </div>
+              <div className="bg-slate-900/40 border border-slate-800 p-3 rounded-2xl flex items-center justify-between text-[11px]">
+                <span className="text-slate-400">Tempo de Teste:</span>
+                <span className="text-emerald-400 font-bold flex items-center gap-1">3 Dias Grátis</span>
               </div>
 
               {trialError && (
@@ -483,24 +734,23 @@ export default function LoginPage() {
 
               <button
                 type="submit"
-                disabled={isRegistering}
+                disabled={isRegisteringTrial}
                 className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:bg-emerald-600/50 disabled:cursor-not-allowed text-white py-3 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-600/20 hover:shadow-emerald-600/35 flex items-center justify-center gap-2 group active:scale-[0.98] cursor-pointer"
               >
-                {isRegistering ? (
+                {isRegisteringTrial ? (
                   <>
                     <Loader2 size={16} className="animate-spin" />
-                    <span>{trialCoupon.trim().toUpperCase() === 'CUPOM100' ? 'Criando Conta Comercial...' : 'Criando Conta de Teste...'}</span>
+                    <span>Criando Conta de Teste...</span>
                   </>
                 ) : (
                   <>
-                    <span>{trialCoupon.trim().toUpperCase() === 'CUPOM100' ? 'Criar Conta Comercial' : 'Iniciar Teste Grátis'}</span>
+                    <span>Iniciar Teste Grátis</span>
                     <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
               </button>
             </form>
           )}
-
 
         </div>
 
@@ -527,15 +777,15 @@ export default function LoginPage() {
             
             {/* Header */}
             {(() => {
-              const isCommercial = credentials && (new Date(credentials.trialEndsAt).getTime() - Date.now() > 5 * 24 * 60 * 60 * 1000);
+              const isCommercial = credentials.isRealPlan;
               return (
                 <>
                   <h3 className="text-xl font-bold text-center text-slate-100 mb-2">
-                    {isCommercial ? 'Conta Comercial Ativada!' : 'Acesso de 3 Dias Ativo!'}
+                    {isCommercial ? 'Conta Comercial Criada!' : 'Acesso de 3 Dias Ativo!'}
                   </h3>
                   <p className="text-xs text-center text-slate-400 mb-6 px-4 leading-relaxed">
                     {isCommercial 
-                      ? 'Sua conta comercial com cupom de desconto de 100% foi criada com sucesso.' 
+                      ? 'Sua conta comercial foi pré-registrada. Prossiga para efetuar o pagamento da assinatura e ativar o seu acesso completo.' 
                       : 'Sua conta de teste grátis foi criada. Salve as credenciais abaixo para não perder o acesso ao sistema.'}
                   </p>
                 </>
@@ -576,11 +826,14 @@ export default function LoginPage() {
                 </div>
               </div>
               
-              {/* Expiration Notice */}
+              {/* Expiration Notice / Info */}
               <div className="flex items-center gap-2.5 bg-slate-950/50 p-3.5 rounded-xl border border-slate-800/60">
                 <Calendar size={15} className="text-indigo-400 shrink-0" />
                 <span className="text-xs text-slate-400 leading-normal">
-                  Válido até: <strong>{new Date(credentials.trialEndsAt).toLocaleDateString('pt-BR')}</strong> às <strong>{new Date(credentials.trialEndsAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</strong>
+                  {credentials.isRealPlan 
+                    ? <span>Plano comercial selecionado: <strong>{credentials.plan === 'pro' ? 'Pro' : 'Starter'}</strong>.</span>
+                    : <span>Válido até: <strong>{new Date(credentials.trialEndsAt).toLocaleDateString('pt-BR')}</strong> às <strong>{new Date(credentials.trialEndsAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</strong></span>
+                  }
                 </span>
               </div>
             </div>
@@ -598,7 +851,7 @@ export default function LoginPage() {
                 </>
               ) : (
                 <>
-                  <span>Acessar Sistema</span>
+                  <span>{credentials.isRealPlan ? 'Ir para o Pagamento' : 'Acessar Sistema'}</span>
                   <ArrowRight size={16} />
                 </>
               )}
