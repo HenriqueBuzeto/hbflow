@@ -61,23 +61,18 @@ function useServerStatus() {
       setLastChecked(new Date());
       setLatencyMs(elapsed);
       setServices(data.details?.services ?? []);
-
-      if (data.status === 'unhealthy') {
-        setState('degraded'); // unhealthy do backend → degradado no banner (ainda respondeu)
-      } else if (data.status === 'degraded') {
-        setState('degraded');
-      } else {
-        setState('connected');
-      }
+      setState('connected');
     } catch {
       clearTimeout(timeout);
       if (!isMounted.current) return;
 
       consecutiveFails.current += 1;
       setLastChecked(new Date());
-      setLatencyMs(null);
+      setLatencyMs(9999);
 
-      if (consecutiveFails.current >= CONSECUTIVE_FAILS_OFFLINE) {
+      if (consecutiveFails.current === 1) {
+        setState('degraded');
+      } else if (consecutiveFails.current >= CONSECUTIVE_FAILS_OFFLINE) {
         setState('offline');
         setServices([]);
       }
@@ -225,11 +220,9 @@ export default function ServerStatusBanner() {
       >
         <WarningIcon />
         <span style={{ fontWeight: 600 }}>Servidor com instabilidade</span>
-        {badServices.length > 0 && (
-          <span style={{ opacity: 0.85, fontSize: '11px' }}>
-            — {badServices.map(s => s.name).join(', ')} com problema
-          </span>
-        )}
+        <span style={{ opacity: 0.85, fontSize: '11px' }}>
+          — Tempo de resposta excedido (9999ms). Tentando reconectar...
+        </span>
         {checkedStr && (
           <span style={{ marginLeft: 'auto', opacity: 0.5, fontSize: '11px' }}>
             {checkedStr}
