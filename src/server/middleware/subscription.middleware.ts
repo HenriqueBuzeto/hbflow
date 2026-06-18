@@ -1,5 +1,6 @@
 import { requireAuth } from './auth.middleware';
 import { prisma } from '../db/prisma';
+import { SubscriptionAccessService } from '../services/billing/subscription-access.service';
 
 /**
  * Middleware/Guard para garantir que o tenant do usuário autenticado possui assinatura ativa.
@@ -27,8 +28,9 @@ export async function requireActiveSubscription(): Promise<string> {
     return user.tenantId;
   }
 
-  // 2. Validar assinatura e acesso comercial do tenant usando a flag pré-calculada
-  if (fullUser?.tenant?.isBlocked) {
+  // 2. Validar assinatura e acesso comercial do tenant usando a verificação dinâmica checkAccess
+  const access = await SubscriptionAccessService.checkAccess(user.tenantId);
+  if (!access.allowed) {
     throw new Error('SUBSCRIPTION_REQUIRED');
   }
 

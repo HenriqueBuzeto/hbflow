@@ -45,6 +45,10 @@ export default function LandingPage() {
   // Interactive FAQ State
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
+  // Terms and Privacy Modal States
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false);
+
   // Interactive Live Chat Demo State
   const [selectedDemoContact, setSelectedDemoContact] = useState(0);
   const [customInputValue, setCustomInputValue] = useState('');
@@ -767,8 +771,11 @@ export default function LandingPage() {
                   <li className="flex items-center gap-2"><Check size={12} className="text-emerald-500" /> Suporte VIP & SLA Garantido</li>
                 </ul>
               </div>
-              <button onClick={() => router.push('/login')} className="mt-8 bg-slate-900/60 hover:bg-slate-900 border border-white/5 text-slate-200 hover:text-white text-xs font-bold py-3 rounded-xl transition-all cursor-pointer">
-                Começar Teste
+              <button 
+                onClick={() => window.open('https://wa.me/5517992651033?text=Olá!%20Gostaria%20de%20solicitar%20um%20orçamento%20para%20o%20Plano%20Enterprise%20do%20HBFlow.', '_blank')} 
+                className="mt-8 bg-gradient-to-r from-primary to-indigo-600 hover:from-primary-hover hover:to-indigo-700 text-white text-xs font-bold py-3.5 rounded-xl transition-all cursor-pointer shadow-md shadow-primary/20 text-center"
+              >
+                Falar com Especialista
               </button>
             </motion.div>
 
@@ -835,19 +842,254 @@ export default function LandingPage() {
       </section>
 
       {/* FOOTER */}
-      <footer className="py-14 border-t border-white/5 bg-slate-950 text-center text-[10px] text-slate-500 font-bold uppercase tracking-widest">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-[260px] w-auto object-contain my-[-115px] mx-[-100px]" />
+      <footer className="pt-20 pb-10 border-t border-white/5 bg-slate-950 text-xs text-slate-400 font-semibold relative">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-10 pb-16">
+            
+            {/* Col 1: Logo & Sobre */}
+            <div className="md:col-span-5 flex flex-col items-start gap-4">
+              <div className="flex items-center gap-2">
+                <img src="/logo hbflow.png" alt="HBFlow Logo" className="h-[380px] w-auto object-contain my-[-165px] mx-[-140px]" />
+              </div>
+              <p className="text-[11px] text-slate-400 leading-relaxed font-medium mt-[-20px] max-w-sm">
+                Plataforma corporativa de atendimento e orquestração de inteligência artificial integrada à API Oficial do WhatsApp. Maximize seus resultados com agentes autônomos.
+              </p>
+              <div className="text-[10px] uppercase tracking-wider text-slate-500 font-bold mt-2">
+                Desenvolvido por{' '}
+                <a 
+                  href="https://portfoliohbstudiodev.vercel.app/" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="text-primary hover:text-primary-hover hover:underline transition-colors"
+                >
+                  HBSTUDIODEV
+                </a>
+              </div>
+            </div>
+
+            {/* Col 2: Contato e Horários */}
+            <div className="md:col-span-4 flex flex-col gap-4">
+              <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-white">Suporte & Contato</h4>
+              <ul className="space-y-3 text-[11px] font-medium text-slate-400">
+                <li className="flex items-center gap-2">
+                  <span className="text-primary">📞</span>
+                  <a href="https://wa.me/5517992651033" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+                    +55 17 99265-1033
+                  </a>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-primary">✉️</span>
+                  <a href="mailto:hbdevstudio@gmail.com" className="hover:text-white transition-colors">
+                    hbdevstudio@gmail.com
+                  </a>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-primary">📷</span>
+                  <a href="https://instagram.com/hbstudiodev" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors">
+                    @hbstudiodev
+                  </a>
+                </li>
+                <li className="flex items-center gap-2 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
+                  <span className="text-primary">💼</span>
+                  <span>CNPJ: 65.001.925/0001-00</span>
+                </li>
+                <li className="border-t border-white/5 pt-3 mt-1">
+                  <div className="text-[9px] font-extrabold uppercase tracking-wider text-slate-500 mb-1">Horário de Atendimento</div>
+                  <div className="leading-relaxed">
+                    <span className="text-slate-300 font-semibold block">Segunda a Sexta:</span> 08:00h às 18:00h
+                    <span className="text-slate-300 font-semibold block mt-1">Sábado e Domingo:</span> 08:00h às 12:00h
+                  </div>
+                </li>
+              </ul>
+            </div>
+
+            {/* Col 3: Links Úteis & Planos */}
+            <div className="md:col-span-3 flex flex-col gap-4">
+              <h4 className="text-[10px] font-extrabold uppercase tracking-widest text-white">Plataforma</h4>
+              <ul className="space-y-3 text-[11px] font-medium text-slate-400">
+                <li>
+                  <a href="#planos" className="hover:text-white transition-colors">Planos & Preços</a>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => setIsTermsOpen(true)} 
+                    className="hover:text-white transition-colors text-left bg-transparent border-none cursor-pointer p-0"
+                  >
+                    Termos de Uso & LGPD
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => setIsPrivacyOpen(true)} 
+                    className="hover:text-white transition-colors text-left bg-transparent border-none cursor-pointer p-0"
+                  >
+                    Política de Privacidade
+                  </button>
+                </li>
+                <li className="pt-2">
+                  <button 
+                    onClick={() => window.open('https://wa.me/5517992651033?text=Olá!%20Gostaria%20de%20um%20orçamento%20para%20o%20Plano%20Enterprise%20do%20HBFlow.', '_blank')}
+                    className="w-full bg-slate-900 hover:bg-slate-900/80 border border-white/10 hover:border-white/20 text-white text-[10px] font-bold uppercase tracking-wider py-2.5 px-4 rounded-xl transition-all cursor-pointer text-center"
+                  >
+                    Plano Enterprise
+                  </button>
+                </li>
+              </ul>
+            </div>
+
           </div>
-          <span>© {currentYear} HBFlow Layer. Todos os direitos reservados.</span>
-          <div className="flex gap-4">
-            <a href="#como-funciona" className="hover:text-white transition-colors">Termos</a>
-            <a href="#como-funciona" className="hover:text-white transition-colors">Privacidade</a>
+
+          <div className="border-t border-white/5 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-[10px] text-slate-500 font-bold uppercase tracking-widest">
+            <span>© {currentYear} HBFlow. Todos os direitos reservados.</span>
+            <span className="flex items-center gap-1.5 normal-case font-medium text-slate-600">
+              Conexão Segura SSL | Proteção de Dados LGPD
+            </span>
           </div>
         </div>
       </footer>
 
+      {/* TERMS OF USE & LGPD MODAL */}
+      <AnimatePresence>
+        {isTermsOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 10 }}
+              className="bg-slate-950 border border-white/10 rounded-3xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6 md:p-8 relative shadow-2xl always-dark"
+            >
+              <button 
+                onClick={() => setIsTermsOpen(false)} 
+                className="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+              
+              <div className="flex items-center gap-2 mb-6">
+                <Shield className="text-primary" size={24} />
+                <h3 className="text-lg font-extrabold text-white">Termos de Uso & Consentimento LGPD</h3>
+              </div>
+
+              <div className="space-y-4 text-xs text-slate-300 leading-relaxed pr-2 font-medium">
+                <p>
+                  Bem-vindo ao <strong>HBFlow</strong>. Ao acessar e utilizar nossa plataforma de orquestração de Inteligência Artificial integrada à API Oficial do WhatsApp, você concorda em cumprir e estar vinculado aos seguintes termos de serviço.
+                </p>
+
+                <h4 className="text-white font-bold uppercase text-[10px] tracking-wider mt-4">1. Conformidade com a LGPD (Lei Geral de Proteção de Dados)</h4>
+                <p>
+                  O HBFlow está totalmente alinhado com a Lei nº 13.709/2018 (LGPD). Coletamos e processamos dados estritamente necessários para a execução dos serviços de automação e comunicação do seu negócio. Os dados dos seus clientes finais são isolados em banco de dados dedicado e criptografado por ambiente (tenant).
+                </p>
+
+                <h4 className="text-white font-bold uppercase text-[10px] tracking-wider mt-4">2. Direitos do Titular de Dados</h4>
+                <p>
+                  Em conformidade com a legislação nacional, garantimos que os titulares de dados possam a qualquer momento exercer seus direitos perante o controlador, incluindo: confirmação da existência do tratamento, acesso aos dados coletados, correção de dados incompletos ou inexatos, e exclusão/anonimização mediante solicitação expressa.
+                </p>
+
+                <h4 className="text-white font-bold uppercase text-[10px] tracking-wider mt-4">3. Integração com a API Oficial da Meta</h4>
+                <p>
+                  Nossos fluxos e agentes de IA utilizam a infraestrutura oficial da API Cloud da Meta. É responsabilidade da contratante zelar pela integridade do conteúdo veiculado nas conversas e respeitar as Políticas Comerciais oficiais da Meta.
+                </p>
+
+                <h4 className="text-white font-bold uppercase text-[10px] tracking-wider mt-4">4. Limitação de Responsabilidade</h4>
+                <p>
+                  O HBFlow fornece ferramentas de automação assistida por inteligência artificial. Embora nossos agentes atuem com extrema precisão baseados em bases de conhecimento definidas por você, as respostas automáticas não constituem aconselhamento legal ou financeiro formal.
+                </p>
+
+                <p className="text-slate-500 text-[10px] mt-6 border-t border-white/5 pt-4">
+                  Última atualização: Junho de 2026. Em caso de dúvidas, entre em contato através do canal de suporte oficial +55 17 99265-1033.
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* PRIVACY POLICY MODAL */}
+      <AnimatePresence>
+        {isPrivacyOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+          >
+            <motion.div 
+              initial={{ scale: 0.95, y: 10 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 10 }}
+              className="bg-slate-950 border border-white/10 rounded-3xl max-w-2xl w-full max-h-[80vh] overflow-y-auto p-6 md:p-8 relative shadow-2xl always-dark"
+            >
+              <button 
+                onClick={() => setIsPrivacyOpen(false)} 
+                className="absolute top-5 right-5 text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+              
+              <div className="flex items-center gap-2 mb-6">
+                <LockIcon className="text-primary" size={24} />
+                <h3 className="text-lg font-extrabold text-white">Política de Privacidade & Segurança</h3>
+              </div>
+
+              <div className="space-y-4 text-xs text-slate-300 leading-relaxed pr-2 font-medium">
+                <p>
+                  A sua privacidade e a proteção de dados do seu negócio são prioridades fundamentais para o <strong>HBFlow</strong>. Esta política detalha como coletamos, armazenamos e protegemos as suas informações e os históricos de chat processados.
+                </p>
+
+                <h4 className="text-white font-bold uppercase text-[10px] tracking-wider mt-4">1. Coleta e Finalidade dos Dados</h4>
+                <p>
+                  Coletamos informações cadastrais da empresa (como CNPJ, e-mail de faturamento, telefone corporativo) e tokens de conexão apenas para manter a infraestrutura de sincronização ativa com a API Oficial e faturar a licença de uso do software.
+                </p>
+
+                <h4 className="text-white font-bold uppercase text-[10px] tracking-wider mt-4">2. Arquitetura Multi-Tenant & Isolamento de Dados</h4>
+                <p>
+                  Toda a arquitetura da base de dados PostgreSQL e das conexões da API do Evolution no servidor opera sob o modelo de segregação de Tenants. Os dados e históricos de conversas da sua empresa nunca se cruzam ou ficam acessíveis a outras empresas.
+                </p>
+
+                <h4 className="text-white font-bold uppercase text-[10px] tracking-wider mt-4">3. Criptografia e Armazenamento Seguro</h4>
+                <p>
+                  Todas as credenciais sensíveis e registros de webhook são trafegados via SSL/TLS de ponta a ponta e armazenados com hashing seguro. O acesso administrativo é protegido por chaves privadas e tokens temporários.
+                </p>
+
+                <h4 className="text-white font-bold uppercase text-[10px] tracking-wider mt-4">4. Retenção de Histórico de Conversas</h4>
+                <p>
+                  Armazenamos temporariamente o histórico de mensagens de chat para permitir o treinamento local dos agentes de IA, auditoria de SLA e visualização em tempo real no Kanban de atendimentos. Você pode solicitar a purga definitiva das mensagens da sua conta a qualquer momento pelo suporte.
+                </p>
+
+                <p className="text-slate-500 text-[10px] mt-6 border-t border-white/5 pt-4">
+                  Para suporte de privacidade ou exercer seus direitos de exclusão, contate-nos em: portfoliohbstudiodev.vercel.app.
+                </p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
     </div>
+  );
+}
+
+// Simple Helper Component for privacy modal header icon if Lock is not imported
+function LockIcon({ className, size }: { className?: string; size?: number }) {
+  return (
+    <svg 
+      className={className} 
+      width={size} 
+      height={size} 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+    </svg>
   );
 }

@@ -45,6 +45,10 @@ export default function LoginPage() {
   const [realError, setRealError] = useState('');
   const [isRegisteringReal, setIsRegisteringReal] = useState(false);
 
+  // Coupon apply validation state
+  const [isCheckingCoupon, setIsCheckingCoupon] = useState(false);
+  const [couponFeedback, setCouponFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
   // Free Trial (3 Days) tab state
   const [trialName, setTrialName] = useState('');
   const [trialCompany, setTrialCompany] = useState('');
@@ -222,6 +226,35 @@ export default function LoginPage() {
     }
   };
 
+  // Apply Coupon Validation Handler
+  const handleApplyCoupon = async () => {
+    if (!realCoupon.trim()) return;
+    setIsCheckingCoupon(true);
+    setCouponFeedback(null);
+    try {
+      const res = await fetch('/api/v1/billing/coupons/apply', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: realCoupon.trim().toUpperCase() })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Cupom inválido.');
+      }
+      setCouponFeedback({
+        type: 'success',
+        message: `Cupom "${realCoupon.toUpperCase()}" aplicado com sucesso! Desconto ativo.`
+      });
+    } catch (err: any) {
+      setCouponFeedback({
+        type: 'error',
+        message: err.message || 'Cupom inválido ou expirado.'
+      });
+    } finally {
+      setIsCheckingCoupon(false);
+    }
+  };
+
   // Free Trial Register Handler (Without Coupon Field)
   const handleTrialRegister = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -390,18 +423,21 @@ export default function LoginPage() {
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Acesso Real
+              Criar Conta
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('trial')}
-              className={`flex-1 text-center py-2.5 text-[11px] font-extrabold rounded-xl transition-all cursor-pointer ${
+              className={`flex-1 text-center py-2.5 text-[11px] font-extrabold rounded-xl transition-all cursor-pointer relative ${
                 activeTab === 'trial'
                   ? 'bg-slate-800 text-white shadow-md border border-slate-700/30'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Teste Grátis
+              <span className="block">Teste Grátis</span>
+              <span className="absolute -top-1.5 -right-1 bg-emerald-500 text-slate-950 font-black text-[7px] px-1 py-0.5 rounded-md uppercase tracking-wider scale-90 border border-slate-950">
+                3 dias
+              </span>
             </button>
           </div>
 
@@ -595,16 +631,29 @@ export default function LoginPage() {
                 <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
                   Cupom de Desconto (Opcional)
                 </label>
-                <div className="relative">
-                  <Ticket size={16} className="absolute left-4 top-3 text-slate-500" />
+                <div className="relative flex items-center">
+                  <Ticket size={16} className="absolute left-4 text-slate-500" />
                   <input
                     type="text"
                     placeholder="Digite seu cupom de desconto"
                     value={realCoupon}
                     onChange={(e) => setRealCoupon(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-4 text-sm text-slate-200 outline-none transition-all uppercase font-mono tracking-wider"
+                    className="w-full bg-slate-900 border border-slate-800 hover:border-slate-700 focus:border-primary rounded-xl py-2.5 pl-12 pr-24 text-sm text-slate-200 outline-none transition-all uppercase font-mono tracking-wider"
                   />
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    disabled={isCheckingCoupon || !realCoupon.trim()}
+                    className="absolute right-2 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold text-[9px] uppercase tracking-wider px-3 py-1.5 rounded-lg border border-slate-700 transition-all cursor-pointer active:scale-95"
+                  >
+                    {isCheckingCoupon ? '...' : 'Aplicar'}
+                  </button>
                 </div>
+                {couponFeedback && (
+                  <p className={`text-[10.5px] font-bold mt-1.5 ${couponFeedback.type === 'success' ? 'text-emerald-400' : 'text-rose-500'}`}>
+                    {couponFeedback.message}
+                  </p>
+                )}
               </div>
 
               <div className="bg-slate-900/40 border border-slate-800 p-3 rounded-2xl flex items-center justify-between text-[11px]">
@@ -641,6 +690,12 @@ export default function LoginPage() {
           {/* TAB 3: Free Trial Registration (NO COUPON FIELD) */}
           {activeTab === 'trial' && (
             <form onSubmit={handleTrialRegister} className="space-y-4">
+              <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 p-2.5 rounded-2xl mb-4">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
+                  3 dias de acesso liberado
+                </span>
+              </div>
               <div>
                 <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1.5">
                   Nome Completo

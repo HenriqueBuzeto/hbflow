@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/server/db/prisma';
 import { WhatsAppMessageService } from '@/server/services/whatsapp/whatsapp-message.service';
+import { SubscriptionAccessService } from '@/server/services/billing/subscription-access.service';
 
 /**
  * GET/POST - Rota de cron executada periodicamente para enviar mensagens de jornadas vencidas.
@@ -47,6 +48,13 @@ async function handleCron() {
     let failedCount = 0;
 
     for (const msg of pendingMessages) {
+      // 1.5 Verificar se o inquilino possui assinatura ativa. Se não, pula sem marcar como falha para poder reativar depois.
+      const access = await SubscriptionAccessService.checkAccess(msg.tenantId);
+      if (!access.allowed) {
+        console.log(`[Cron After-Sales] Ignorando agendamento ${msg.id}: Tenant ${msg.tenantId} com assinatura expirada/bloqueada.`);
+        continue;
+      }
+
       // 2. Verificar se o contato não solicitou Opt-Out enquanto a mensagem estava na fila
       if (msg.contact?.marketingOptOut) {
         await prisma.scheduledMessage.update({

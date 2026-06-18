@@ -133,6 +133,12 @@ export default function BillingPage() {
       }
 
       await initBilling();
+
+      // Se o cupom for de 100% de desconto (totalCents === 0), ativa instantaneamente sem checkout
+      if (data.totalCents === 0) {
+        setActivatedPlanName(selectedPlan ? selectedPlan.name : 'Plano Comercial');
+        setShowSuccessModal(true);
+      }
     } catch (err: any) {
       setCouponError(err.message || 'Cupom inválido ou expirado.');
     } finally {
@@ -391,6 +397,19 @@ export default function BillingPage() {
             </div>
           )}
 
+          {/* Reassurance Message Box */}
+          <div className="bg-emerald-950/10 border border-emerald-500/20 rounded-3xl p-5 flex items-start gap-4 shadow-lg">
+            <div className="p-3 bg-emerald-500/10 text-emerald-450 border border-emerald-500/20 rounded-2xl shrink-0">
+              <ShieldCheck size={24} />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-bold text-white uppercase tracking-wider">Dados 100% Preservados</h3>
+              <p className="text-xs text-emerald-300 leading-relaxed font-medium">
+                Seus dados, conversas e configurações serão totalmente preservados. Nenhuma configuração ou conexão de WhatsApp ativa será excluída ou desconectada durante a expiração.
+              </p>
+            </div>
+          </div>
+
           {/* Plan cards list */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {plans.map((plan: any) => (
@@ -473,7 +492,7 @@ export default function BillingPage() {
                 disabled={isApplyingCoupon}
                 className="bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-xs font-bold px-5 py-2.5 rounded-xl transition-all cursor-pointer shrink-0 border border-slate-700/40"
               >
-                {isApplyingCoupon ? <Loader2 size={13} className="animate-spin" /> : 'Validar'}
+                {isApplyingCoupon ? <Loader2 size={13} className="animate-spin" /> : 'Aplicar Cupom'}
               </button>
             </form>
             

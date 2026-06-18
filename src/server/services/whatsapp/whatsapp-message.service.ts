@@ -1,6 +1,7 @@
 import { prisma } from '@/server/db/prisma';
 import { WhatsAppProviderFactory } from './whatsapp-provider.factory';
 import { SendMessageResult, WebhookMessagePayload } from './whatsapp-provider.interface';
+import { SubscriptionAccessService } from '../billing/subscription-access.service';
 
 export class WhatsAppMessageService {
   /**
@@ -28,6 +29,12 @@ export class WhatsAppMessageService {
     }
 
     try {
+      // 1.5 Verificar se o tenant possui assinatura ativa para envio
+      const access = await SubscriptionAccessService.checkAccess(tenantId);
+      if (!access.allowed) {
+        throw new Error('SUBSCRIPTION_REQUIRED');
+      }
+
       // 2. Resolver o provider ativo
       const provider = await WhatsAppProviderFactory.getProvider(connection.provider, tenantId);
 
@@ -122,6 +129,12 @@ export class WhatsAppMessageService {
     }
 
     try {
+      // 1.5 Verificar se o tenant possui assinatura ativa para envio
+      const access = await SubscriptionAccessService.checkAccess(tenantId);
+      if (!access.allowed) {
+        throw new Error('SUBSCRIPTION_REQUIRED');
+      }
+
       // 2. Resolver o provider ativo
       const provider = await WhatsAppProviderFactory.getProvider(connection.provider, tenantId);
 
@@ -385,23 +398,29 @@ export class WhatsAppMessageService {
         // Opt-Out and Chatbot Flow Engine checking for incoming text messages from contacts
         if (!payload.fromMe && payload.body && contactId) {
           try {
-            const { OptOutHandler } = await import('./optout-handler');
-            const wasOptOut = await OptOutHandler.handleIncomingMessage(
-              connection.tenantId,
-              contactId,
-              payload.body
-            );
-
-            // Se a mensagem não foi um pedido de cancelamento (opt-out), processa pelo fluxo/chatbot de triagem
-            if (!wasOptOut && conversationId) {
-              const { FlowEngineService } = await import('./flow-engine.service');
-              await FlowEngineService.processMessage(
+            // Verificar se possui assinatura ativa antes de acionar recursos custosos de IA e automação
+            const access = await SubscriptionAccessService.checkAccess(connection.tenantId);
+            if (access.allowed) {
+              const { OptOutHandler } = await import('./optout-handler');
+              const wasOptOut = await OptOutHandler.handleIncomingMessage(
                 connection.tenantId,
-                conversationId,
                 contactId,
-                payload.body,
-                connection.id
+                payload.body
               );
+
+              // Se a mensagem não foi um pedido de cancelamento (opt-out), processa pelo fluxo/chatbot de triagem
+              if (!wasOptOut && conversationId) {
+                const { FlowEngineService } = await import('./flow-engine.service');
+                await FlowEngineService.processMessage(
+                  connection.tenantId,
+                  conversationId,
+                  contactId,
+                  payload.body,
+                  connection.id
+                );
+              }
+            } else {
+              console.log(`[Webhook] IA/Chatbot pausados para tenant ${connection.tenantId} devido a trial expirado ou bloqueio.`);
             }
           } catch (optErr) {
             console.error('Error in OptOutHandler/FlowEngine checking:', optErr);
