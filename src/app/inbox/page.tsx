@@ -32,7 +32,8 @@ import {
   ArrowRight,
   UserPlus,
   Mic,
-  Trash2
+  Trash2,
+  Star
 } from 'lucide-react';
 
 const formatMessageTime = (dateInput: string | Date) => {
@@ -70,6 +71,231 @@ const formatMessageTime = (dateInput: string | Date) => {
   }
   return `${day}/${month}/${date.getFullYear()} ${timeStr}`;
 };
+
+const PREDEFINED_STICKERS = [
+  'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/1f44d.svg', // Thumbs up
+  'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/2764.svg',  // Heart
+  'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/1f602.svg', // Joy laugh
+  'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/1f44f.svg', // Clapping hands
+  'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/1f389.svg', // Party popper
+  'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/1f525.svg', // Fire
+  'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/1f92f.svg', // Mindblown
+  'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/1f680.svg', // Rocket
+  'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/2728.svg',  // Sparkles
+  'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/2705.svg',  // Check mark
+  'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/1f60e.svg', // Sunglasses smile
+  'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/1f609.svg', // Wink
+  'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/1f622.svg', // Cry face
+  'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/1f621.svg', // Angry face
+  'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/1f917.svg', // Hug face
+  'https://cdnjs.cloudflare.com/ajax/libs/twemoji/14.0.2/svg/1f92a.svg'  // Zany face
+];
+
+const EMOJI_CATEGORIES = [
+  {
+    name: 'Smileys & Emoções',
+    emojis: ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🥸', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🫣', '🤭', '🤫', '🤥', '😶', '😶‍🌫️', '😐', '😑', '😬', '🫨', '🫠', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '😵‍💫', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈', '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾', '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾']
+  },
+  {
+    name: 'Gestos & Pessoas',
+    emojis: ['👋', '🤚', '🖐️', '✋', '🖖', '👌', '🤌', '🤏', '✌️', '🤞', '🫰', '🤟', '🤘', '🤙', '👈', '👉', '👆', '🖕', '👇', '☝️', '👍', '👎', '✊', '👊', '🤛', '🤜', '👏', '🙌', '👐', '🤲', '🤝', '🙏', '✍️', '💅', '🤳', '💪', '🦾', '🦿', '🦵', '🦶', '👂', '🦻', '👃', '🧠', '🫀', '🫁', '🦷', '🦴', '👀', '👁️', '👅', '👄', '💋', '🩸']
+  },
+  {
+    name: 'Animais & Natureza',
+    emojis: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐻‍❄️', '🐨', '🐯', '🦁', '🐮', '🐷', '🐽', '🐸', '🐵', '🙈', '🙉', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🪱', '🐛', '🦋', '🐌', '🐞', '🐜', '🦟', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🐘', '🦛', '🦏', '🐪', '🐫', '🦒', '🦘', '🦬', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🐐', '🦌', '🐕', '🐩', '🐈', '🐈‍⬛', '🐓', '🦃', '🦚', '🦜', '🦢', '🦩', '🕊️', '🐇', '🦝', '🦡', '🦫', '🦦', '🦥', '🐿️', '🦔', '🐾', '🐉', '🐲', '🌵', '🎄', '🌲', '🌳', '🌴', '🌱', '🌿', '☘️', '🍀', '🍁', '🍂', '🍃', '🍄', '🐚', '🪨']
+  },
+  {
+    name: 'Comida & Bebida',
+    emojis: ['🍏', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🍆', '🥑', '🥦', '🥬', '🥒', '🌶️', '🫑', '🌽', '🥕', '🧄', '🧅', '🥔', '🍠', '🥐', '🥯', '🍞', '🥖', '🥨', '🧀', '🥚', '🍳', 'バター', '🥞', ' waffle', '🥓', '🥩', '🍗', '🍖', '🌭', '🍔', '🍟', '🍕', '🌮', '🌯', '🥗', '🥘', '🥣', '🍲', '🍛', '🍜', '🍝', '🍣', '🍤', '🍿', ' dumpling', ' Bento', '🍱', '🍘', '🍙', '🍚', 'アイス', '🍧', '🍨', '🍩', '🍪', '🎂', 'ケーキ', 'カップケーキ', 'パイ', '🍫', 'キャンディ', '🍭', 'プリン', '🍯', '🍼', '🥛', '☕', 'ティーポット', '🍵', '酒', 'シャンパン', 'ワイン', 'カクテル', 'トロピカル', 'ビール', 'ジョッキ', 'カンパイ', '炭酸', 'タピオカ', 'ジュース', 'マテ', '氷']
+  },
+  {
+    name: 'Atividades & Viagens',
+    emojis: ['⚽', '🏀', '🏈', '⚾', '🥎', '🎾', '🏐', '🏉', '🥏', '🎱', '🪀', '', ' badminton', ' hockey', '🎯', '🎮', '🕹️', '🎰', '🎲', '🧩', '🎨', '🎬', '🎤', '🎧', '🎼', '🎹', '🥁', '🎸', '🎻', '🚗', '🚕', '🚙', '🚌', '🚎', '🏎️', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', ' ट्रैक्टर', '🛵', '🏍️', '🚲', '🛴', '🛹', '🛼', '🚀', '🛸', '🚁', '🛶', '⛵', '🚤', '🛳️', '⛴️', '🚢', '✈️', '🛫', '🛬', '🪂', '🚟', '🚠', '🚡', '🚂', '🚊', '🚝', '🚞', '🚋', '🚃', '🚄', '🚅', '🚈', '🚇']
+  },
+  {
+    name: 'Objetos & Símbolos',
+    emojis: ['⌚', '📱', '📲', '💻', '⌨️', '🖥️', '🖨️', '🖱️', '🖲️', '💾', '💿', '📀', '📼', '📷', '📸', '📹', '🎥', '📽️', '🎞️', '📞', '📠', '📺', '📻', '🎙️', '🎚️', '🎛️', '🧭', '⏱️', '⏰', '⏳', '⌛', '💡', '🔦', '🏮', '🔌', '🔋', '💸', '💵', '💳', '✉️', '📧', '📨', '📩', '📤', '📥', '📦', '🏷️', '🛎️', '🔑', '🗝️', '🔨', '🛠️', '⚙️', '🔫', '💣', '🧨', '🛡️', '🚬', '⚰️', '⚱️', '🧿', '🔮', '💈', '🔭', '🔬', '🩹', '🩺', '💊', '💉', '🩸', '🧬', '🧯', '🛒', '🧼', '🪥', '🧽', '🪣', '🧹', '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '💬', '💭', '🗯️', '📢', '📣', '🔔', '🔕', '🎵', '🎶', '➕', '➖', '✖️', '➗', '⚠️', '⛔', '🚫', '🔞', '☢️']
+  }
+];
+
+const convertUrlToBase64 = async (url: string): Promise<string> => {
+  try {
+    const res = await fetch(url);
+    const blob = await res.blob();
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (err) {
+    console.error('Error converting URL to base64:', err);
+    return url;
+  }
+};
+
+function EmojiStickerPicker({
+  onSelectEmoji,
+  onSelectSticker,
+  favoriteStickers,
+  onClose
+}: {
+  onSelectEmoji: (emoji: string) => void;
+  onSelectSticker: (stickerUrl: string) => void;
+  favoriteStickers: string[];
+  onClose: () => void;
+}) {
+  const [activeTab, setActiveTab] = useState<'emoji' | 'sticker'>('emoji');
+  const [activeStickerSubTab, setActiveStickerSubTab] = useState<'default' | 'favorites'>('default');
+  const [search, setSearch] = useState('');
+
+  const filteredCategories = EMOJI_CATEGORIES.map(cat => {
+    if (!search) return cat;
+    if (cat.name.toLowerCase().includes(search.toLowerCase())) return cat;
+    return null;
+  }).filter(Boolean) as typeof EMOJI_CATEGORIES;
+
+  return (
+    <div className="absolute bottom-20 left-4 bg-white/95 backdrop-blur-md border border-slate-205 dark:border-slate-800 shadow-2xl rounded-2xl p-3 w-80 h-96 z-50 flex flex-col gap-2.5 animate-in fade-in slide-in-from-bottom-2 duration-150 select-none">
+      {/* Header Tabs */}
+      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
+        <div className="flex gap-2 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl text-[10px] font-bold">
+          <button
+            type="button"
+            onClick={() => setActiveTab('emoji')}
+            className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+              activeTab === 'emoji' ? 'bg-white dark:bg-slate-900 text-primary shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            😀 Emojis
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('sticker')}
+            className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+              activeTab === 'sticker' ? 'bg-white dark:bg-slate-900 text-primary shadow-sm' : 'text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            🖼️ Figurinhas
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg cursor-pointer"
+        >
+          <X size={12} />
+        </button>
+      </div>
+
+      {/* Emoji Search / Sticker subtabs */}
+      {activeTab === 'emoji' ? (
+        <input
+          type="text"
+          placeholder="Pesquisar categorias de emojis..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full text-xs p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl outline-none focus:border-primary/50 transition-colors placeholder-slate-400 font-medium text-slate-800 dark:text-slate-200"
+        />
+      ) : (
+        <div className="flex gap-1.5 border-b border-slate-100 dark:border-slate-800 pb-1.5">
+          <button
+            type="button"
+            onClick={() => setActiveStickerSubTab('default')}
+            className={`text-[9px] font-extrabold px-2.5 py-1 rounded-lg border transition-all cursor-pointer ${
+              activeStickerSubTab === 'default'
+                ? 'bg-primary/10 text-primary border-primary/20'
+                : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50'
+            }`}
+          >
+            Padrão
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveStickerSubTab('favorites')}
+            className={`text-[9px] font-extrabold px-2.5 py-1 rounded-lg border transition-all cursor-pointer flex items-center gap-1 ${
+              activeStickerSubTab === 'favorites'
+                ? 'bg-amber-500/10 text-amber-600 border-amber-500/20'
+                : 'bg-transparent text-slate-500 border-transparent hover:bg-slate-50'
+            }`}
+          >
+            <Star size={8} fill="currentColor" /> Favoritas ({favoriteStickers.length})
+          </button>
+        </div>
+      )}
+
+      {/* Grid Content */}
+      <div className="flex-1 overflow-y-auto pr-1 scrollbar-thin">
+        {activeTab === 'emoji' ? (
+          <div className="space-y-3">
+            {filteredCategories.map((cat) => (
+              <div key={cat.name} className="space-y-1">
+                <span className="text-[9px] font-extrabold text-slate-450 dark:text-slate-400 uppercase tracking-wider block">
+                  {cat.name}
+                </span>
+                <div className="grid grid-cols-8 gap-1.5">
+                  {cat.emojis.map((emoji, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => onSelectEmoji(emoji)}
+                      className="text-lg hover:scale-120 active:scale-95 transition-transform duration-100 flex items-center justify-center p-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            {filteredCategories.length === 0 && (
+              <div className="text-center py-6 text-slate-400 text-xs font-semibold">
+                Nenhuma categoria encontrada
+              </div>
+            )}
+          </div>
+        ) : activeStickerSubTab === 'default' ? (
+          <div className="grid grid-cols-4 gap-2.5 p-1">
+            {PREDEFINED_STICKERS.map((stickerUrl, idx) => (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => onSelectSticker(stickerUrl)}
+                className="aspect-square p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-800 hover:border-slate-200 transition-all hover:scale-105 active:scale-95 flex items-center justify-center cursor-pointer bg-white dark:bg-slate-900"
+              >
+                <img src={stickerUrl} alt={`Sticker ${idx}`} className="w-full h-full object-contain" />
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-4 gap-2.5 p-1">
+            {favoriteStickers.map((stickerUrl, idx) => (
+              <div
+                key={idx}
+                className="relative group aspect-square p-1.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center justify-center"
+              >
+                <button
+                  type="button"
+                  onClick={() => onSelectSticker(stickerUrl)}
+                  className="w-full h-full hover:scale-105 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                >
+                  <img src={stickerUrl} alt={`Favorite ${idx}`} className="w-full h-full object-contain" />
+                </button>
+              </div>
+            ))}
+            {favoriteStickers.length === 0 && (
+              <div className="col-span-4 text-center py-8 text-slate-400 text-xs font-medium px-4 leading-relaxed">
+                Nenhuma figurinha salva ainda.<br/>
+                <span className="text-[10px] text-slate-405 font-semibold block mt-1.5">
+                  Passe o mouse sobre uma figurinha no chat e clique na estrela ⭐ para salvar!
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function InboxPage() {
   const {
@@ -130,6 +356,50 @@ export default function InboxPage() {
   }, [selectedConvId, conversations, currentUserId]);
   const [timeTick, setTimeTick] = useState(0);
   const [attachedFile, setAttachedFile] = useState<{ file: File; base64: string } | null>(null);
+  const [favoriteStickers, setFavoriteStickers] = useState<string[]>([]);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('hbflow_favorite_stickers');
+      if (saved) {
+        try {
+          setFavoriteStickers(JSON.parse(saved));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+  }, []);
+
+  const handleFavoriteSticker = (url: string) => {
+    let updated: string[];
+    if (favoriteStickers.includes(url)) {
+      updated = favoriteStickers.filter(s => s !== url);
+    } else {
+      updated = [...favoriteStickers, url];
+    }
+    setFavoriteStickers(updated);
+    localStorage.setItem('hbflow_favorite_stickers', JSON.stringify(updated));
+  };
+
+  const handleSendSticker = async (stickerUrl: string) => {
+    if (!selectedConvId) return;
+    setShowEmojiPicker(false);
+    
+    let base64 = stickerUrl;
+    if (stickerUrl.startsWith('http')) {
+      base64 = await convertUrlToBase64(stickerUrl);
+    }
+    
+    sendMessage(selectedConvId, '[Figurinha]', 'user', {
+      mediaUrl: base64,
+      mimeType: 'image/webp',
+      type: 'image',
+      fileName: 'sticker.webp'
+    });
+  };
+
   const [sortBy, setSortBy] = useState<'recent' | 'sla'>('recent');
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -1063,6 +1333,43 @@ export default function InboxPage() {
                         <div className="chat-bubble-system text-[10px] font-bold px-3 py-1.5 rounded-full text-slate-500 shadow-sm border border-slate-200 bg-slate-50">
                           {m.body}
                         </div>
+                      ) : (m.type === 'image' && (m.mimeType === 'image/webp' || m.body === '[Figurinha]')) ? (
+                        <div className={`max-w-[70%] relative group my-1 flex flex-col ${(isUser || isMyNote || isMyWhisper) ? 'items-end' : 'items-start'}`}>
+                          {/* Sender identity */}
+                          {!(isUser || isMyNote || isMyWhisper) && (
+                            <span className="text-[8.5px] font-extrabold block mb-1 uppercase tracking-wider text-slate-450 dark:text-slate-400">
+                              {m.senderName}
+                            </span>
+                          )}
+                          <div className="relative max-w-[120px] max-h-[120px] flex items-center justify-center p-1 bg-transparent">
+                            <img
+                              src={m.mediaUrl}
+                              alt="Figurinha"
+                              className="w-full h-full object-contain hover:scale-105 transition-transform duration-200 cursor-pointer"
+                              onClick={() => {
+                                const w = window.open();
+                                if (w) w.document.write(`<img src="${m.mediaUrl}" style="max-width:100%; max-height:100vh; display:block; margin:auto;" />`);
+                              }}
+                            />
+                            {/* Star favorite button */}
+                            {m.mediaUrl && (
+                              <button
+                                type="button"
+                                onClick={() => handleFavoriteSticker(m.mediaUrl!)}
+                                className="absolute -top-1 -right-1 bg-white/95 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-amber-500 p-1 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-all duration-200 hover:scale-110 active:scale-95 cursor-pointer z-20 flex items-center justify-center"
+                                title={favoriteStickers.includes(m.mediaUrl) ? "Remover dos favoritos" : "Favoritar Figurinha"}
+                              >
+                                <Star size={11} fill={favoriteStickers.includes(m.mediaUrl) ? "currentColor" : "none"} />
+                              </button>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 text-[8.5px] mt-1 font-medium text-slate-400">
+                            <span>{new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            {(isUser || isMyNote || isMyWhisper) && m.status === 'read' && (
+                              <span className="text-emerald-500 font-extrabold text-[9px]">✓✓</span>
+                            )}
+                          </div>
+                        </div>
                       ) : isInternalNote ? (
                         <div
                           className={`max-w-[70%] p-3.5 rounded-2xl shadow-sm text-xs relative bg-amber-50 border-l-4 border-l-amber-500 border-amber-200 text-amber-900 ${
@@ -1434,6 +1741,26 @@ export default function InboxPage() {
                       >
                         <Paperclip size={15} />
                       </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                        className={`p-1.5 transition-colors cursor-pointer shrink-0 ${showEmojiPicker ? 'text-primary' : 'text-slate-400 hover:text-slate-650'}`}
+                        title="Emoji e Figurinhas"
+                      >
+                        <Smile size={15} />
+                      </button>
+
+                      {showEmojiPicker && (
+                        <EmojiStickerPicker
+                          onSelectEmoji={(emoji) => {
+                            setMessageText((prev) => prev + emoji);
+                          }}
+                          onSelectSticker={handleSendSticker}
+                          favoriteStickers={favoriteStickers}
+                          onClose={() => setShowEmojiPicker(false)}
+                        />
+                      )}
 
                       <input
                         type="text"

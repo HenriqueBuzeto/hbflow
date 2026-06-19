@@ -162,22 +162,33 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
       const base64Parts = mediaUrl.split(';base64,');
       const base64Data = base64Parts.pop() || '';
 
-      const endpoint = `${url}/message/sendMedia/${instanceName}`;
+      // Se for WebP ou tipo sticker, enviar como figurinha
+      const isSticker = mimeType === 'image/webp' || mediaType === 'sticker';
+      const endpoint = isSticker 
+        ? `${url}/message/sendSticker/${instanceName}`
+        : `${url}/message/sendMedia/${instanceName}`;
       
+      const payloadBody = isSticker
+        ? {
+            number: cleanPhone,
+            sticker: base64Data
+          }
+        : {
+            number: cleanPhone,
+            mediatype: mediaType === 'document' ? 'document' : mediaType === 'video' ? 'video' : mediaType === 'audio' ? 'audio' : 'image',
+            mimetype: mimeType,
+            media: base64Data,
+            fileName: fileName || 'arquivo',
+            caption: caption || ''
+          };
+
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'apikey': apiKey,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          number: cleanPhone,
-          mediatype: mediaType === 'document' ? 'document' : mediaType === 'video' ? 'video' : mediaType === 'audio' ? 'audio' : 'image',
-          mimetype: mimeType,
-          media: base64Data,
-          fileName: fileName || 'arquivo',
-          caption: caption || ''
-        })
+        body: JSON.stringify(payloadBody)
       });
 
       const data = (await response.json()) as any;
@@ -289,6 +300,10 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
       } else if (messageContent.listResponseMessage) {
         messageBody = messageContent.listResponseMessage.title || '';
         messageType = 'text';
+      } else if (messageContent.stickerMessage) {
+        messageBody = '[Figurinha]';
+        messageType = 'image';
+        mimeType = messageContent.stickerMessage.mimetype || 'image/webp';
       }
 
       // Baixar mídia se disponível para tipos suportados
