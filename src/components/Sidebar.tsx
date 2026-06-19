@@ -66,7 +66,6 @@ export default function Sidebar() {
     ...(hasPerm('marketing.manage') || isAdmin ? [{ name: 'Campanhas', href: '/campanhas', icon: Megaphone }] : []),
     ...(hasAfterSales && (hasPerm('aftersales.manage') || isAdmin) ? [{ name: 'Pós-Venda', href: '/after-sales', icon: Route }] : []),
     ...(hasPerm('articles.manage') || isAdmin ? [{ name: 'Informativos', href: '/informativos', icon: Info }] : []),
-    ...(hasPerm('developer.manage') || isAdmin ? [{ name: 'API', href: '/api-keys', icon: Code }] : []),
     ...(hasPerm('users.read') || isAdmin ? [{ name: 'Usuários', href: '/usuarios', icon: UserCheck }] : []),
     ...(hasPerm('settings.manage') || isAdmin ? [
       { name: 'Filas & Chatbot', href: '/fluxos', icon: GitFork },

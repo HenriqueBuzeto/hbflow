@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 
 export default function FluxosPage() {
-  const { departments, contacts } = useStore();
+  const { departments } = useStore();
   
   // Database flows state
   const [flows, setFlows] = useState<Flow[]>([]);
@@ -39,6 +39,7 @@ export default function FluxosPage() {
   const [editingNodeText, setEditingNodeText] = useState('');
   const [editingNodeDept, setEditingNodeDept] = useState('');
   const [editingNodeTag, setEditingNodeTag] = useState('');
+  const [editingNodeOptions, setEditingNodeOptions] = useState<string[]>([]);
 
   // Fetch flows from Database
   const fetchFlowsFromDB = async () => {
@@ -96,6 +97,7 @@ export default function FluxosPage() {
     setEditingNodeText(node.config.messageText || '');
     setEditingNodeDept(node.config.departmentId || '');
     setEditingNodeTag(node.config.tagName || '');
+    setEditingNodeOptions(node.config.questionOptions || []);
   };
 
   const handleSaveNodeConfig = (e: React.FormEvent) => {
@@ -110,7 +112,8 @@ export default function FluxosPage() {
             ...n.config,
             messageText: editingNodeText || undefined,
             departmentId: editingNodeDept || undefined,
-            tagName: editingNodeTag || undefined
+            tagName: editingNodeTag || undefined,
+            questionOptions: n.type === 'question' ? editingNodeOptions : undefined
           }
         };
       }
@@ -138,7 +141,7 @@ export default function FluxosPage() {
         messageText: type === 'message' ? 'Olá! Digite sua mensagem aqui...' : type === 'question' ? 'Escolha uma opção:' : undefined,
         tagName: type === 'tag_add' ? 'cliente-lead' : undefined,
         departmentId: type === 'route_department' ? departments[0]?.id || '' : undefined,
-        questionOptions: type === 'question' ? ['1', '2', '3', '4'] : undefined
+        questionOptions: type === 'question' ? ['1 - Vendas', '2 - Financeiro', '3 - Suporte'] : undefined
       },
       positionX: newX,
       positionY: newY
@@ -235,9 +238,11 @@ export default function FluxosPage() {
   };
 
   // Visual edge creation triggers
-  const startConnecting = (e: React.MouseEvent, sourceId: string) => {
+  const startConnecting = (e: React.MouseEvent, sourceId: string, optionCondition = '') => {
     e.stopPropagation();
     setConnectingSourceId(sourceId);
+    setConnectingCondition(optionCondition);
+    
     const rect = canvasRef.current?.getBoundingClientRect();
     if (rect) {
       setMousePosition({
@@ -250,6 +255,7 @@ export default function FluxosPage() {
   const completeConnection = (targetId: string) => {
     if (!connectingSourceId || !currentFlow || connectingSourceId === targetId) {
       setConnectingSourceId(null);
+      setConnectingCondition('');
       return;
     }
 
@@ -277,7 +283,7 @@ export default function FluxosPage() {
 
   // Node Dimensions
   const nodeWidth = 224;
-  const nodeHeight = 110;
+  const nodeHeaderHeight = 36;
 
   return (
     <div className="space-y-6 h-full flex flex-col select-none">
@@ -289,7 +295,7 @@ export default function FluxosPage() {
             Visual Flow Builder Sênior
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Construa e customize o fluxo de atendimento em tempo real. Puxe linhas a partir dos círculos azuis nas laterais dos blocos para conectá-los.
+            Mapeie o fluxo de triagem. Para perguntas com opções (Menu), puxe a linha diretamente da bolinha azul ao lado da opção correspondente.
           </p>
         </div>
 
@@ -365,7 +371,7 @@ export default function FluxosPage() {
               <Play size={12} className={`${currentFlow?.isActive ? 'text-emerald-500 animate-pulse' : 'text-slate-500'}`} />
               {currentFlow ? `Fluxo: ${currentFlow.name}` : 'Nenhum fluxo selecionado'}
             </span>
-            <span className="text-[10px] text-slate-500 italic">Dica: Segure e arraste no fundo escuro para mover a câmera</span>
+            <span className="text-[10px] text-slate-500 italic">Dica: Arraste no fundo escuro para mover a câmera</span>
           </div>
 
           {/* Draggable Sandbox Area */}
@@ -406,17 +412,6 @@ export default function FluxosPage() {
                     >
                       <path d="M 0 1 L 10 5 L 0 9 z" fill="#7C3AED" />
                     </marker>
-                    <marker
-                      id="arrow-hover"
-                      viewBox="0 0 10 10"
-                      refX="6"
-                      refY="5"
-                      markerWidth="6"
-                      markerHeight="6"
-                      orient="auto-start-reverse"
-                    >
-                      <path d="M 0 1 L 10 5 L 0 9 z" fill="#f43f5e" />
-                    </marker>
                   </defs>
 
                   {/* Draw Connections */}
@@ -426,13 +421,21 @@ export default function FluxosPage() {
 
                     if (!sourceNode || !targetNode) return null;
 
-                    // Output port coord (Right center of source node)
+                    // Output port coord calculation
                     const x1 = sourceNode.positionX + nodeWidth;
-                    const y1 = sourceNode.positionY + nodeHeight / 2;
+                    let y1 = sourceNode.positionY + 60; // default node center
+
+                    if (sourceNode.type === 'question' && edge.conditionValue) {
+                      const idx = sourceNode.config.questionOptions?.indexOf(edge.conditionValue) ?? -1;
+                      if (idx !== -1) {
+                        // Offset dynamically depending on options vertical position inside the card
+                        y1 = sourceNode.positionY + 68 + idx * 28;
+                      }
+                    }
 
                     // Input port coord (Left center of target node)
                     const x2 = targetNode.positionX;
-                    const y2 = targetNode.positionY + nodeHeight / 2;
+                    const y2 = targetNode.positionY + 50;
 
                     const dx = Math.abs(x2 - x1) * 0.5;
                     const pathD = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
@@ -455,20 +458,34 @@ export default function FluxosPage() {
                           markerEnd="url(#arrow)"
                           className="group-hover:stroke-rose-500 transition-colors"
                         />
+                        {/* Option label badge on edge path */}
+                        {edge.conditionValue && (
+                          <foreignObject
+                            x={(x1 + x2) / 2 - 40}
+                            y={(y1 + y2) / 2 - 10}
+                            width="80"
+                            height="20"
+                            className="pointer-events-none"
+                          >
+                            <div className="bg-slate-900/90 text-slate-350 border border-slate-700/80 rounded-md text-[8px] font-extrabold px-1 py-0.5 text-center truncate">
+                              {edge.conditionValue}
+                            </div>
+                          </foreignObject>
+                        )}
                         {/* Interactive click deletion marker */}
                         <foreignObject
-                          x={(x1 + x2) / 2 - 12}
-                          y={(y1 + y2) / 2 - 12}
-                          width="24"
-                          height="24"
+                          x={(x1 + x2) / 2 - 10}
+                          y={(y1 + y2) / 2 - 30}
+                          width="20"
+                          height="20"
                           className="opacity-0 group-hover:opacity-100 transition-opacity"
                         >
                           <button
                             onClick={() => deleteEdge(edge.id)}
-                            className="w-6 h-6 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center cursor-pointer shadow-lg"
+                            className="w-5 h-5 rounded-full bg-rose-600 hover:bg-rose-700 text-white flex items-center justify-center cursor-pointer shadow-lg"
                             title="Remover conexão"
                           >
-                            <X size={10} />
+                            <X size={9} />
                           </button>
                         </foreignObject>
                       </g>
@@ -481,8 +498,16 @@ export default function FluxosPage() {
                       const sourceNode = currentFlow.nodes.find((n) => n.id === connectingSourceId);
                       if (!sourceNode) return null;
 
-                      const x1 = sourceNode.positionX + nodeWidth;
-                      const y1 = sourceNode.positionY + nodeHeight / 2;
+                      let x1 = sourceNode.positionX + nodeWidth;
+                      let y1 = sourceNode.positionY + 60;
+
+                      if (sourceNode.type === 'question' && connectingCondition) {
+                        const idx = sourceNode.config.questionOptions?.indexOf(connectingCondition) ?? -1;
+                        if (idx !== -1) {
+                          y1 = sourceNode.positionY + 68 + idx * 28;
+                        }
+                      }
+
                       const x2 = mousePosition.x;
                       const y2 = mousePosition.y;
 
@@ -496,7 +521,6 @@ export default function FluxosPage() {
                           stroke="#7C3AED"
                           strokeWidth="2"
                           strokeDasharray="4 4"
-                          className="animate-[dash_10s_linear_infinite]"
                         />
                       );
                     })()
@@ -515,8 +539,7 @@ export default function FluxosPage() {
                     style={{
                       left: node.positionX,
                       top: node.positionY,
-                      width: `${nodeWidth}px`,
-                      minHeight: `${nodeHeight}px`
+                      width: `${nodeWidth}px`
                     }}
                     className={`absolute bg-slate-900 border text-slate-200 rounded-2xl p-3 shadow-xl cursor-pointer hover:border-primary transition-shadow pointer-events-auto flex flex-col gap-2 z-10 ${
                       isSelected ? 'border-primary ring-4 ring-primary/20 scale-102' : 'border-slate-800'
@@ -544,7 +567,7 @@ export default function FluxosPage() {
                         >
                           <Trash2 size={11} />
                         </button>
-                        <Move size={11} className="text-slate-600" />
+                        <Move size={11} className="text-zinc-650" />
                       </div>
                     </div>
 
@@ -554,7 +577,7 @@ export default function FluxosPage() {
                         e.stopPropagation();
                         if (connectingSourceId) completeConnection(node.id);
                       }}
-                      className={`absolute -left-2 top-[50%] -translate-y-[50%] w-4 h-4 rounded-full border-2 bg-slate-900 flex items-center justify-center hover:bg-violet-600 transition-colors z-20 cursor-pointer ${
+                      className={`absolute -left-2 top-12 w-4.5 h-4.5 rounded-full border-2 bg-slate-900 flex items-center justify-center hover:bg-violet-650 transition-colors z-20 cursor-pointer ${
                         connectingSourceId ? 'border-violet-500 animate-pulse scale-110' : 'border-slate-700'
                       }`}
                       title={connectingSourceId ? "Ligar a este bloco" : "Ponto de entrada"}
@@ -563,18 +586,28 @@ export default function FluxosPage() {
                     </div>
 
                     {/* Node Preview Details */}
-                    <div className="text-[10px] leading-relaxed text-slate-300 flex-1 flex flex-col justify-center">
+                    <div className="text-[10px] leading-relaxed text-slate-350 mt-1">
                       {node.type === 'message' && (
                         <p className="line-clamp-2 italic">&quot;{node.config.messageText || 'Escreva algo...'}&quot;</p>
                       )}
                       {node.type === 'question' && (
                         <div>
-                          <p className="line-clamp-1 italic font-semibold">{node.config.messageText}</p>
-                          <div className="flex gap-1 flex-wrap mt-1">
-                            {node.config.questionOptions?.map((o) => (
-                              <span key={o} className="text-[8px] bg-slate-800 text-slate-400 border border-slate-700 px-1 py-0.2 rounded">
-                                {o}
-                              </span>
+                          <p className="line-clamp-2 italic font-bold text-slate-300 mb-1.5">&quot;{node.config.messageText}&quot;</p>
+                          
+                          {/* Option blocks with dedicated handles */}
+                          <div className="flex flex-col gap-1.5 mt-1">
+                            {node.config.questionOptions?.map((option, idx) => (
+                              <div key={idx} className="flex justify-between items-center bg-slate-950/80 px-2 py-1 border border-slate-800 rounded-lg relative text-[9px] font-bold text-slate-400">
+                                <span className="truncate pr-4">{option}</span>
+                                
+                                <div
+                                  onMouseDown={(e) => startConnecting(e, node.id, option)}
+                                  className="absolute -right-2 top-[50%] -translate-y-[50%] w-3.5 h-3.5 rounded-full border border-slate-750 bg-slate-900 flex items-center justify-center hover:bg-violet-600 transition-colors z-20 cursor-pointer"
+                                  title={`Conectar opção "${option}"`}
+                                >
+                                  <div className="w-1 h-1 rounded-full bg-violet-400" />
+                                </div>
+                              </div>
                             ))}
                           </div>
                         </div>
@@ -592,14 +625,16 @@ export default function FluxosPage() {
                       )}
                     </div>
 
-                    {/* Right Connector handle (Source / Output) */}
-                    <div
-                      onMouseDown={(e) => startConnecting(e, node.id)}
-                      className="absolute -right-2 top-[50%] -translate-y-[50%] w-4 h-4 rounded-full border-2 border-slate-700 bg-slate-900 flex items-center justify-center hover:bg-violet-600 transition-colors z-20 cursor-pointer"
-                      title="Puxar linha de conexão"
-                    >
-                      <div className="w-1.5 h-1.5 rounded-full bg-violet-400" />
-                    </div>
+                    {/* Right Connector handle (Source / Output - NOT rendered for questions as they have options) */}
+                    {node.type !== 'question' && (
+                      <div
+                        onMouseDown={(e) => startConnecting(e, node.id)}
+                        className="absolute -right-2 top-12 w-4.5 h-4.5 rounded-full border-2 border-slate-700 bg-slate-900 flex items-center justify-center hover:bg-violet-600 transition-colors z-20 cursor-pointer"
+                        title="Puxar linha de conexão"
+                      >
+                        <div className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -623,7 +658,7 @@ export default function FluxosPage() {
                 onClick={() => handleAddNode('question')}
                 className="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 px-3 py-1.5 rounded-xl cursor-pointer flex items-center gap-1"
               >
-                <Plus size={11} /> + Pergunta Menu
+                <Plus size={11} /> + Menu Pergunta
               </button>
               <button
                 onClick={() => handleAddNode('route_department')}
@@ -655,7 +690,7 @@ export default function FluxosPage() {
                       <Edit3 size={14} className="text-primary" />
                       Editar Parâmetros do Bloco
                     </h3>
-                    <button onClick={() => setSelectedNodeId(null)} className="text-slate-400 hover:text-slate-600">
+                    <button onClick={() => setSelectedNodeId(null)} className="text-slate-400 hover:text-slate-650">
                       <X size={16} />
                     </button>
                   </div>
@@ -674,11 +709,46 @@ export default function FluxosPage() {
                       </div>
                     )}
 
-                    {/* Question Options config */}
+                    {/* Question Options List Config */}
                     {node.type === 'question' && (
-                      <div>
-                        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Opções do Menu</label>
-                        <p className="text-[9px] text-slate-400 mb-2">Escreva o texto contendo as opções numeradas. O chatbot reconhecerá estas entradas.</p>
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Opções do Menu (Botões)</label>
+                        <p className="text-[8.5px] text-slate-450 leading-relaxed">
+                          Cada opção digitada abaixo criará uma bolinha azul de conexão exclusiva no bloco. Arraste dela para guiar o fluxo.
+                        </p>
+                        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                          {editingNodeOptions.map((opt, idx) => (
+                            <div key={idx} className="flex gap-2 items-center">
+                              <input
+                                type="text"
+                                value={opt}
+                                onChange={(e) => {
+                                  const newOpts = [...editingNodeOptions];
+                                  newOpts[idx] = e.target.value;
+                                  setEditingNodeOptions(newOpts);
+                                }}
+                                className="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-3 py-1.5 text-xs outline-none focus:border-primary text-slate-700"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingNodeOptions(editingNodeOptions.filter((_, i) => i !== idx));
+                                }}
+                                className="text-slate-400 hover:text-rose-500 p-1"
+                                title="Excluir opção"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setEditingNodeOptions([...editingNodeOptions, `Opção ${editingNodeOptions.length + 1}`])}
+                          className="text-[10px] text-primary font-bold hover:underline flex items-center gap-1 mt-2 cursor-pointer"
+                        >
+                          + Adicionar Opção
+                        </button>
                       </div>
                     )}
 
