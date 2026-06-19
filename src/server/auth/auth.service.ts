@@ -81,7 +81,7 @@ export class AuthService {
       });
     } else {
       // Login global (encontra usuário por email em qualquer tenant)
-      user = await prisma.user.findUnique({
+      user = await prisma.user.findFirst({
         where: { email },
         include: {
           tenant: true,
@@ -180,7 +180,7 @@ export class AuthService {
     }
 
     // Verificar se o email já existe
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await prisma.user.findFirst({
       where: { email: userEmail },
     });
 
@@ -339,7 +339,7 @@ export class AuthService {
     const existingEmailTenant = await prisma.tenant.findFirst({
       where: { email: cleanEmail }
     });
-    const existingEmailUser = await prisma.user.findUnique({
+    const existingEmailUser = await prisma.user.findFirst({
       where: { email: cleanEmail }
     });
     if (existingEmailTenant || existingEmailUser) {
@@ -380,12 +380,12 @@ export class AuthService {
     let loginEmail = `${baseLoginEmail}@hbflow.com`;
 
     // Ensure user email is unique
-    const existingUser = await prisma.user.findUnique({ where: { email: loginEmail } });
+    const existingUser = await prisma.user.findFirst({ where: { email: loginEmail } });
     if (existingUser) {
       let suffix = 1;
       while (true) {
         const candidate = `${baseLoginEmail}${suffix}@hbflow.com`;
-        const check = await prisma.user.findUnique({ where: { email: candidate } });
+        const check = await prisma.user.findFirst({ where: { email: candidate } });
         if (!check) {
           loginEmail = candidate;
           break;

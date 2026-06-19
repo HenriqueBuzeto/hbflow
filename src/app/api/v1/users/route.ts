@@ -255,7 +255,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate email globally unique
-    const existingUser = await prisma.user.findUnique({
+    const existingUser = await prisma.user.findFirst({
       where: { email: cleanEmail }
     });
     if (existingUser) {
