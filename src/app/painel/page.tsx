@@ -48,9 +48,9 @@ export default function PainelAtendimentosPage() {
                   <div className="flex justify-between items-start">
                     <div>
                       <h4 className="text-xs font-bold text-slate-800 group-hover:text-primary transition-colors">
-                        {contact?.name}
+                        {c.contactName || contact?.name || 'Cliente'}
                       </h4>
-                      <span className="text-[9.5px] text-slate-400 block mt-0.5">{contact?.phone}</span>
+                      <span className="text-[9.5px] text-slate-400 block mt-0.5">{c.contactPhone || contact?.phone}</span>
                     </div>
 
                     <span className={`text-[8.5px] font-extrabold uppercase px-2 py-0.5 rounded ${

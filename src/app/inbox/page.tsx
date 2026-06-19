@@ -1052,7 +1052,7 @@ export default function InboxPage() {
                   }`}
                 >
                   <div className="flex justify-between items-start">
-                    <span className="text-xs font-bold text-slate-800 truncate">{contact?.name}</span>
+                    <span className="text-xs font-bold text-slate-800 truncate">{c.contactName || contact?.name || 'Cliente'}</span>
                     <span className="text-[9px] text-slate-400 font-semibold" suppressHydrationWarning>
                       {lastActivity ? formatMessageTime(lastActivity) : ''}
                     </span>

@@ -145,8 +145,9 @@ export interface Conversation {
   createdAt: string;
   updatedAt: string;
   closedAt?: string | null;
+  contactName?: string;
+  contactPhone?: string;
   messages: Message[];
-
 }
 
 export interface QuickReply {
@@ -1003,6 +1004,8 @@ export const useStore = create<State & Actions>((set, get) => ({
           id: c.id,
           tenantId: c.tenantId,
           contactId: c.contactId,
+          contactName: c.contact?.name || 'Cliente',
+          contactPhone: c.contact?.phone || '',
           assignedUserId: c.assignedUserId,
           departmentId: c.departmentId,
           status: c.status || 'new',
