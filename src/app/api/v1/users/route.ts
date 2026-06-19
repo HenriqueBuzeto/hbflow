@@ -166,10 +166,8 @@ export async function GET(request: NextRequest) {
           }
         });
 
-        // Determine dynamic online status based on presence and lastSeen heartbeat
-        const lastSeen = u.presence?.lastSeen ? new Date(u.presence.lastSeen) : null;
-        const secondsSinceLastSeen = lastSeen ? (Date.now() - lastSeen.getTime()) / 1000 : null;
-        const isActuallyOnline = u.presence?.presence !== 'offline' && secondsSinceLastSeen !== null && secondsSinceLastSeen <= 30;
+        const dbPresence = u.presence?.presence || 'online';
+        const isOnline = dbPresence !== 'offline';
 
         const baseData = {
           id: u.id,
@@ -177,7 +175,7 @@ export async function GET(request: NextRequest) {
           avatarUrl: u.avatarUrl || 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces',
           role: u.role?.name || 'Atendente',
           departments: u.userDepartments.map(ud => ud.department?.name).filter(Boolean),
-          isOnline: isActuallyOnline
+          isOnline: isOnline
         };
 
         if (scope === 'teammates') {
@@ -192,7 +190,7 @@ export async function GET(request: NextRequest) {
           signature: u.signature || '',
           sigPosition: u.sigPosition as 'start' | 'end' | 'disabled',
           filters: u.userDepartments.map(ud => ud.department?.name?.toLowerCase() || '').filter(Boolean),
-          presence: isActuallyOnline ? (u.presence?.presence || 'online') : 'offline',
+          presence: dbPresence,
           workload: workloadCount
         };
       })

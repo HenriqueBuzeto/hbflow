@@ -69,16 +69,15 @@ export async function GET() {
       where: { userId: fullUser.id }
     });
 
-    const lastSeen = userPresence?.lastSeen ? new Date(userPresence.lastSeen) : null;
-    const secondsSinceLastSeen = lastSeen ? (Date.now() - lastSeen.getTime()) / 1000 : null;
-    const isActuallyOnline = userPresence?.presence !== 'offline' && secondsSinceLastSeen !== null && secondsSinceLastSeen <= 30;
+    const dbPresence = userPresence?.presence || 'online';
+    const isOnline = dbPresence !== 'offline';
 
     // Remover senha hash da resposta e injetar valores calculados em tempo real
     const { passwordHash, ...userWithoutPassword } = {
       ...fullUser,
       workload: workloadCount,
-      isOnline: isActuallyOnline,
-      presence: isActuallyOnline ? (userPresence?.presence || 'online') : 'offline'
+      isOnline: isOnline,
+      presence: dbPresence
     };
 
     // Obter todas as empresas (tenants) vinculadas ao e-mail do usuário
