@@ -1789,7 +1789,7 @@ export default function InboxPage() {
                           type="button"
                           onClick={startRecording}
                           disabled={activeConv.status === 'new'}
-                          className="p-1.5 text-slate-400 hover:text-slate-600 transition-all shrink-0 cursor-pointer"
+                          className="p-1.5 text-slate-400 hover:text-slate-655 transition-colors shrink-0 cursor-pointer"
                           title="Gravar áudio"
                         >
                           <Mic size={15} />
@@ -1831,7 +1831,7 @@ export default function InboxPage() {
             </p>
           </div>
         ) : (
-          /* RICH TRIAGEM WORKSPACE DASHBOARD */
+          /* Operational Dashboard & Monitoring workspace */
           <div className="flex-1 overflow-y-auto p-8 space-y-6">
             {/* Hero Header */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-slate-200 p-6 rounded-3xl shadow-sm relative overflow-hidden">
@@ -1839,17 +1839,16 @@ export default function InboxPage() {
               <div className="z-10">
                 <div className="flex items-center gap-2">
                   <Activity size={18} className="text-primary animate-pulse" />
-                  <h2 className="text-lg font-bold text-slate-800">Central de Triagem HBFlow</h2>
+                  <h2 className="text-lg font-bold text-slate-800">Painel Operacional de Monitoramento e Performance</h2>
                 </div>
                 <p className="text-[11px] text-slate-500 mt-1">
-                  Atendimento unificado. Escolha um chamado na lista ou monitore a fila de direcionamento automático.
+                  Monitoramento em tempo real de chamados ativos, limites de SLA, cargas de trabalho por atendente e console de distribuição de rotas.
                 </p>
               </div>
               <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 font-bold px-3 py-1.5 rounded-xl border border-emerald-100 text-[10.5px] z-10 shrink-0">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
-                <span>Sincronização em Tempo Real</span>
+                <span>Monitoramento Ativo</span>
               </div>
-
             </div>
 
             {/* Quick Metrics Grid */}
@@ -1860,7 +1859,7 @@ export default function InboxPage() {
                   <span className="text-2xl font-black text-slate-800">
                     {conversations.filter((c) => c.status === 'new').length}
                   </span>
-                  <span className="text-[10px] text-slate-500">novos chamados</span>
+                  <span className="text-[10px] text-slate-500 font-medium">novos chamados</span>
                 </div>
               </div>
 
@@ -1870,7 +1869,7 @@ export default function InboxPage() {
                   <span className="text-2xl font-black text-slate-800">
                     {conversations.filter((c) => c.status === 'open').length}
                   </span>
-                  <span className="text-[10px] text-slate-500">conversas abertas</span>
+                  <span className="text-[10px] text-slate-500 font-medium">conversas abertas</span>
                 </div>
               </div>
 
@@ -1878,9 +1877,12 @@ export default function InboxPage() {
                 <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Urgência de SLA</span>
                 <div className="flex items-baseline gap-2 mt-1.5">
                   <span className="text-2xl font-black text-rose-600">
-                    {conversations.filter((c) => c.status !== 'closed' && isSlaBreached(c.slaLimitAt)).length}
+                    {conversations.filter((c) => {
+                      const limit = c.slaLimitAt || new Date(new Date(c.createdAt).getTime() + 12 * 60 * 60 * 1000).toISOString();
+                      return c.status !== 'closed' && isSlaBreached(limit);
+                    }).length}
                   </span>
-                  <span className="text-[10px] text-rose-500 font-semibold">breaches ativos</span>
+                  <span className="text-[10px] text-rose-500 font-semibold">excedidos ou críticos</span>
                 </div>
               </div>
             </div>
@@ -1891,29 +1893,35 @@ export default function InboxPage() {
               <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm flex flex-col h-[280px]">
                 <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-1.5 border-b pb-2">
                   <AlertTriangle size={14} className="text-rose-500" />
-                  Monitor de Alertas SLA Próximos do Limite
+                  Monitor de Alertas SLA (Respostas Próximas do Limite)
                 </h3>
-                <div className="flex-1 overflow-y-auto space-y-2.5 text-xs">
-                  {conversations.filter((c) => c.status !== 'closed' && c.slaLimitAt).length === 0 ? (
-                    <p className="text-slate-400 text-center py-8">Nenhum limite de SLA cadastrado no momento.</p>
+                <div className="flex-1 overflow-y-auto space-y-2.5 text-xs pr-1 scrollbar-thin">
+                  {conversations.filter((c) => c.status !== 'closed').length === 0 ? (
+                    <p className="text-slate-400 text-center py-8">Nenhum chamado aberto pendente de SLA no momento.</p>
                   ) : (
-                    conversations
-                      .filter((c) => c.status !== 'closed' && c.slaLimitAt)
+                    [...conversations]
+                      .filter((c) => c.status !== 'closed')
+                      .sort((a, b) => {
+                        const limA = new Date(a.slaLimitAt || new Date(a.createdAt).getTime() + 12 * 60 * 60 * 1000).getTime();
+                        const limB = new Date(b.slaLimitAt || new Date(b.createdAt).getTime() + 12 * 60 * 60 * 1000).getTime();
+                        return limA - limB;
+                      })
                       .map((c) => {
                         const contactObj = contacts.find((ct) => ct.id === c.contactId);
-                        const isOver = isSlaBreached(c.slaLimitAt);
+                        const limitDate = c.slaLimitAt ? new Date(c.slaLimitAt) : new Date(new Date(c.createdAt).getTime() + 12 * 60 * 60 * 1000);
+                        const isOver = Date.now() > limitDate.getTime();
                         return (
                           <div
                             key={c.id}
                             onClick={() => setSelectedConvId(c.id)}
-                            className="p-3 border border-slate-100 rounded-xl bg-slate-50 hover:bg-primary/5 transition-colors cursor-pointer flex justify-between items-center"
+                            className="p-3 border border-slate-100 dark:border-slate-800 rounded-xl bg-slate-50 dark:bg-slate-900/10 hover:bg-primary/5 transition-colors cursor-pointer flex justify-between items-center"
                           >
                             <div>
-                              <strong className="text-slate-800 block">{contactObj?.name}</strong>
-                              <span className="text-[10px] text-slate-400 mt-0.5 block">SLA: {new Date(c.slaLimitAt!).toLocaleTimeString()}</span>
+                              <strong className="text-slate-800 dark:text-slate-200 block">{contactObj?.name || 'Cliente'}</strong>
+                              <span className="text-[10px] text-slate-400 mt-0.5 block">SLA Limite: {limitDate.toLocaleTimeString()} ({limitDate.toLocaleDateString()})</span>
                             </div>
                             <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
-                              isOver ? 'bg-rose-100 text-rose-600 border border-rose-200' : 'bg-slate-100 text-slate-600'
+                              isOver ? 'bg-rose-100 text-rose-600 border border-rose-200' : 'bg-slate-100 text-slate-650'
                             }`}>
                               {isOver ? 'Excedido' : 'Dentro do limite'}
                             </span>
@@ -1928,37 +1936,43 @@ export default function InboxPage() {
               <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm flex flex-col h-[280px]">
                 <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4 flex items-center gap-1.5 border-b pb-2">
                   <UserCheck size={14} className="text-primary" />
-                  Atendentes e Carga de Trabalho (Workloads)
+                  Atendentes e Cargas de Trabalho
                 </h3>
-                <div className="flex-1 overflow-y-auto space-y-3 text-xs">
-                  {users.map((user) => (
-                    <div key={user.id} className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:border-slate-200 transition-all bg-white dark:bg-slate-900/40">
-                      <div className="flex items-center gap-3">
-                        <div className="relative shrink-0">
-                          <img
-                            src={user.avatarUrl}
-                            alt={user.name}
-                            className="w-7 h-7 rounded-full object-cover ring-2 ring-primary/20"
-                          />
-                          <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-950 ${
-                            user.presence === 'online' ? 'bg-emerald-500' :
-                            user.presence === 'away' ? 'bg-amber-500' :
-                            user.presence === 'lunch' ? 'bg-orange-500' :
-                            user.presence === 'break' ? 'bg-purple-500' :
-                            user.presence === 'meeting' ? 'bg-rose-500' : 'bg-slate-400'
-                          }`} />
+                <div className="flex-1 overflow-y-auto space-y-3 text-xs pr-1 scrollbar-thin">
+                  {users.map((user) => {
+                    const activeCount = conversations.filter(c => c.assignedUserId === user.id && c.status !== 'closed').length;
+                    const closedCount = conversations.filter(c => c.assignedUserId === user.id && c.status === 'closed').length;
+                    return (
+                      <div key={user.id} className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 hover:border-slate-200 transition-all bg-white dark:bg-slate-900/40">
+                        <div className="flex items-center gap-3">
+                          <div className="relative shrink-0">
+                            <img
+                              src={user.avatarUrl}
+                              alt={user.name}
+                              className="w-7 h-7 rounded-full object-cover ring-2 ring-primary/20"
+                            />
+                            <span className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-950 ${
+                              user.presence === 'online' ? 'bg-emerald-500' :
+                              user.presence === 'away' ? 'bg-amber-500' :
+                              user.presence === 'lunch' ? 'bg-orange-500' :
+                              user.presence === 'break' ? 'bg-purple-500' :
+                              user.presence === 'meeting' ? 'bg-rose-500' : 'bg-slate-400'
+                            }`} />
+                          </div>
+                          <div>
+                            <span className="font-bold text-slate-800 dark:text-slate-100 block leading-tight">{user.name}</span>
+                            <span className="text-[9px] text-slate-400 block mt-0.5 font-medium">{user.role}</span>
+                          </div>
                         </div>
-                        <div>
-                          <span className="font-bold text-slate-800 dark:text-slate-100 block leading-tight">{user.name}</span>
-                          <span className="text-[9px] text-slate-400 block mt-0.5 font-medium">{user.role}</span>
+                        <div className="text-right">
+                          <span className="text-[10px] font-bold text-slate-700 dark:text-slate-350 block">
+                            {activeCount} ativos / {closedCount} resolvidos
+                          </span>
+                          <span className="text-[8.5px] text-slate-450 block font-medium">distribuição de chamados</span>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <span className="text-[10px] font-bold text-slate-700 dark:text-slate-350 block">{user.workload} chamados</span>
-                        <span className="text-[8.5px] text-slate-400 block">ocupação ativa</span>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </div>

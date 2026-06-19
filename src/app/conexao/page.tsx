@@ -638,18 +638,7 @@ export default function ConexaoPage() {
           {activeProvider === 'qr_gateway' && (
             <div className="space-y-6">
               
-              {/* Feature Flag Shield */}
-              <div className="flex items-start gap-3 bg-indigo-50 border border-indigo-150 p-4 rounded-2xl">
-                <ShieldCheck className="text-primary mt-0.5 shrink-0" size={18} />
-                <div className="space-y-1">
-                  <span className="text-xs font-extrabold text-slate-800 block">
-                    Modo Piloto Comercial Ativo
-                  </span>
-                  <span className="text-[10.5px] text-slate-500 block leading-relaxed font-medium">
-                    A feature flag <strong>whatsapp_qr_gateway_enabled</strong> está ativa. A conexão QR Code com celular pessoal é recomendada apenas para testes de laboratório ou demos controladas.
-                  </span>
-                </div>
-              </div>
+              {/* Feature Flag Shield removed */}
 
               {!isFeatureFlagEnabled ? (
                 <div className="bg-white border border-slate-200 p-8 rounded-2xl shadow-sm text-center flex flex-col items-center justify-center gap-4">

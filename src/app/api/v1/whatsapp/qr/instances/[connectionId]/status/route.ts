@@ -3,6 +3,7 @@ import { requirePermission } from '@/server/middleware/permission.middleware';
 import { requireActiveSubscription } from '@/server/middleware/subscription.middleware';
 import { prisma } from '@/server/db/prisma';
 import { WhatsAppQrGatewayProvider } from '@/server/services/whatsapp/whatsapp-qr-gateway.provider';
+import { ContactsSyncService } from '@/server/services/whatsapp/contacts-sync.service';
 
 export async function GET(
   request: NextRequest,
@@ -67,6 +68,11 @@ export async function GET(
         ...(localStatus === 'connected' ? { qrcodeExpired: false, lastError: null } : {})
       }
     });
+
+    if (localStatus === 'connected' && connection.instanceName) {
+      ContactsSyncService.syncContacts(tenantId, connection.instanceName)
+        .catch(e => console.error('[StatusSync] Asynchronous contact sync failed:', e));
+    }
 
     return NextResponse.json({ success: true, connection: updated, gatewayState: result });
   } catch (error: any) {

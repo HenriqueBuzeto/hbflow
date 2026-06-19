@@ -26,13 +26,36 @@ interface PageProps {
 export default function ClienteDossierPage({ params }: PageProps) {
   const router = useRouter();
   const { id } = use(params);
-  const { contacts, deals, tasks, conversations, addTask, toggleTask, users } = useStore();
+  const { contacts, deals, tasks, conversations, addTask, toggleTask, users, updateContact } = useStore();
 
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newTaskType, setNewTaskType] = useState<'call' | 'proposal' | 'follow_up' | 'meeting'>('call');
   const [newTaskDue, setNewTaskDue] = useState('');
 
+  const [isEditing, setIsEditing] = useState(false);
+  const [formName, setFormName] = useState('');
+  const [formPhone, setFormPhone] = useState('');
+  const [formEmail, setFormEmail] = useState('');
+  const [formCity, setFormCity] = useState('');
+  const [formState, setFormState] = useState('');
+  const [formDocument, setFormDocument] = useState('');
+  const [formNotes, setFormNotes] = useState('');
+
   const contact = contacts.find((c) => c.id === id);
+
+  const handleSave = () => {
+    if (!contact) return;
+    updateContact(contact.id, {
+      name: formName,
+      phone: formPhone,
+      email: formEmail,
+      city: formCity,
+      state: formState,
+      document: formDocument,
+      notes: formNotes
+    });
+    setIsEditing(false);
+  };
   if (!contact) {
     return (
       <div className="p-8 text-center bg-white border rounded-2xl">
@@ -131,36 +154,147 @@ export default function ClienteDossierPage({ params }: PageProps) {
 
           {/* Details metadata */}
           <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm space-y-3.5 text-xs">
-            <h4 className="text-xs font-bold text-slate-800 border-b pb-2">Dados Cadastrais</h4>
-
-            <div className="flex items-center gap-3">
-              <Phone size={14} className="text-slate-400 shrink-0" />
-              <span className="text-slate-600 font-mono">{contact.phone}</span>
+            <div className="flex justify-between items-center border-b pb-2">
+              <h4 className="text-xs font-bold text-slate-800">Dados Cadastrais</h4>
+              {!isEditing ? (
+                <button
+                  onClick={() => {
+                    setFormName(contact.name);
+                    setFormPhone(contact.phone);
+                    setFormEmail(contact.email || '');
+                    setFormCity(contact.city || '');
+                    setFormState(contact.state || '');
+                    setFormDocument(contact.document || '');
+                    setFormNotes(contact.notes || '');
+                    setIsEditing(true);
+                  }}
+                  className="text-[10px] bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-lg font-bold hover:bg-primary hover:text-white transition-all cursor-pointer"
+                >
+                  Editar
+                </button>
+              ) : (
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={handleSave}
+                    className="text-[10px] bg-emerald-500 text-white border border-emerald-600 px-2.5 py-0.5 rounded-lg font-bold hover:bg-emerald-600 transition-all cursor-pointer"
+                  >
+                    Salvar
+                  </button>
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="text-[10px] bg-slate-100 text-slate-650 border border-slate-250 px-2 py-0.5 rounded-lg font-bold hover:bg-slate-200 transition-all cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
             </div>
 
-            <div className="flex items-center gap-3">
-              <Mail size={14} className="text-slate-400 shrink-0" />
-              <span className="text-slate-600 truncate">{contact.email || 'E-mail não informado'}</span>
-            </div>
+            {isEditing ? (
+              <div className="space-y-3.5 pt-1">
+                <div>
+                  <label className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider block mb-1">Nome Completo</label>
+                  <input
+                    type="text"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:bg-white text-slate-805"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider block mb-1">Telefone</label>
+                  <input
+                    type="text"
+                    value={formPhone}
+                    onChange={(e) => setFormPhone(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:bg-white font-mono text-slate-805"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider block mb-1">E-mail</label>
+                  <input
+                    type="email"
+                    value={formEmail}
+                    onChange={(e) => setFormEmail(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:bg-white text-slate-805"
+                    placeholder="email@exemplo.com"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider block mb-1">Cidade</label>
+                    <input
+                      type="text"
+                      value={formCity}
+                      onChange={(e) => setFormCity(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:bg-white text-slate-805"
+                      placeholder="Cidade"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider block mb-1">Estado</label>
+                    <input
+                      type="text"
+                      value={formState}
+                      onChange={(e) => setFormState(e.target.value)}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:bg-white text-slate-805"
+                      placeholder="UF"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider block mb-1">CPF/CNPJ</label>
+                  <input
+                    type="text"
+                    value={formDocument}
+                    onChange={(e) => setFormDocument(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:bg-white font-mono text-slate-805"
+                    placeholder="000.000.000-00"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] text-slate-400 font-extrabold uppercase tracking-wider block mb-1">Notas Internas</label>
+                  <textarea
+                    value={formNotes}
+                    onChange={(e) => setFormNotes(e.target.value)}
+                    rows={3}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 text-xs outline-none focus:border-primary focus:bg-white leading-relaxed text-slate-805"
+                    placeholder="Observações..."
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-3">
+                  <Phone size={14} className="text-slate-400 shrink-0" />
+                  <span className="text-slate-600 font-mono">{contact.phone}</span>
+                </div>
 
-            <div className="flex items-center gap-3">
-              <MapPin size={14} className="text-slate-400 shrink-0" />
-              <span className="text-slate-600">
-                {contact.city ? `${contact.city} - ${contact.state}` : 'Endereço não informado'}
-              </span>
-            </div>
+                <div className="flex items-center gap-3">
+                  <Mail size={14} className="text-slate-400 shrink-0" />
+                  <span className="text-slate-600 truncate">{contact.email || 'E-mail não informado'}</span>
+                </div>
 
-            <div className="flex items-center gap-3">
-              <FileText size={14} className="text-slate-400 shrink-0" />
-              <span className="text-slate-600 font-mono">CPF/CNPJ: {contact.document || 'Não informado'}</span>
-            </div>
+                <div className="flex items-center gap-3">
+                  <MapPin size={14} className="text-slate-400 shrink-0" />
+                  <span className="text-slate-600">
+                    {contact.city ? `${contact.city} - ${contact.state}` : 'Endereço não informado'}
+                  </span>
+                </div>
 
-            <div className="pt-2">
-              <span className="text-[10px] text-slate-400 font-bold block mb-1">Notas Internas</span>
-              <p className="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border leading-relaxed">
-                {contact.notes || 'Sem observações cadastradas.'}
-              </p>
-            </div>
+                <div className="flex items-center gap-3">
+                  <FileText size={14} className="text-slate-400 shrink-0" />
+                  <span className="text-slate-600 font-mono">CPF/CNPJ: {contact.document || 'Não informado'}</span>
+                </div>
+
+                <div className="pt-2">
+                  <span className="text-[10px] text-slate-400 font-bold block mb-1">Notas Internas</span>
+                  <p className="text-[11px] text-slate-600 bg-slate-50 p-2.5 rounded-lg border leading-relaxed">
+                    {contact.notes || 'Sem observações cadastradas.'}
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
