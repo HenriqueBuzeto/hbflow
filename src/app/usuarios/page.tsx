@@ -374,56 +374,81 @@ export default function UsuariosPage() {
         </div>
 
         {/* Dynamic quota limit details */}
-        <div className="flex flex-col sm:flex-row items-center gap-4 bg-slate-50/80 border border-slate-150 p-4.5 rounded-2xl shrink-0">
-          <div className="text-center sm:text-left flex flex-col justify-center h-10">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">PLANO ATIVO</span>
-            <span className="text-xs font-extrabold text-slate-800 uppercase flex items-center gap-1.5 justify-center sm:justify-start">
-              {plan === 'starter' ? 'Starter Plan' : plan === 'enterprise' ? 'Enterprise' : 'Pro Plan'}
-              <span className="bg-primary text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full capitalize">
-                {plan === 'starter' ? '3 user' : plan === 'enterprise' ? 'unlimited' : '10 user'}
+        {loading ? (
+          <div className="flex flex-col sm:flex-row items-center gap-4 bg-slate-50/80 border border-slate-150 p-4.5 rounded-2xl shrink-0 animate-pulse">
+            <div className="text-center sm:text-left flex flex-col justify-center h-10 w-24">
+              <div className="h-2 w-12 bg-slate-200 rounded mb-2" />
+              <div className="h-4 w-20 bg-slate-200 rounded" />
+            </div>
+
+            <div className="hidden sm:block h-8 w-px bg-slate-200" />
+
+            <div className="w-40 flex flex-col justify-center h-10">
+              <div className="flex justify-between items-center mb-2">
+                <div className="h-2 w-16 bg-slate-200 rounded" />
+                <div className="h-2 w-8 bg-slate-200 rounded" />
+              </div>
+              <div className="w-full bg-slate-200 rounded-full h-2" />
+            </div>
+
+            <div className="hidden sm:block h-8 w-px bg-slate-200" />
+
+            <div className="flex items-center h-10 w-24">
+              <div className="h-8 w-full bg-slate-200 rounded-xl" />
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row items-center gap-4 bg-slate-50/80 border border-slate-150 p-4.5 rounded-2xl shrink-0">
+            <div className="text-center sm:text-left flex flex-col justify-center h-10">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">PLANO ATIVO</span>
+              <span className="text-xs font-extrabold text-slate-800 uppercase flex items-center gap-1.5 justify-center sm:justify-start">
+                {plan === 'starter' ? 'Starter Plan' : plan === 'enterprise' ? 'Enterprise' : 'Pro Plan'}
+                <span className="bg-primary text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full capitalize">
+                  {plan === 'starter' ? '3 user' : plan === 'enterprise' ? 'unlimited' : '10 user'}
+                </span>
               </span>
-            </span>
-          </div>
-
-          <div className="hidden sm:block h-8 w-px bg-slate-200" />
-
-          {/* User count bar */}
-          <div className="w-40 flex flex-col justify-center h-10">
-            <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 mb-1">
-              <span>USUÁRIOS ATIVOS</span>
-              <span className="font-mono text-slate-800">{count} / {plan === 'enterprise' ? '∞' : limit}</span>
             </div>
-            <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden flex">
-              <div 
-                className={`h-full transition-all duration-500 ${isLimitReached ? 'bg-amber-500 animate-pulse' : 'bg-primary'}`} 
-                style={{ width: `${Math.min(100, (count / limit) * 100)}%` }} 
-              />
+
+            <div className="hidden sm:block h-8 w-px bg-slate-200" />
+
+            {/* User count bar */}
+            <div className="w-40 flex flex-col justify-center h-10">
+              <div className="flex justify-between items-center text-[10px] font-bold text-slate-500 mb-1">
+                <span>USUÁRIOS ATIVOS</span>
+                <span className="font-mono text-slate-800">{count} / {plan === 'enterprise' ? '∞' : limit}</span>
+              </div>
+              <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden flex">
+                <div 
+                  className={`h-full transition-all duration-500 ${isLimitReached ? 'bg-amber-500 animate-pulse' : 'bg-primary'}`} 
+                  style={{ width: `${Math.min(100, (count / limit) * 100)}%` }} 
+                />
+              </div>
+            </div>
+
+            <div className="hidden sm:block h-8 w-px bg-slate-200" />
+
+            {/* Create User Button or Upgrade Advice */}
+            <div className="flex items-center h-10">
+              {isLimitReached ? (
+                <Link 
+                  href="/billing"
+                  className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-md flex items-center gap-1 cursor-pointer"
+                >
+                  <TrendingUp size={13} />
+                  <span>Dar Upgrade</span>
+                </Link>
+              ) : (
+                <button
+                  onClick={openCreateModal}
+                  className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-4.5 py-2 rounded-xl transition-all shadow-md flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus size={14} />
+                  <span>Novo Usuário</span>
+                </button>
+              )}
             </div>
           </div>
-
-          <div className="hidden sm:block h-8 w-px bg-slate-200" />
-
-          {/* Create User Button or Upgrade Advice */}
-          <div className="flex items-center h-10">
-            {isLimitReached ? (
-              <Link 
-                href="/billing"
-                className="bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold px-4 py-2 rounded-xl transition-all shadow-md flex items-center gap-1 cursor-pointer"
-              >
-                <TrendingUp size={13} />
-                <span>Dar Upgrade</span>
-              </Link>
-            ) : (
-              <button
-                onClick={openCreateModal}
-                className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-4.5 py-2 rounded-xl transition-all shadow-md flex items-center gap-1 cursor-pointer"
-              >
-                <Plus size={14} />
-                <span>Novo Usuário</span>
-              </button>
-            )}
-          </div>
-        </div>
+        )}
       </div>
 
       {error && (
