@@ -67,6 +67,75 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
     }
   }
 
+  async sendButtons(
+    to: string,
+    body: string,
+    buttons: string[],
+    connection: any
+  ): Promise<SendMessageResult> {
+    try {
+      const instanceName = connection.instanceName;
+      if (!instanceName) {
+        return {
+          messageId: '',
+          status: 'failed',
+          errorText: 'Parâmetro QR Gateway incompleto: Nome da instância ausente.'
+        };
+      }
+
+      const { url, apiKey } = this.getApiConfig();
+      const cleanPhone = to.replace(/\D/g, '');
+
+      // Endpoint da Evolution API para envio de botões
+      const endpoint = `${url}/message/sendButtons/${instanceName}`;
+      
+      const payloadButtons = buttons.map((btn, index) => ({
+        type: 'reply',
+        reply: {
+          id: `btn-${index + 1}`,
+          title: btn
+        }
+      }));
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'apikey': apiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          number: cleanPhone,
+          title: '',
+          description: body,
+          footer: '',
+          buttons: payloadButtons
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return {
+          messageId: '',
+          status: 'failed',
+          errorText: data.message || `QR Gateway Button API Error: Status ${response.status}`
+        };
+      }
+
+      const messageId = data.key?.id || data.id || '';
+      return {
+        messageId,
+        status: 'sent'
+      };
+    } catch (error: any) {
+      return {
+        messageId: '',
+        status: 'failed',
+        errorText: error.message || 'Erro de rede ao enviar botões via QR Gateway.'
+      };
+    }
+  }
+
   async sendMedia(
     to: string,
     mediaUrl: string,
@@ -176,7 +245,7 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
       }
 
       const senderPhone = `+${cleanPhone}`;
-      const senderName = body.data.pushName || senderPhone;
+      const senderName = fromMe ? senderPhone : (body.data.pushName || senderPhone);
       
       let messageBody = '';
       let messageType: WebhookMessagePayload['messageType'] = 'other';
@@ -211,6 +280,15 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
         messageBody = messageContent.documentMessage.fileName || '[Documento]';
         messageType = 'document';
         mimeType = messageContent.documentMessage.mimetype;
+      } else if (messageContent.buttonsResponseMessage) {
+        messageBody = messageContent.buttonsResponseMessage.selectedDisplayText || '';
+        messageType = 'text';
+      } else if (messageContent.templateButtonReplyMessage) {
+        messageBody = messageContent.templateButtonReplyMessage.selectedDisplayText || '';
+        messageType = 'text';
+      } else if (messageContent.listResponseMessage) {
+        messageBody = messageContent.listResponseMessage.title || '';
+        messageType = 'text';
       }
 
       // Baixar mídia se disponível para tipos suportados

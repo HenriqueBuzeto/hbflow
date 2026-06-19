@@ -705,18 +705,20 @@ export default function InboxPage() {
             >
               Todas as tags
             </button>
-            {['vendas', 'financeiro', 'manutencao', 'potencial-cliente', 'vip'].map((tag) => (
-              <button
-                key={tag}
-                onClick={() => setSelectedTagFilter(tag)}
-                className={`w-full text-left text-xs px-3 py-1.5 rounded-lg transition-all capitalize flex items-center gap-1.5 ${
-                  selectedTagFilter === tag ? 'bg-primary/10 text-primary font-bold' : 'text-slate-600 hover:bg-slate-200/60'
-                }`}
-              >
-                <TagIcon size={12} className="text-primary/70 shrink-0" />
-                <span className="truncate">{tag}</span>
-              </button>
-            ))}
+            {Array.from(new Set(contacts.flatMap((c) => c.tags || []).filter(Boolean)))
+              .sort()
+              .map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => setSelectedTagFilter(tag)}
+                  className={`w-full text-left text-xs px-3 py-1.5 rounded-lg transition-all capitalize flex items-center gap-1.5 ${
+                    selectedTagFilter === tag ? 'bg-primary/10 text-primary font-bold' : 'text-slate-600 hover:bg-slate-200/60'
+                  }`}
+                >
+                  <TagIcon size={12} className="text-primary/70 shrink-0" />
+                  <span className="truncate">{tag}</span>
+                </button>
+              ))}
           </div>
         </div>
       </div>
@@ -1174,15 +1176,10 @@ export default function InboxPage() {
             {/* Chat footer input bar */}
             {activeConv.status !== 'closed' ? (
               <div className="bg-white border-t border-slate-200 p-4 shrink-0 relative z-10">
-                {currentUser.sigPosition !== 'disabled' && (
-                  <div className="mb-2 text-[9px] text-slate-400 font-medium italic">
-                    Assinatura automática ativa: &quot;{currentUser.signature}&quot; ({currentUser.sigPosition === 'start' ? 'início' : 'fim'})
-                  </div>
-                )}
-
                 {/* Hotkeys selector bar */}
                 <div className="flex gap-2 mb-3">
                   <button
+                    type="button"
                     onClick={() => {
                       setShowQuickReplies(!showQuickReplies);
                       setShowTemplates(false);
@@ -1191,17 +1188,6 @@ export default function InboxPage() {
                   >
                     <Smile size={12} className="text-primary" />
                     <span>Respostas Rápidas</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      setShowTemplates(!showTemplates);
-                      setShowQuickReplies(false);
-                    }}
-                    className="flex items-center gap-1.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl px-3 py-1.5 text-[10px] text-slate-600 font-bold transition-colors cursor-pointer"
-                  >
-                    <FileText size={12} className="text-primary" />
-                    <span>Modelos Cloud API</span>
                   </button>
                 </div>
 
@@ -1247,49 +1233,7 @@ export default function InboxPage() {
                   </div>
                 )}
 
-                {showTemplates && (
-                  <div className="absolute bottom-20 left-4 bg-white/95 backdrop-blur-md border border-slate-200 shadow-2xl rounded-2xl p-3 w-[26rem] z-40 flex flex-col gap-2 max-h-72 overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-150">
-                    <div className="flex items-center justify-between px-1 pb-2 border-b border-slate-100">
-                      <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider flex items-center gap-1.5">
-                        <FileText size={12} className="text-primary" />
-                        Modelos Cloud API Aprovados
-                      </span>
-                      <button 
-                        type="button" 
-                        onClick={() => setShowTemplates(false)} 
-                        className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
-                      >
-                        <X size={12} />
-                      </button>
-                    </div>
 
-                    <div className="flex-1 overflow-y-auto pr-1 space-y-1.5 max-h-52 scrollbar-thin">
-                      {templates.map((t) => (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => handleApplyTemplate(t.body)}
-                          className="w-full text-left text-xs p-2.5 rounded-xl hover:bg-primary/5 border border-transparent hover:border-primary/10 transition-all duration-200 group flex items-start justify-between gap-3 cursor-pointer"
-                        >
-                          <div className="flex flex-col gap-1 min-w-0 flex-1">
-                            <div className="flex items-center gap-1.5">
-                              <span className="font-extrabold text-slate-800 text-[11px] truncate">{t.name}</span>
-                              <span className="bg-emerald-50 text-emerald-700 text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded border border-emerald-200 shrink-0">
-                                {t.category}
-                              </span>
-                            </div>
-                            <span className="text-slate-500 text-[10px] italic leading-relaxed break-words line-clamp-2 mt-0.5">
-                              {t.body}
-                            </span>
-                          </div>
-                          <span className="text-[10px] font-extrabold text-primary/0 group-hover:text-primary transition-all duration-200 shrink-0 self-center flex items-center gap-0.5 translate-x-1 group-hover:translate-x-0">
-                            Usar <ArrowRight size={10} />
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
 
                 <div className="flex justify-between items-center mb-3 border-b border-slate-100 dark:border-slate-800 pb-2">
                   <div className="flex gap-1 bg-slate-100 dark:bg-slate-800/80 p-0.5 rounded-xl">
@@ -1468,7 +1412,13 @@ export default function InboxPage() {
                       </div>
                     )}
 
-                    <form onSubmit={handleSend} className="flex gap-2 items-center">
+                    <form onSubmit={handleSend} className={`flex-1 flex items-center gap-2 border rounded-2xl py-1.5 px-3 transition-all duration-200 shadow-sm focus-within:ring-2 focus-within:ring-primary/20 ${
+                      inputMode === 'whisper'
+                        ? 'bg-sky-50/50 border-sky-200 focus-within:border-sky-400 focus-within:bg-sky-50'
+                        : inputMode === 'private'
+                        ? 'bg-amber-50/50 border-amber-200 focus-within:border-amber-400 focus-within:bg-amber-50'
+                        : 'bg-slate-50 border-slate-200 focus-within:border-primary focus-within:bg-white'
+                    }`}>
                       <input
                         type="file"
                         ref={fileInputRef}
@@ -1479,10 +1429,10 @@ export default function InboxPage() {
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-xl transition-colors cursor-pointer shrink-0"
+                        className="p-1.5 text-slate-400 hover:text-slate-650 transition-colors cursor-pointer shrink-0"
                         title="Anexar arquivo"
                       >
-                        <Paperclip size={16} />
+                        <Paperclip size={15} />
                       </button>
 
                       <input
@@ -1504,41 +1454,35 @@ export default function InboxPage() {
                             ? 'Escreva uma nota interna privada...'
                             : 'Digite sua mensagem aqui...'
                         }
-                        className={`flex-1 border rounded-xl py-2.5 px-4 text-xs outline-none transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed ${
-                          inputMode === 'whisper'
-                            ? 'bg-sky-50 border-sky-300 focus:border-sky-500 focus:bg-sky-50 text-sky-900 placeholder-sky-500/70'
-                            : inputMode === 'private'
-                            ? 'bg-amber-50 border-amber-300 focus:border-amber-500 focus:bg-amber-50 text-amber-900 placeholder-amber-500/70'
-                            : 'bg-slate-50 border-slate-200 focus:border-primary focus:bg-white text-slate-800'
-                        }`}
+                        className="flex-1 bg-transparent border-0 outline-none text-xs text-slate-800 disabled:opacity-50 disabled:cursor-not-allowed placeholder-slate-400 font-medium"
                       />
 
-                    {(!messageText.trim() && !attachedFile) ? (
-                      <button
-                        type="button"
-                        onClick={startRecording}
-                        disabled={activeConv.status === 'new'}
-                        className="p-2.5 bg-slate-200/80 hover:bg-slate-300/80 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl transition-all shadow-sm hover:scale-105 active:scale-95 disabled:opacity-40 disabled:scale-100 shrink-0 cursor-pointer"
-                        title="Gravar áudio"
-                      >
-                        <Mic size={16} />
-                      </button>
-                    ) : (
-                      <button
-                        type="submit"
-                        disabled={activeConv.status === 'new'}
-                        className={`p-2.5 rounded-xl transition-all shadow-md disabled:opacity-40 shrink-0 cursor-pointer text-white ${
-                          inputMode === 'whisper'
-                            ? 'bg-sky-500 hover:bg-sky-600 shadow-sky-500/15'
-                            : inputMode === 'private'
-                            ? 'bg-amber-500 hover:bg-amber-600 shadow-amber-500/15'
-                            : 'bg-primary hover:bg-primary-hover shadow-primary/15'
-                        }`}
-                      >
-                        <Send size={16} />
-                      </button>
-                    )}
-                  </form>
+                      {(!messageText.trim() && !attachedFile) ? (
+                        <button
+                          type="button"
+                          onClick={startRecording}
+                          disabled={activeConv.status === 'new'}
+                          className="p-1.5 text-slate-400 hover:text-slate-600 transition-all shrink-0 cursor-pointer"
+                          title="Gravar áudio"
+                        >
+                          <Mic size={15} />
+                        </button>
+                      ) : (
+                        <button
+                          type="submit"
+                          disabled={activeConv.status === 'new'}
+                          className={`p-1.5 rounded-xl transition-all shrink-0 cursor-pointer ${
+                            inputMode === 'whisper'
+                              ? 'text-sky-600 hover:text-sky-700'
+                              : inputMode === 'private'
+                              ? 'text-amber-600 hover:text-amber-700'
+                              : 'text-primary hover:text-primary-hover'
+                          }`}
+                        >
+                          <Send size={15} />
+                        </button>
+                      )}
+                    </form>
                 </>
               )}
               </div>

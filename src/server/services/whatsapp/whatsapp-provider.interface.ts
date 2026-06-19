@@ -28,4 +28,10 @@ export interface WhatsAppProvider {
     caption: string,
     connection: any
   ): Promise<SendMessageResult>;
+  sendButtons?(
+    to: string,
+    body: string,
+    buttons: string[],
+    connection: any
+  ): Promise<SendMessageResult>;
 }

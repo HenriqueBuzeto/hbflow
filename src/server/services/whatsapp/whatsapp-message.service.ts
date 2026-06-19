@@ -101,6 +101,106 @@ export class WhatsAppMessageService {
   }
 
   /**
+   * Envia uma mensagem com botões interativos, passando pelo provedor ativo.
+   */
+  static async sendButtonsMessage(
+    tenantId: string,
+    connectionId: string,
+    toPhone: string,
+    bodyText: string,
+    buttons: string[]
+  ): Promise<SendMessageResult> {
+    const startTime = Date.now();
+    let errorMsg: string | undefined;
+    let statusCode = 200;
+    let success = false;
+    let messageId = '';
+
+    // 1. Localizar a conexão do WhatsApp
+    const connection = await prisma.whatsappConnection.findFirst({
+      where: { id: connectionId, tenantId, deletedAt: null }
+    });
+
+    if (!connection) {
+      throw new Error('Conexão de WhatsApp não encontrada para este inquilino.');
+    }
+
+    try {
+      const access = await SubscriptionAccessService.checkAccess(tenantId);
+      if (!access.allowed) {
+        throw new Error('SUBSCRIPTION_REQUIRED');
+      }
+
+      const provider = await WhatsAppProviderFactory.getProvider(connection.provider, tenantId);
+
+      // Envia botões se o provedor suportar, caso contrário cai no fallback de texto normal
+      let result: SendMessageResult;
+      if (provider.sendButtons) {
+        result = await provider.sendButtons(toPhone, bodyText, buttons, connection);
+      } else {
+        const fallbackText = `${bodyText}\n\n` + buttons.map((b, i) => `${i + 1} - ${b}`).join('\n');
+        result = await provider.sendMessage(toPhone, fallbackText, connection);
+      }
+      
+      messageId = result.messageId;
+      success = result.status === 'sent';
+      errorMsg = result.errorText;
+
+      if (!success) {
+        statusCode = 400;
+      }
+
+      return result;
+    } catch (err: any) {
+      errorMsg = err.message || 'Erro inesperado ao enviar botões';
+      statusCode = 500;
+      return {
+        messageId: '',
+        status: 'failed',
+        errorText: errorMsg
+      };
+    } finally {
+      const durationMs = Date.now() - startTime;
+
+      await prisma.whatsappApiLog.create({
+        data: {
+          connectionId: connection.id,
+          endpoint: `/message/sendButtons (${connection.provider})`,
+          method: 'POST',
+          requestJson: JSON.stringify({ to: toPhone, body: bodyText, buttons }),
+          responseJson: JSON.stringify({ messageId, success, errorText: errorMsg }),
+          statusCode,
+          durationMs,
+          success,
+          errorMessage: errorMsg
+        }
+      });
+
+      if (success) {
+        await prisma.whatsappConnection.update({
+          where: { id: connection.id },
+          data: { lastMessageSentAt: new Date() }
+        });
+      }
+
+      await prisma.auditLog.create({
+        data: {
+          tenantId,
+          action: 'whatsapp.message.send_buttons',
+          entity: 'message',
+          entityId: messageId || 'error',
+          metadata: {
+            provider: connection.provider,
+            to: toPhone,
+            success,
+            durationMs
+          }
+        }
+      });
+    }
+  }
+
+  /**
    * Envia uma mensagem de mídia de saída, passando pelo provedor ativo da conexão do tenant.
    */
   static async sendMediaMessage(

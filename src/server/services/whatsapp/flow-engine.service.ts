@@ -186,13 +186,18 @@ export class FlowEngineService {
       });
 
       if (!flow) {
-        // Tentar criar o fluxo de boas-vindas padrão se não houver nenhum
-        const created = await this.bootstrapDefaultFlow(tenantId);
-        if (created) {
-          flow = await prisma.flow.findFirst({
-            where: { id: created.id },
-            include: { nodes: true, edges: true }
-          });
+        // Tentar criar o fluxo de boas-vindas padrão APENAS se o inquilino NUNCA teve nenhum fluxo cadastrado
+        const hasAnyFlow = await prisma.flow.findFirst({
+          where: { tenantId }
+        });
+        if (!hasAnyFlow) {
+          const created = await this.bootstrapDefaultFlow(tenantId);
+          if (created) {
+            flow = await prisma.flow.findFirst({
+              where: { id: created.id },
+              include: { nodes: true, edges: true }
+            });
+          }
         }
       }
 
@@ -346,7 +351,12 @@ export class FlowEngineService {
       }
     } else if (node.type === 'question') {
       const text = config.messageText || 'Por favor escolha uma das opções:';
-      await this.sendAutomationMessage(tenantId, conversationId, contactId, text, channelId);
+      const options = config.questionOptions || [];
+      if (options.length > 0 && options.length <= 3) {
+        await this.sendAutomationButtons(tenantId, conversationId, contactId, text, options, channelId);
+      } else {
+        await this.sendAutomationMessage(tenantId, conversationId, contactId, text, channelId);
+      }
       // Fica travado no nó aguardando resposta
     } else if (node.type === 'route_department') {
       const deptId = config.departmentId;
@@ -531,6 +541,79 @@ export class FlowEngineService {
       });
     } catch (error) {
       console.error('[FlowEngine] Error sending automation message:', error);
+    }
+  }
+
+  /**
+   * Helper para persistir e despachar mensagens com botões interativos pelo WhatsApp.
+   */
+  private static async sendAutomationButtons(
+    tenantId: string,
+    conversationId: string,
+    contactId: string,
+    text: string,
+    buttons: string[],
+    channelId: string
+  ): Promise<void> {
+    try {
+      const message = await prisma.message.create({
+        data: {
+          tenantId,
+          conversationId,
+          senderType: 'automation',
+          senderName: 'Atendente HBFlow',
+          body: text + "\n\nOpções: " + buttons.join(", "),
+          type: 'text',
+          status: 'pending',
+          isRead: true
+        }
+      });
+
+      await prisma.conversation.update({
+        where: { id: conversationId },
+        data: {
+          lastMessageAt: new Date(),
+          lastUserMessageAt: new Date()
+        }
+      });
+
+      const contact = await prisma.contact.findUnique({
+        where: { id: contactId }
+      });
+
+      if (!contact) {
+        throw new Error('Contact not found to send automation buttons');
+      }
+
+      WhatsAppMessageService.sendButtonsMessage(
+        tenantId,
+        channelId,
+        contact.phone,
+        text,
+        buttons
+      ).then(async (result) => {
+        if (result.status === 'sent' && result.messageId) {
+          await prisma.message.update({
+            where: { id: message.id },
+            data: {
+              channelMessageId: result.messageId,
+              status: 'sent'
+            }
+          });
+        } else {
+          await prisma.message.update({
+            where: { id: message.id },
+            data: {
+              status: 'failed',
+              errorText: result.errorText || 'Failed to send automated buttons'
+            }
+          });
+        }
+      }).catch(err => {
+        console.error('[FlowEngineOutbound] Background button delivery promise failed:', err);
+      });
+    } catch (error) {
+      console.error('[FlowEngine] Error sending automation buttons:', error);
     }
   }
 }
