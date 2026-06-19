@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, slug } = body;
+    const { name, slug, document, email, phone } = body;
 
     if (!name || !slug) {
       return NextResponse.json({ error: 'Nome e slug são campos obrigatórios.' }, { status: 400 });
@@ -36,7 +36,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Subdomínio/Slug inválido.' }, { status: 400 });
     }
 
-    const result = await AuthService.linkNewTenant(userSession.email, name, cleanSlug);
+    const result = await AuthService.linkNewTenant(
+      userSession.email,
+      name,
+      cleanSlug,
+      document,
+      email,
+      phone
+    );
 
     return NextResponse.json({
       success: true,

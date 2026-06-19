@@ -737,7 +737,14 @@ export class AuthService {
     };
   }
 
-  static async linkNewTenant(email: string, name: string, slug: string): Promise<any> {
+  static async linkNewTenant(
+    email: string,
+    name: string,
+    slug: string,
+    document?: string,
+    tenantEmail?: string,
+    phone?: string
+  ): Promise<any> {
     const existingUser = await prisma.user.findFirst({
       where: { email },
       include: { tenant: true }
@@ -764,6 +771,9 @@ export class AuthService {
         plan: parentPlan,
         status: 'active',
         isActive: true,
+        document: document || null,
+        email: tenantEmail || null,
+        phone: phone || null,
       },
     });
 

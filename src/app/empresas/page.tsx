@@ -10,6 +10,9 @@ export default function EmpresasPage() {
   const { tenants, currentTenantId, setCurrentTenantId, fetchUsers } = useStore();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
+  const [cnpj, setCnpj] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -106,14 +109,14 @@ export default function EmpresasPage() {
         body: JSON.stringify({
           name: tenantName,
           email: tenantEmail,
-          phone: tenantPhone,
-          document: tenantCnpj
+          phone: tenantPhone.replace(/\D/g, ''),
+          document: tenantCnpj.replace(/\D/g, ''),
         })
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
-        setSaveSuccess(data.message || 'Dados da empresa salvos com sucesso!');
+        setSaveSuccess('Alterações salvas com sucesso!');
         // Refresh active list in Zustand store
         await fetchUsers();
         // Re-load details to lock CNPJ if it was filled
@@ -144,7 +147,13 @@ export default function EmpresasPage() {
       const res = await fetch('/api/v1/auth/link-tenant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, slug })
+        body: JSON.stringify({
+          name,
+          slug,
+          document: cnpj.replace(/\D/g, '') || undefined,
+          email: email.trim() || undefined,
+          phone: phone.replace(/\D/g, '') || undefined
+        })
       });
       
       const data = await res.json();
@@ -153,6 +162,9 @@ export default function EmpresasPage() {
         setSuccessMsg(data.message || 'Nova empresa vinculada com sucesso!');
         setName('');
         setSlug('');
+        setCnpj('');
+        setEmail('');
+        setPhone('');
         // Atualizar lista de empresas na store
         await fetchUsers();
       } else {
@@ -380,10 +392,11 @@ export default function EmpresasPage() {
                   <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Nome da Empresa</label>
                   <input
                     type="text"
+                    required
                     placeholder="Minha Nova Empresa Ltda"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary focus:bg-white text-slate-700"
+                    className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary focus:bg-white text-slate-700 font-medium"
                   />
                 </div>
 
@@ -392,13 +405,47 @@ export default function EmpresasPage() {
                   <div className="flex items-center bg-slate-50 border border-slate-250 rounded-xl px-3 py-2 text-xs focus-within:border-primary focus-within:bg-white text-slate-700">
                     <input
                       type="text"
+                      required
                       placeholder="empresa2"
                       value={slug}
                       onChange={(e) => setSlug(e.target.value)}
-                      className="bg-transparent border-none outline-none flex-1 w-full"
+                      className="bg-transparent border-none outline-none flex-1 w-full font-medium"
                     />
-                    <span className="text-slate-400 font-semibold">.hbflow.com.br</span>
+                    <span className="text-slate-400 font-semibold text-[11px]">.hbflow.com.br</span>
                   </div>
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">CNPJ (Opcional)</label>
+                  <input
+                    type="text"
+                    placeholder="00.000.000/0000-00"
+                    value={cnpj}
+                    onChange={(e) => setCnpj(formatCNPJ(e.target.value))}
+                    className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary focus:bg-white text-slate-700 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">E-mail Corporativo (Opcional)</label>
+                  <input
+                    type="email"
+                    placeholder="contato@empresa.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary focus:bg-white text-slate-700 font-mono"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Telefone (Opcional)</label>
+                  <input
+                    type="text"
+                    placeholder="(00) 00000-0000"
+                    value={phone}
+                    onChange={(e) => setPhone(formatPhone(e.target.value))}
+                    className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary focus:bg-white text-slate-700 font-mono"
+                  />
                 </div>
 
                 {errorMsg && (
