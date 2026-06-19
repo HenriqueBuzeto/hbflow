@@ -102,6 +102,31 @@ export class SubscriptionAccessService {
 
     const subscriptions = tenant.subscriptions;
     if (subscriptions.length === 0) {
+      // Auto-recuperar/gerar assinatura padrão caso seja um tenant ativo sem assinatura criada
+      if (tenant.status === 'active' && tenant.isActive) {
+        const planDb = await prisma.plan.findFirst({
+          where: { slug: tenant.plan || 'starter' }
+        });
+        if (planDb) {
+          const newSub = await prisma.subscription.create({
+            data: {
+              tenantId: tenant.id,
+              planId: planDb.id,
+              status: 'active',
+              currentPeriodStart: new Date(),
+              currentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 ano
+            }
+          });
+          return {
+            allowed: true,
+            hasAccess: true,
+            status: 'active',
+            currentPeriodEnd: newSub.currentPeriodEnd,
+            billingUrl: defaultBillingUrl
+          };
+        }
+      }
+
       return { 
         allowed: false,
         hasAccess: false, 

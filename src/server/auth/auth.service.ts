@@ -747,7 +747,17 @@ export class AuthService {
   ): Promise<any> {
     const existingUser = await prisma.user.findFirst({
       where: { email },
-      include: { tenant: true }
+      include: {
+        tenant: {
+          include: {
+            subscriptions: {
+              where: { deletedAt: null },
+              orderBy: { createdAt: 'desc' },
+              take: 1
+            }
+          }
+        }
+      }
     });
 
     if (!existingUser) {
@@ -776,6 +786,37 @@ export class AuthService {
         phone: phone || null,
       },
     });
+
+    // Herdar assinatura do tenant pai para evitar bloqueio de cobrança
+    const parentSubscription = existingUser.tenant.subscriptions[0];
+    if (parentSubscription) {
+      await prisma.subscription.create({
+        data: {
+          tenantId: tenant.id,
+          planId: parentSubscription.planId,
+          status: parentSubscription.status,
+          currentPeriodStart: parentSubscription.currentPeriodStart,
+          currentPeriodEnd: parentSubscription.currentPeriodEnd,
+          trialEndsAt: parentSubscription.trialEndsAt,
+        }
+      });
+    } else {
+      // Se não houver assinatura no pai, buscar plano padrão por slug
+      const planDb = await prisma.plan.findFirst({
+        where: { slug: parentPlan }
+      });
+      if (planDb) {
+        await prisma.subscription.create({
+          data: {
+            tenantId: tenant.id,
+            planId: planDb.id,
+            status: 'active',
+            currentPeriodStart: new Date(),
+            currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 dias
+          }
+        });
+      }
+    }
 
     const adminRole = await prisma.role.create({
       data: {
