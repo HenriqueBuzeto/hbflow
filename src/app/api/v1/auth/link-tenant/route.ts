@@ -1,10 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/server/middleware/auth.middleware';
 import { AuthService } from '@/server/auth/auth.service';
+import { prisma } from '@/server/db/prisma';
 
 export async function POST(request: NextRequest) {
   try {
     const userSession = await requireAuth();
+
+    // Check if the current tenant is on Pro or Enterprise plan
+    const activeTenant = await prisma.tenant.findUnique({
+      where: { id: userSession.tenantId }
+    });
+
+    if (!activeTenant) {
+      return NextResponse.json({ error: 'Empresa ativa não encontrada.' }, { status: 404 });
+    }
+
+    const plan = activeTenant.plan.toLowerCase();
+    if (plan !== 'pro' && plan !== 'enterprise') {
+      return NextResponse.json({
+        error: 'A criação e vinculação de múltiplas empresas (Multi-tenancy) está disponível apenas nos planos Pro e Enterprise. Faça o upgrade de seu plano no Painel Financeiro para liberar este recurso.'
+      }, { status: 403 });
+    }
+
     const body = await request.json();
     const { name, slug } = body;
 

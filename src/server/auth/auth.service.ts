@@ -740,11 +740,14 @@ export class AuthService {
   static async linkNewTenant(email: string, name: string, slug: string): Promise<any> {
     const existingUser = await prisma.user.findFirst({
       where: { email },
+      include: { tenant: true }
     });
 
     if (!existingUser) {
       throw new Error('Usuário de origem não encontrado.');
     }
+
+    const parentPlan = existingUser.tenant.plan || 'starter';
 
     const existingTenant = await prisma.tenant.findUnique({
       where: { slug },
@@ -758,7 +761,7 @@ export class AuthService {
       data: {
         name,
         slug,
-        plan: 'starter',
+        plan: parentPlan,
         status: 'active',
         isActive: true,
       },

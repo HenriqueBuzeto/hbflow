@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useStore } from '@/store/useStore';
 import { Building2, Plus, ShieldCheck, CheckCircle2, AlertCircle, Sparkles, RefreshCw, Save, Mail, Phone, FileText } from 'lucide-react';
 
 export default function EmpresasPage() {
+  const router = useRouter();
   const { tenants, currentTenantId, setCurrentTenantId, fetchUsers } = useStore();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
@@ -17,6 +19,7 @@ export default function EmpresasPage() {
   const [tenantEmail, setTenantEmail] = useState('');
   const [tenantPhone, setTenantPhone] = useState('');
   const [tenantCnpj, setTenantCnpj] = useState('');
+  const [originalCnpj, setOriginalCnpj] = useState('');
   const [tenantSlug, setTenantSlug] = useState('');
   const [tenantPlan, setTenantPlan] = useState('');
   const [isFetching, setIsFetching] = useState(false);
@@ -69,7 +72,9 @@ export default function EmpresasPage() {
           setTenantName(data.tenant.name || '');
           setTenantEmail(data.tenant.email || '');
           setTenantPhone(data.tenant.phone ? formatPhone(data.tenant.phone) : '');
-          setTenantCnpj(data.tenant.document ? formatCNPJ(data.tenant.document) : '');
+          const doc = data.tenant.document ? formatCNPJ(data.tenant.document) : '';
+          setTenantCnpj(doc);
+          setOriginalCnpj(doc);
           setTenantSlug(data.tenant.slug || '');
           setTenantPlan(data.tenant.plan || 'starter');
         }
@@ -101,7 +106,8 @@ export default function EmpresasPage() {
         body: JSON.stringify({
           name: tenantName,
           email: tenantEmail,
-          phone: tenantPhone
+          phone: tenantPhone,
+          document: tenantCnpj
         })
       });
 
@@ -110,6 +116,8 @@ export default function EmpresasPage() {
         setSaveSuccess(data.message || 'Dados da empresa salvos com sucesso!');
         // Refresh active list in Zustand store
         await fetchUsers();
+        // Re-load details to lock CNPJ if it was filled
+        await loadTenantDetails();
       } else {
         setSaveError(data.error || 'Erro ao atualizar dados da empresa.');
       }
@@ -215,16 +223,25 @@ export default function EmpresasPage() {
                     </div>
                   </div>
 
-                  {/* CNPJ (Read Only) */}
+                  {/* CNPJ */}
                   <div>
-                    <label className="text-[10px] font-bold text-slate-450 uppercase block mb-1">CNPJ (Não editável)</label>
-                    <div className="flex items-center bg-slate-100 border border-slate-200 rounded-xl px-3 py-2 text-slate-500 cursor-not-allowed">
+                    <label className="text-[10px] font-bold text-slate-450 uppercase block mb-1">
+                      {originalCnpj ? 'CNPJ (Não editável)' : 'CNPJ (Preencher uma vez)'}
+                    </label>
+                    <div className={`flex items-center border rounded-xl px-3 py-2 ${
+                      originalCnpj
+                        ? 'bg-slate-100 border-slate-200 text-slate-500 cursor-not-allowed'
+                        : 'bg-slate-50 border-slate-200 text-slate-700 focus-within:border-primary focus-within:bg-white'
+                    }`}>
                       <FileText size={14} className="text-slate-400 mr-2 shrink-0" />
                       <input
                         type="text"
                         value={tenantCnpj}
-                        disabled
-                        className="bg-transparent border-none outline-none w-full font-mono cursor-not-allowed"
+                        onChange={(e) => setTenantCnpj(formatCNPJ(e.target.value))}
+                        disabled={!!originalCnpj}
+                        className={`bg-transparent border-none outline-none w-full font-mono ${
+                          originalCnpj ? 'cursor-not-allowed text-slate-500' : 'font-semibold text-slate-700'
+                        }`}
                         placeholder="00.000.000/0000-00"
                       />
                     </div>
@@ -335,61 +352,79 @@ export default function EmpresasPage() {
         {/* Right Column: Register New Tenant */}
         <div className="space-y-6">
           {/* Link New Tenant Form */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
+          <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4 relative overflow-hidden">
             <h4 className="text-xs font-bold text-slate-800 border-b pb-2 flex items-center gap-1.5">
               <Plus size={14} className="text-primary" />
               Adicionar Outra Empresa
             </h4>
             
-            <form onSubmit={handleLinkTenant} className="space-y-3 text-xs font-medium">
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Nome da Empresa</label>
-                <input
-                  type="text"
-                  placeholder="Minha Nova Empresa Ltda"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary focus:bg-white text-slate-700"
-                />
+            {tenantPlan !== 'pro' && tenantPlan !== 'enterprise' ? (
+              <div className="space-y-3 py-4 text-center">
+                <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-2xl inline-flex text-indigo-650 mb-2">
+                  <Sparkles size={24} className="text-primary animate-pulse" />
+                </div>
+                <h5 className="font-bold text-slate-800 text-xs">Recurso Premium (Multi-lojas)</h5>
+                <p className="text-[11px] text-slate-505 leading-relaxed px-2">
+                  A vinculação de múltiplas empresas está disponível apenas nos planos <strong>Pro</strong> e <strong>Enterprise</strong>. Faça o upgrade de seu plano no painel financeiro para gerenciar todas as suas filiais.
+                </p>
+                <button
+                  onClick={() => router.push('/billing')}
+                  className="w-full mt-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded-xl text-xs transition-all shadow-md shadow-indigo-600/10 cursor-pointer"
+                >
+                  Fazer Upgrade de Plano
+                </button>
               </div>
-
-              <div>
-                <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Subdomínio / Slug</label>
-                <div className="flex items-center bg-slate-50 border border-slate-250 rounded-xl px-3 py-2 text-xs focus-within:border-primary focus-within:bg-white text-slate-700">
+            ) : (
+              <form onSubmit={handleLinkTenant} className="space-y-3 text-xs font-medium">
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Nome da Empresa</label>
                   <input
                     type="text"
-                    placeholder="empresa2"
-                    value={slug}
-                    onChange={(e) => setSlug(e.target.value)}
-                    className="bg-transparent border-none outline-none flex-1 w-full"
+                    placeholder="Minha Nova Empresa Ltda"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-250 rounded-xl px-3 py-2 text-xs outline-none focus:border-primary focus:bg-white text-slate-700"
                   />
-                  <span className="text-slate-400 font-semibold">.hbflow.com.br</span>
                 </div>
-              </div>
 
-              {errorMsg && (
-                <div className="p-2.5 bg-rose-50 border border-rose-250 text-rose-600 rounded-xl flex items-center gap-1.5 text-[10.5px]">
-                  <AlertCircle size={14} className="shrink-0" />
-                  <span>{errorMsg}</span>
+                <div>
+                  <label className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Subdomínio / Slug</label>
+                  <div className="flex items-center bg-slate-50 border border-slate-250 rounded-xl px-3 py-2 text-xs focus-within:border-primary focus-within:bg-white text-slate-700">
+                    <input
+                      type="text"
+                      placeholder="empresa2"
+                      value={slug}
+                      onChange={(e) => setSlug(e.target.value)}
+                      className="bg-transparent border-none outline-none flex-1 w-full"
+                    />
+                    <span className="text-slate-400 font-semibold">.hbflow.com.br</span>
+                  </div>
                 </div>
-              )}
 
-              {successMsg && (
-                <div className="p-2.5 bg-emerald-50 border border-emerald-250 text-emerald-600 rounded-xl flex items-center gap-1.5 text-[10.5px]">
-                  <CheckCircle2 size={14} className="shrink-0" />
-                  <span>{successMsg}</span>
-                </div>
-              )}
+                {errorMsg && (
+                  <div className="p-2.5 bg-rose-50 border border-rose-250 text-rose-600 rounded-xl flex items-center gap-1.5 text-[10.5px]">
+                    <AlertCircle size={14} className="shrink-0" />
+                    <span>{errorMsg}</span>
+                  </div>
+                )}
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-primary hover:bg-primary-hover disabled:bg-primary/50 text-white font-bold py-2 rounded-xl transition-all shadow-md shadow-primary/10 flex items-center justify-center gap-1 cursor-pointer"
-              >
-                {loading ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
-                <span>{loading ? 'Cadastrando...' : 'Cadastrar e Vincular'}</span>
-              </button>
-            </form>
+                {successMsg && (
+                  <div className="p-2.5 bg-emerald-50 border border-emerald-250 text-emerald-600 rounded-xl flex items-center gap-1.5 text-[10.5px]">
+                    <CheckCircle2 size={14} className="shrink-0" />
+                    <span>{successMsg}</span>
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-primary hover:bg-primary-hover disabled:bg-primary/50 text-white font-bold py-2 rounded-xl transition-all shadow-md shadow-primary/10 flex items-center justify-center gap-1 cursor-pointer"
+                >
+                  {loading ? <RefreshCw size={14} className="animate-spin" /> : <Plus size={14} />}
+                  <span>{loading ? 'Cadastrando...' : 'Cadastrar e Vincular'}</span>
+                </button>
+              </form>
+            )}
           </div>
 
           <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-3">
