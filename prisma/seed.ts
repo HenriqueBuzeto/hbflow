@@ -175,6 +175,18 @@ async function main() {
     },
   });
 
+  const hiquePasswordHash = await bcrypt.hash('Hique03@', 12);
+  await prisma.user.create({
+    data: {
+      tenantId: tenant.id,
+      name: 'Henrique Buzeto (Financeiro)',
+      email: 'hbdevstudio@gmail.com',
+      passwordHash: hiquePasswordHash,
+      roleId: adminRole.id,
+      isActive: true,
+    },
+  });
+
   const gestorUser = await prisma.user.create({
     data: {
       tenantId: tenant.id,

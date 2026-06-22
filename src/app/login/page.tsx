@@ -203,7 +203,11 @@ export default function LoginPage() {
         currentUserId: newUser.id
       });
 
-      router.push('/dashboard');
+      if (data.user.email === 'hbdevstudio@gmail.com') {
+        router.push('/admin/billing/professional');
+      } else {
+        router.push('/dashboard');
+      }
     } catch (err: any) {
       setLoginError(err.message || 'Falha ao autenticar.');
     } finally {

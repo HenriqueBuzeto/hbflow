@@ -37,6 +37,7 @@ export async function GET() {
 
     const isSuperAdmin = 
       fullUser.email === 'henrique@hbflow.com' ||
+      fullUser.email === 'hbdevstudio@gmail.com' ||
       (fullUser.role?.name === 'Admin' && fullUser.tenant?.slug === 'hbflow');
 
     let isBlocked = false;

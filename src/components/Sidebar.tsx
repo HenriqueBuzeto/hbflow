@@ -75,7 +75,8 @@ export default function Sidebar() {
     ] : []),
     ...(hasPerm('billing.read') || isAdmin ? [
       { name: 'Empresas', href: '/empresas', icon: Building2 },
-      { name: 'Financeiro', href: '/financeiro', icon: CreditCard }
+      { name: 'Financeiro', href: '/financeiro', icon: CreditCard },
+      { name: 'Financeiro Admin', href: '/admin/billing/professional', icon: ShieldCheck }
     ] : []),
     ...(hasPerm('audit.read') || isAdmin ? [{ name: 'Auditoria', href: '/admin/audit', icon: ShieldCheck }] : [])
   ];
