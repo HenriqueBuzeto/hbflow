@@ -35,6 +35,9 @@ export class PermissionService {
       });
       if (user.role.name === 'Admin') {
         permissions.add('billing.read');
+        permissions.add('billing.manage');
+        permissions.add('audit.read');
+        permissions.add('audit.manage');
       }
     }
 

@@ -328,7 +328,7 @@ export default function FinanceiroPage() {
             </div>
 
             {(() => {
-              const basePriceCents = subscriptionInfo?.plan?.priceCents ?? (activeTenant.plan === 'pro' ? 19990 : 9990);
+              const basePriceCents = subscriptionInfo?.plan?.priceCents ?? (activeTenant.plan === 'pro' ? 18990 : 9990);
               let discountCents = 0;
               if (activeDiscount) {
                 if (activeDiscount.type === 'percentage') {

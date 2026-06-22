@@ -418,7 +418,7 @@ export class AuthService {
           data: {
             name: selectedPlanSlug === 'pro' ? 'Plano Pro' : 'Plano Starter',
             slug: selectedPlanSlug,
-            priceCents: selectedPlanSlug === 'pro' ? 19990 : 9990,
+            priceCents: selectedPlanSlug === 'pro' ? 18990 : 9990,
             billingCycle: 'monthly',
             isActive: true
           }
@@ -553,7 +553,7 @@ export class AuthService {
           subtotalCents: chosenPlan.priceCents,
           discountCents,
           totalCents,
-          dueDate: new Date(),
+          dueDate: trialEndsAt,
           paidAt: totalCents === 0 ? new Date() : null,
           billingPeriodStart: new Date(),
           billingPeriodEnd: trialEndsAt,

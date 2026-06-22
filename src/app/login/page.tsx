@@ -55,7 +55,7 @@ export default function LoginPage() {
   const [realStep, setRealStep] = useState<1 | 2 | 3>(1);
 
   const getPricingDetails = () => {
-    const basePrice = realPlan === 'pro' ? 199.90 : 99.90;
+    const basePrice = realPlan === 'pro' ? 189.90 : 99.90;
     let discount = 0;
 
     if (couponFeedback?.type === 'success' && validatedCouponData) {
@@ -799,7 +799,7 @@ export default function LoginPage() {
                             {realPlan === 'pro' && <div className="w-1.5 h-1.5 bg-white rounded-full" />}
                           </div>
                         </div>
-                        <span className="text-[10px] text-slate-400 block">R$ 199,90 / mês</span>
+                        <span className="text-[10px] text-slate-400 block">R$ 189,90 / mês</span>
                       </div>
                     </div>
                   </div>

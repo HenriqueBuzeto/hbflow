@@ -33,6 +33,9 @@ export class RBACBootstrapService {
     'health.read',
     'whatsapp.connection.manage',
     'billing.read',
+    'audit.read',
+    'audit.manage',
+    'billing.manage',
   ];
 
   /**
