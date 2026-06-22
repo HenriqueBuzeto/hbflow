@@ -10,7 +10,8 @@ import {
   AlertTriangle,
   TrendingUp,
   Users,
-  Award
+  Award,
+  Loader2
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -23,7 +24,7 @@ import {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { conversations, contacts, users, departments, tenants, currentTenantId, demo_mode_enabled } = useStore();
+  const { conversations, contacts, users, departments, tenants, currentTenantId, demo_mode_enabled, isInitialSyncCompleted } = useStore();
   const [nowTimestamp] = React.useState(() => Date.now());
 
   const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0];
@@ -41,6 +42,16 @@ export default function DashboardPage() {
   };
 
   const subCountdown = getSubscriptionCountdown();
+
+  // Render loading skeleton/spinner if initial database sync has not completed yet
+  if (!isInitialSyncCompleted && conversations.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] py-20 gap-3">
+        <Loader2 className="animate-spin text-primary" size={28} />
+        <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">Carregando painel de controle...</span>
+      </div>
+    );
+  }
 
   // Render empty state if there are no conversations
   if (conversations.length === 0) {

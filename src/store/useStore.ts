@@ -327,6 +327,7 @@ interface State {
   accessInfo: any | null;
   activeDiscount: any | null;
   lastPayment: any | null;
+  isInitialSyncCompleted: boolean;
 }
 
 interface Actions {
@@ -632,6 +633,7 @@ export const useStore = create<State & Actions>((set, get) => ({
   accessInfo: null,
   activeDiscount: null,
   lastPayment: null,
+  isInitialSyncCompleted: false,
 
   // Setters
   toggleDarkMode: () => {
@@ -1081,10 +1083,18 @@ export const useStore = create<State & Actions>((set, get) => ({
     }
   },
   syncDatabaseState: async () => {
-    await get().fetchContacts();
-    await get().fetchConversations();
-    await get().fetchQuickReplies();
-    await get().fetchInboxCounters();
+    try {
+      await Promise.all([
+        get().fetchContacts(),
+        get().fetchConversations(),
+        get().fetchQuickReplies(),
+        get().fetchInboxCounters()
+      ]);
+      set({ isInitialSyncCompleted: true });
+    } catch (err) {
+      console.error('Error syncing database state in store:', err);
+      set({ isInitialSyncCompleted: true });
+    }
 
     // Sincronizar fluxos do localStorage com o banco de dados
     if (!get().demo_mode_enabled && get().flows.length > 0) {

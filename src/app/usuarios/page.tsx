@@ -91,7 +91,9 @@ export default function UsuariosPage() {
   const loadQuotaStats = async () => {
     if (demo_mode_enabled) return;
 
-    setLoading(true);
+    if (users.length === 0) {
+      setLoading(true);
+    }
     try {
       await fetchUsers();
     } catch (err) {
