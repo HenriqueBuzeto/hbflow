@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { prisma } from '../../db/prisma';
 import { WhatsAppMessageService } from './whatsapp-message.service';
 
@@ -30,6 +31,19 @@ export class FlowEngineService {
       const financeiroDept = departments.find(d => d.name.toLowerCase().includes('finance')) || departments[0];
       const manutencaoDept = departments.find(d => d.name.toLowerCase().includes('manuten')) || departments.find(d => d.name.toLowerCase().includes('suporte')) || departments[0];
 
+      const nodeStartId = randomUUID();
+      const nodeChoiceId = randomUUID();
+      const nodeVendasId = randomUUID();
+      const nodeFinanceiroId = randomUUID();
+      const nodeManutencaoId = randomUUID();
+      const nodeGeralId = randomUUID();
+
+      const edge1Id = randomUUID();
+      const edgeOpt1Id = randomUUID();
+      const edgeOpt2Id = randomUUID();
+      const edgeOpt3Id = randomUUID();
+      const edgeOpt4Id = randomUUID();
+
       const flow = await prisma.flow.create({
         data: {
           tenantId,
@@ -40,7 +54,7 @@ export class FlowEngineService {
           nodes: {
             create: [
               {
-                id: 'node-start',
+                id: nodeStartId,
                 tenantId,
                 type: 'message',
                 positionX: 100,
@@ -50,7 +64,7 @@ export class FlowEngineService {
                 })
               },
               {
-                id: 'node-choice',
+                id: nodeChoiceId,
                 tenantId,
                 type: 'question',
                 positionX: 100,
@@ -60,7 +74,7 @@ export class FlowEngineService {
                 })
               },
               {
-                id: 'node-vendas',
+                id: nodeVendasId,
                 tenantId,
                 type: 'route_department',
                 positionX: -150,
@@ -70,7 +84,7 @@ export class FlowEngineService {
                 })
               },
               {
-                id: 'node-financeiro',
+                id: nodeFinanceiroId,
                 tenantId,
                 type: 'route_department',
                 positionX: 50,
@@ -80,7 +94,7 @@ export class FlowEngineService {
                 })
               },
               {
-                id: 'node-manutencao',
+                id: nodeManutencaoId,
                 tenantId,
                 type: 'route_department',
                 positionX: 250,
@@ -90,7 +104,7 @@ export class FlowEngineService {
                 })
               },
               {
-                id: 'node-geral',
+                id: nodeGeralId,
                 tenantId,
                 type: 'message',
                 positionX: 450,
@@ -104,38 +118,38 @@ export class FlowEngineService {
           edges: {
             create: [
               {
-                id: 'edge-1',
+                id: edge1Id,
                 tenantId,
-                sourceNodeId: 'node-start',
-                targetNodeId: 'node-choice',
+                sourceNodeId: nodeStartId,
+                targetNodeId: nodeChoiceId,
                 conditionJson: '{}'
               },
               {
-                id: 'edge-opt1',
+                id: edgeOpt1Id,
                 tenantId,
-                sourceNodeId: 'node-choice',
-                targetNodeId: 'node-vendas',
+                sourceNodeId: nodeChoiceId,
+                targetNodeId: nodeVendasId,
                 conditionJson: JSON.stringify({ conditionValue: '1' })
               },
               {
-                id: 'edge-opt2',
+                id: edgeOpt2Id,
                 tenantId,
-                sourceNodeId: 'node-choice',
-                targetNodeId: 'node-financeiro',
+                sourceNodeId: nodeChoiceId,
+                targetNodeId: nodeFinanceiroId,
                 conditionJson: JSON.stringify({ conditionValue: '2' })
               },
               {
-                id: 'edge-opt3',
+                id: edgeOpt3Id,
                 tenantId,
-                sourceNodeId: 'node-choice',
-                targetNodeId: 'node-manutencao',
+                sourceNodeId: nodeChoiceId,
+                targetNodeId: nodeManutencaoId,
                 conditionJson: JSON.stringify({ conditionValue: '3' })
               },
               {
-                id: 'edge-opt4',
+                id: edgeOpt4Id,
                 tenantId,
-                sourceNodeId: 'node-choice',
-                targetNodeId: 'node-geral',
+                sourceNodeId: nodeChoiceId,
+                targetNodeId: nodeGeralId,
                 conditionJson: JSON.stringify({ conditionValue: '4' })
               }
             ]
@@ -218,20 +232,26 @@ export class FlowEngineService {
       if (!session) {
         // Se a conversa for nova e não tiver sessões anteriores, iniciar o fluxo
         console.log(`[FlowEngine] Creating a new Flow Session for conversation ${conversationId}`);
+        
+        // Encontrar o nó inicial real (o nó que não tem nenhuma aresta entrando nele)
+        const targetNodeIds = new Set(flow.edges.map(e => e.targetNodeId));
+        const startNode = flow.nodes.find(n => !targetNodeIds.has(n.id)) || flow.nodes[0];
+        const startNodeId = startNode ? startNode.id : 'node-start';
+
         session = await prisma.flowSession.create({
           data: {
             tenantId,
             flowId: flow.id,
             conversationId,
             contactId,
-            currentNodeId: 'node-start',
+            currentNodeId: startNodeId,
             status: 'active',
             contextJson: '{}'
           }
         });
 
-        // Executar o nó inicial 'node-start'
-        await this.executeNode(tenantId, session.id, conversationId, contactId, flow, 'node-start', channelId);
+        // Executar o nó inicial
+        await this.executeNode(tenantId, session.id, conversationId, contactId, flow, startNodeId, channelId);
       } else {
         // Sessão já ativa: processar a resposta do cliente
         const currentNode = flow.nodes.find(n => n.id === session!.currentNodeId);

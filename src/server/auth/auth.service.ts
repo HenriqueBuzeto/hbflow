@@ -585,22 +585,53 @@ export class AuthService {
         const periodEnd = new Date(Date.now() + (i + 1) * 30 * 24 * 60 * 60 * 1000);
         const futureDueDate = new Date(Date.now() + i * 30 * 24 * 60 * 60 * 1000);
 
-        await tx.invoice.create({
+        let futureDiscountCents = 0;
+        if (couponToApply) {
+          const isPermanent = couponToApply.duration === 'forever';
+          const isMultiMonth = couponToApply.duration === 'months' && couponToApply.durationMonths && i < couponToApply.durationMonths;
+          
+          if (isPermanent || isMultiMonth) {
+            futureDiscountCents = discountCents; // aplica o mesmo desconto calculado para a primeira fatura
+          }
+        }
+
+        const futureTotalCents = Math.max(0, chosenPlan.priceCents - futureDiscountCents);
+        const futureInvoiceStatus = futureTotalCents === 0 ? 'paid' : 'open';
+
+        const futInv = await tx.invoice.create({
           data: {
             tenantId: tenant.id,
             subscriptionId: subscription.id,
             invoiceNumber: `INV-${Date.now()}-${i}`,
-            status: 'open',
+            status: futureInvoiceStatus,
             subtotalCents: chosenPlan.priceCents,
-            discountCents: 0,
-            totalCents: chosenPlan.priceCents,
+            discountCents: futureDiscountCents,
+            totalCents: futureTotalCents,
             dueDate: futureDueDate,
-            paidAt: null,
+            paidAt: futureTotalCents === 0 ? new Date() : null,
             billingPeriodStart: periodStart,
             billingPeriodEnd: periodEnd,
-            metadataJson: '{}'
+            metadataJson: couponToApply && futureDiscountCents > 0 ? JSON.stringify({
+              couponCode: couponToApply.code,
+              discountPercentage: couponToApply.type === 'percentage' ? couponToApply.value : null
+            }) : '{}'
           }
         });
+
+        if (futureTotalCents === 0) {
+          // Cria o registro de pagamento (isento/cupom)
+          await tx.payment.create({
+            data: {
+              tenantId: tenant.id,
+              invoiceId: futInv.id,
+              provider: 'internal',
+              method: 'coupon',
+              status: 'paid',
+              amountCents: 0,
+              paidAt: new Date()
+            }
+          });
+        }
       }
 
       return { tenant, user, loginEmail, rawPassword, adminRoleId: adminRole.id, trialEndsAt, totalCents };
@@ -608,6 +639,9 @@ export class AuthService {
 
     // Run bootstrap RBAC outside Prisma transaction but using the same connection context
     await RBACBootstrapService.bootstrapTenantRBAC(transactionResult.tenant.id, transactionResult.adminRoleId);
+    
+    // Bootstrap default departments for the tenant
+    await DepartmentBootstrapService.bootstrapDefaultDepartments(transactionResult.tenant.id);
     
     return {
       tenantId: transactionResult.tenant.id,

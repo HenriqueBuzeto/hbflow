@@ -135,3 +135,98 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: 'Erro ao salvar alterações do fluxo.' }, { status: 500 });
   }
 }
+
+export async function POST(request: NextRequest) {
+  try {
+    const userSession = await requireAuth();
+    const tenantId = userSession.tenantId;
+    const body = await request.json();
+    const { name, description } = body;
+
+    const newFlow = await prisma.flow.create({
+      data: {
+        tenantId,
+        name: name || 'Novo Fluxo de Triagem',
+        description: description || 'Descreva as ações deste fluxo de triagem.',
+        triggerType: 'message_received',
+        isActive: false,
+        nodes: {
+          create: [
+            {
+              id: `node-${Date.now()}`,
+              tenantId,
+              type: 'message',
+              positionX: 100,
+              positionY: 100,
+              configJson: JSON.stringify({
+                messageText: 'Olá! Como podemos ajudar hoje?'
+              })
+            }
+          ]
+        }
+      },
+      include: {
+        nodes: true,
+        edges: true
+      }
+    });
+
+    const formattedFlow = {
+      id: newFlow.id,
+      name: newFlow.name,
+      description: newFlow.description,
+      isActive: newFlow.isActive,
+      nodes: newFlow.nodes.map((n) => ({
+        id: n.id,
+        type: n.type,
+        config: JSON.parse(n.configJson),
+        positionX: n.positionX,
+        positionY: n.positionY,
+      })),
+      edges: []
+    };
+
+    return NextResponse.json({ success: true, flow: formattedFlow });
+  } catch (error: any) {
+    console.error('[Flows API] Error creating flow:', error);
+    if (error.message === 'UNAUTHORIZED') {
+      return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 });
+    }
+    return NextResponse.json({ error: 'Erro ao criar fluxo.' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const userSession = await requireAuth();
+    const tenantId = userSession.tenantId;
+    const { searchParams } = new URL(request.url);
+    const flowId = searchParams.get('id');
+
+    if (!flowId) {
+      return NextResponse.json({ error: 'ID do fluxo é obrigatório.' }, { status: 400 });
+    }
+
+    // Verify ownership
+    const existingFlow = await prisma.flow.findFirst({
+      where: { id: flowId, tenantId, deletedAt: null },
+    });
+
+    if (!existingFlow) {
+      return NextResponse.json({ error: 'Fluxo não encontrado.' }, { status: 404 });
+    }
+
+    await prisma.flow.update({
+      where: { id: flowId },
+      data: { deletedAt: new Date() }
+    });
+
+    return NextResponse.json({ success: true, message: 'Fluxo excluído com sucesso!' });
+  } catch (error: any) {
+    console.error('[Flows API] Error deleting flow:', error);
+    if (error.message === 'UNAUTHORIZED') {
+      return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 });
+    }
+    return NextResponse.json({ error: 'Erro ao excluir fluxo.' }, { status: 500 });
+  }
+}
