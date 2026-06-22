@@ -323,6 +323,10 @@ interface State {
     resolved: number;
     waiting: number;
   };
+  subscriptionInfo: any | null;
+  accessInfo: any | null;
+  activeDiscount: any | null;
+  lastPayment: any | null;
 }
 
 interface Actions {
@@ -395,6 +399,7 @@ interface Actions {
   fetchQuickReplies: () => Promise<void>;
   syncDatabaseState: () => Promise<void>;
   fetchInvoices: () => Promise<void>;
+  fetchBillingData: () => Promise<void>;
   triggerConfidencePayment: () => Promise<{ success: boolean; message?: string; error?: string }>;
   setSelectedConversationId: (id: string | null) => void;
   startConversation: (contactId: string) => Promise<string | null>;
@@ -623,6 +628,10 @@ export const useStore = create<State & Actions>((set, get) => ({
     resolved: 0,
     waiting: 0
   },
+  subscriptionInfo: null,
+  accessInfo: null,
+  activeDiscount: null,
+  lastPayment: null,
 
   // Setters
   toggleDarkMode: () => {
@@ -1102,6 +1111,23 @@ export const useStore = create<State & Actions>((set, get) => ({
       }
     } catch (err) {
       console.error('Error fetching invoices in store:', err);
+    }
+  },
+  fetchBillingData: async () => {
+    if (get().demo_mode_enabled) return;
+    try {
+      const res = await fetch('/api/v1/billing/subscription');
+      if (res.ok) {
+        const data = await res.json();
+        set({
+          subscriptionInfo: data.subscription,
+          accessInfo: data.access,
+          activeDiscount: data.activeDiscount,
+          lastPayment: data.lastPayment
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching subscription info in store:', err);
     }
   },
   triggerConfidencePayment: async () => {

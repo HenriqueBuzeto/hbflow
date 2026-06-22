@@ -32,7 +32,12 @@ export default function FinanceiroPage() {
     isBlocked,
     subscriptionStatus,
     fetchUsers,
-    triggerConfidencePayment
+    triggerConfidencePayment,
+    subscriptionInfo,
+    accessInfo,
+    activeDiscount,
+    lastPayment,
+    fetchBillingData
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<'all' | 'pending' | 'paid'>('all');
@@ -43,12 +48,6 @@ export default function FinanceiroPage() {
   const [copingPix, setCopingPix] = useState(false);
   const [confidenceLoading, setConfidenceLoading] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  // Expiration info
-  const [subscriptionInfo, setSubscriptionInfo] = useState<any>(null);
-  const [accessInfo, setAccessInfo] = useState<any>(null);
-  const [activeDiscount, setActiveDiscount] = useState<any>(null);
-  const [lastPayment, setLastPayment] = useState<any>(null);
 
   const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0] || { id: '', name: 'Empresa', slug: '', plan: 'starter', status: 'active', createdAt: undefined };
 
@@ -98,15 +97,10 @@ export default function FinanceiroPage() {
 
   const loadBillingData = async () => {
     try {
-      await fetchInvoices();
-      const subRes = await fetch('/api/v1/billing/subscription');
-      if (subRes.ok) {
-        const subData = await subRes.json();
-        setSubscriptionInfo(subData.subscription);
-        setAccessInfo(subData.access);
-        setActiveDiscount(subData.activeDiscount);
-        setLastPayment(subData.lastPayment);
-      }
+      await Promise.all([
+        fetchInvoices(),
+        fetchBillingData()
+      ]);
     } catch (err) {
       console.error('Failed to load financeiro data:', err);
     }
