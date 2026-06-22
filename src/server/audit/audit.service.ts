@@ -20,6 +20,17 @@ export class AuditService {
    */
   static async log(data: AuditLogData): Promise<void> {
     try {
+      // Ignorar ações puras de leitura de listas para evitar inchar o banco de dados desnecessariamente.
+      // Ações como CONTACT_LIST_VIEWED ou CONVERSATION_LIST_VIEWED acontecem com alta frequência devido a atualizações em tempo real.
+      const actionLower = data.action.toLowerCase();
+      if (
+        actionLower.includes('list_viewed') || 
+        actionLower.includes('details_viewed') ||
+        actionLower.includes('read_only')
+      ) {
+        return;
+      }
+
       // Sanitize metadata to remove sensitive information
       const sanitizedMetadata = data.metadata ? sanitizeMetadata(data.metadata) : null;
 
