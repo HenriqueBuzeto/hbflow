@@ -26,6 +26,7 @@ export default function BillingPage() {
   // Expiration Status state
   const [subscriptionInfo, setSubscriptionInfo] = useState<any>(null);
   const [accessInfo, setAccessInfo] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
   
   // Checkout flow states
   const [plans, setPlans] = useState<any[]>([]);
@@ -47,6 +48,8 @@ export default function BillingPage() {
   const [paymentMethod, setPaymentMethod] = useState<'infinitepay' | 'pix' | 'credit_card' | 'boleto'>('infinitepay');
   const [cardNumber, setCardNumber] = useState('');
   const [cardHolder, setCardHolder] = useState('');
+  const [pendingCredentials, setPendingCredentials] = useState<any>(null);
+  const [showPlanSelector, setShowPlanSelector] = useState(false);
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
   const [boletoResult, setBoletoResult] = useState<any>(null);
@@ -54,33 +57,43 @@ export default function BillingPage() {
  
   // Fetch subscription, plans and current invoice
   const initBilling = async () => {
+    setLoading(true);
     try {
+      let subData: any = null;
+      let activeInv: any = null;
+
       // 1. Fetch Subscription & Access
       const subRes = await fetch('/api/v1/billing/subscription');
       if (subRes.ok) {
-        const subData = await subRes.json();
+        subData = await subRes.json();
         setSubscriptionInfo(subData.subscription);
         setAccessInfo(subData.access);
       }
  
-      // 2. Fetch Plans
+      // 2. Fetch Current Invoice
+      const invRes = await fetch('/api/v1/billing/invoices/current');
+      if (invRes.ok) {
+        const invData = await invRes.json();
+        activeInv = invData.invoice;
+        setCurrentInvoice(invData.invoice);
+      }
+
+      // 3. Fetch Plans
       const plansRes = await fetch('/api/v1/billing/plans');
       if (plansRes.ok) {
         const plansData = await plansRes.json();
         setPlans(plansData.plans || []);
         if (plansData.plans?.length > 0) {
-          setSelectedPlan(plansData.plans[0]); // default to first plan (Starter)
+          // Se tiver fatura aberta com plano associado, escolhe ele por padrão
+          const invoicePlan = activeInv && plansData.plans.find((p: any) => p.slug === activeInv.subscription?.plan?.slug);
+          const activeSubPlan = subData?.subscription?.plan && plansData.plans.find((p: any) => p.slug === subData.subscription.plan.slug);
+          setSelectedPlan(invoicePlan || activeSubPlan || plansData.plans[0]);
         }
-      }
- 
-      // 3. Fetch Current Invoice
-      const invRes = await fetch('/api/v1/billing/invoices/current');
-      if (invRes.ok) {
-        const invData = await invRes.json();
-        setCurrentInvoice(invData.invoice);
       }
     } catch (err) {
       console.error('Failed to load billing status:', err);
+    } finally {
+      setLoading(false);
     }
   };
  
@@ -88,6 +101,11 @@ export default function BillingPage() {
     const loadStoreAndBilling = async () => {
       await fetchUsers();
       await initBilling();
+      
+      const credsStr = localStorage.getItem('hbflow_pending_credentials');
+      if (credsStr) {
+        setPendingCredentials(JSON.parse(credsStr));
+      }
     };
     loadStoreAndBilling();
   }, [fetchUsers]);
@@ -411,67 +429,92 @@ export default function BillingPage() {
           </div>
 
           {/* Plan cards list */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {plans.map((plan: any) => (
-              <div 
-                key={plan.id}
-                onClick={() => handlePlanChange(plan)}
-                className={`bg-slate-950/80 border rounded-3xl p-6 shadow-xl flex flex-col justify-between h-[320px] transition-all cursor-pointer relative overflow-hidden group hover:border-slate-600 ${
-                  selectedPlan?.id === plan.id 
-                    ? 'border-primary ring-2 ring-primary/20 bg-slate-950' 
-                    : 'border-slate-800'
-                }`}
-              >
+          {loading ? (
+            <div className="bg-slate-950/80 border border-slate-800 rounded-3xl p-12 shadow-xl flex flex-col items-center justify-center gap-4 min-h-[300px]">
+              <Loader2 size={36} className="text-primary animate-spin" />
+              <p className="text-slate-400 text-xs font-semibold uppercase tracking-wider">Carregando detalhes do faturamento...</p>
+            </div>
+          ) : currentInvoice && currentInvoice.status !== 'paid' && !showPlanSelector ? (
+            <div className="bg-slate-950/80 border border-slate-800 rounded-3xl p-6 shadow-xl space-y-4">
+              <div className="flex justify-between items-start gap-4">
                 <div>
-                  <div className="flex justify-between items-center mb-4">
-                    <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Plano de Acesso</span>
-                    {selectedPlan?.id === plan.id && (
-                      <span className="bg-primary/25 border border-primary/40 text-primary text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
-                        Selecionado
-                      </span>
-                    )}
-                  </div>
-                  <h3 className="text-lg font-black text-white group-hover:text-primary transition-colors">{plan.name}</h3>
-                  <div className="mt-3 flex items-baseline gap-1">
-                    {plan.slug === 'enterprise' ? (
-                      <span className="text-xl font-black text-white">Valor a combinar</span>
-                    ) : (
-                      <>
-                        <span className="text-2xl font-black text-white">R$ {(plan.priceCents / 100).toFixed(2)}</span>
-                        <span className="text-slate-500 text-xs font-semibold">/ {plan.billingCycle === 'monthly' ? 'mês' : 'ano'}</span>
-                      </>
-                    )}
-                  </div>
-                  
-                  <ul className="mt-5 space-y-2 text-xs text-slate-400 font-medium">
-                    {plan.slug === 'starter' && (
-                      <>
-                        <li className="flex items-center gap-2">🟢 <span>1 Canal de WhatsApp</span></li>
-                        <li className="flex items-center gap-2">🟢 <span>3 Atendentes Humanos</span></li>
-                        <li className="flex items-center gap-2">🟢 <span>IA Triage, FAQ e Summary</span></li>
-                      </>
-                    )}
-                    {plan.slug === 'pro' && (
-                      <>
-                        <li className="flex items-center gap-2">🟢 <span>2 Canais de WhatsApp</span></li>
-                        <li className="flex items-center gap-2">🟢 <span>10 Atendentes Humanos</span></li>
-                        <li className="flex items-center gap-2">🟢 <span>Agente SDR & Cobrança (IA)</span></li>
-                        <li className="flex items-center gap-2">🟢 <span>Agente Follow-up Automático</span></li>
-                      </>
-                    )}
-                    {plan.slug === 'enterprise' && (
-                      <>
-                        <li className="flex items-center gap-2">🟢 <span>Canais & Atendentes Ilimitados</span></li>
-                        <li className="flex items-center gap-2">🟢 <span>Supervisor, Coach & Copilot IA</span></li>
-                        <li className="flex items-center gap-2">🟢 <span>Relatórios Predict & Forecast IA</span></li>
-                        <li className="flex items-center gap-2">🟢 <span>Suporte VIP & SLA Garantido</span></li>
-                      </>
-                    )}
-                  </ul>
+                  <h3 className="text-sm font-bold text-white uppercase tracking-wider">Assinatura Pendente de Ativação</h3>
+                  <p className="text-xs text-slate-400 leading-relaxed font-medium mt-1">
+                    Você selecionou o plano <strong className="text-primary capitalize">{selectedPlan?.name || 'Comercial'}</strong>. 
+                    Realize o pagamento ao lado para liberar e começar a usar todos os recursos.
+                  </p>
                 </div>
+                <button
+                  onClick={() => setShowPlanSelector(true)}
+                  className="text-[10px] font-black uppercase text-slate-400 hover:text-white bg-slate-900 border border-slate-800 px-3 py-1.5 rounded-lg transition-colors cursor-pointer shrink-0"
+                >
+                  Alterar Plano
+                </button>
               </div>
-            ))}
-          </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {plans.map((plan: any) => (
+                <div 
+                  key={plan.id}
+                  onClick={() => handlePlanChange(plan)}
+                  className={`bg-slate-950/80 border rounded-3xl p-6 shadow-xl flex flex-col justify-between h-[320px] transition-all cursor-pointer relative overflow-hidden group hover:border-slate-600 ${
+                    selectedPlan?.id === plan.id 
+                      ? 'border-primary ring-2 ring-primary/20 bg-slate-950' 
+                      : 'border-slate-800'
+                  }`}
+                >
+                  <div>
+                    <div className="flex justify-between items-center mb-4">
+                      <span className="text-[10px] font-black uppercase text-slate-500 tracking-wider">Plano de Acesso</span>
+                      {selectedPlan?.id === plan.id && (
+                        <span className="bg-primary/25 border border-primary/40 text-primary text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
+                          Selecionado
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-lg font-black text-white group-hover:text-primary transition-colors">{plan.name}</h3>
+                    <div className="mt-3 flex items-baseline gap-1">
+                      {plan.slug === 'enterprise' ? (
+                        <span className="text-xl font-black text-white">Valor a combinar</span>
+                      ) : (
+                        <>
+                          <span className="text-2xl font-black text-white">R$ {(plan.priceCents / 100).toFixed(2)}</span>
+                          <span className="text-slate-500 text-xs font-semibold">/ {plan.billingCycle === 'monthly' ? 'mês' : 'ano'}</span>
+                        </>
+                      )}
+                    </div>
+                    
+                    <ul className="mt-5 space-y-2 text-xs text-slate-400 font-medium">
+                      {plan.slug === 'starter' && (
+                        <>
+                          <li className="flex items-center gap-2">🟢 <span>1 Canal de WhatsApp</span></li>
+                          <li className="flex items-center gap-2">🟢 <span>3 Atendentes Humanos</span></li>
+                          <li className="flex items-center gap-2">🟢 <span>IA Triage, FAQ e Summary</span></li>
+                        </>
+                      )}
+                      {plan.slug === 'pro' && (
+                        <>
+                          <li className="flex items-center gap-2">🟢 <span>2 Canais de WhatsApp</span></li>
+                          <li className="flex items-center gap-2">🟢 <span>10 Atendentes Humanos</span></li>
+                          <li className="flex items-center gap-2">🟢 <span>Agente SDR & Cobrança (IA)</span></li>
+                          <li className="flex items-center gap-2">🟢 <span>Agente Follow-up Automático</span></li>
+                        </>
+                      )}
+                      {plan.slug === 'enterprise' && (
+                        <>
+                          <li className="flex items-center gap-2">🟢 <span>Canais & Atendentes Ilimitados</span></li>
+                          <li className="flex items-center gap-2">🟢 <span>Supervisor, Coach & Copilot IA</span></li>
+                          <li className="flex items-center gap-2">🟢 <span>Relatórios Predict & Forecast IA</span></li>
+                          <li className="flex items-center gap-2">🟢 <span>Suporte VIP & SLA Garantido</span></li>
+                        </>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Coupon Input Form */}
           <div className="bg-slate-950/80 border border-slate-800 rounded-3xl p-6 shadow-xl">
@@ -885,18 +928,62 @@ export default function BillingPage() {
               <Sparkles size={32} />
             </div>
 
-            <div className="space-y-2 relative z-10">
+            <div className="space-y-2 relative z-10 w-full">
               <h3 className="text-xl font-black text-white">Assinatura Ativada! 🚀</h3>
               <p className="text-xs text-emerald-400 font-bold uppercase tracking-widest">
-                Você agora é {activatedPlanName}!
+                Você agora é {activatedPlanName || selectedPlan?.name || 'Comercial'}!
               </p>
-              <p className="text-xs text-slate-400 leading-relaxed font-medium pt-2">
-                Parabéns! Sua transação foi processada e confirmada. O plano do seu tenant foi alterado com sucesso. Todos os recursos adicionais, canais extras e agentes inteligentes já estão totalmente liberados para você usar!
-              </p>
+              
+              {pendingCredentials ? (
+                <>
+                  <p className="text-[11px] text-slate-400 leading-relaxed font-medium pt-2">
+                    Parabéns! Seu pagamento foi confirmado. Guarde suas credenciais de login geradas abaixo para futuros acessos:
+                  </p>
+                  
+                  <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 my-2 text-left space-y-3 w-full">
+                    <div className="space-y-1">
+                      <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider block">Login / Email</span>
+                      <div className="flex items-center justify-between gap-2 bg-slate-900 border border-slate-800/80 rounded-xl px-3 py-2">
+                        <span className="text-xs font-semibold text-slate-200 truncate flex-1">{pendingCredentials.loginEmail}</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(pendingCredentials.loginEmail);
+                            alert('Email copiado!');
+                          }}
+                          className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
+                        >
+                          Copiar
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <span className="text-[9px] uppercase font-bold text-slate-500 tracking-wider block">Senha Inicial</span>
+                      <div className="flex items-center justify-between gap-2 bg-slate-900 border border-slate-800/80 rounded-xl px-3 py-2">
+                        <span className="text-xs font-mono font-semibold text-slate-200 flex-1">{pendingCredentials.password}</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(pendingCredentials.password);
+                            alert('Senha copiada!');
+                          }}
+                          className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
+                        >
+                          Copiar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="text-xs text-slate-400 leading-relaxed font-medium pt-2">
+                  Parabéns! Sua transação foi processada e confirmada. O plano do seu tenant foi alterado com sucesso. Todos os recursos adicionais, canais extras e agentes inteligentes já estão totalmente liberados para você usar!
+                </p>
+              )}
             </div>
 
             <button
               onClick={() => {
+                localStorage.removeItem('hbflow_pending_credentials');
                 setShowSuccessModal(false);
                 router.push('/dashboard');
               }}

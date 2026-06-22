@@ -33,6 +33,9 @@ export class PermissionService {
       user.role.rolePermissions.forEach((rp) => {
         permissions.add(rp.permission.name);
       });
+      if (user.role.name === 'Admin') {
+        permissions.add('billing.read');
+      }
     }
 
     // Adicionar permissões diretas do usuário

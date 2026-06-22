@@ -39,7 +39,7 @@ export default function Header() {
     }
   };
 
-  const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0] || { id: '', name: 'Empresa', slug: '', plan: 'starter', createdAt: undefined };
+  const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0] || { id: '', name: 'Empresa', slug: '', plan: 'starter', status: 'active', createdAt: undefined };
   // Subscription countdown helper
   const getSubscriptionCountdown = () => {
     if (activeTenant.plan === 'free' || !activeTenant.subscription?.currentPeriodEnd) return null;
@@ -90,7 +90,7 @@ export default function Header() {
 
   // Trial countdown helper
   const getTrialCountdown = () => {
-    if (activeTenant.plan !== 'trial' || !activeTenant.createdAt) return null;
+    if (activeTenant.status !== 'trial' || !activeTenant.createdAt) return null;
     const trialStart = new Date(activeTenant.createdAt).getTime();
     const trialEnd = trialStart + 3 * 24 * 60 * 60 * 1000; // 3 dias em ms
     const diffMs = trialEnd - Date.now();
@@ -130,45 +130,7 @@ export default function Header() {
           <ChevronDown size={14} className={`text-slate-400 transition-transform duration-200 ${showTenantDropdown ? 'rotate-180' : ''}`} />
         </button>
 
-        {trialInfo && (
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10.5px] font-bold shadow-sm select-none shrink-0 ${
-            trialInfo.expired
-              ? 'bg-rose-50 border-rose-200 text-rose-600'
-              : 'bg-amber-50 border-amber-200 text-amber-700'
-          }`}>
-            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${trialInfo.expired ? 'bg-rose-500' : 'bg-amber-500 animate-ping'}`} />
-            <span>Teste Grátis: <span className="font-extrabold">{trialInfo.text}</span></span>
-            <button
-              onClick={() => router.push('/billing')}
-              className="ml-1 px-2.5 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded-md text-[9px] font-black transition-colors uppercase tracking-wider shadow-sm"
-            >
-              Assinar
-            </button>
-          </div>
-        )}
 
-        {subCountdown && subCountdown.daysRemaining <= 3 && (
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-[10.5px] font-bold shadow-sm select-none shrink-0 ${
-            subCountdown.expired
-              ? 'bg-rose-50 border-rose-200 text-rose-600'
-              : 'bg-rose-50 border-rose-200 text-rose-600 animate-pulse'
-          }`}>
-            <span className="w-1.5 h-1.5 rounded-full bg-rose-500 shrink-0" />
-            <span>
-              {subCountdown.expired 
-                ? 'Assinatura Expirada' 
-                : subCountdown.daysRemaining === 1 
-                  ? 'Vence Amanhã!' 
-                  : `Vence em ${subCountdown.daysRemaining} dias`}
-            </span>
-            <button
-              onClick={() => router.push('/financeiro')}
-              className="ml-1 px-2.5 py-0.5 bg-rose-600 hover:bg-rose-700 text-white rounded-md text-[9px] font-black transition-colors uppercase tracking-wider shadow-sm"
-            >
-              Renovar
-            </button>
-          </div>
-        )}
 
         {showTenantDropdown && (
           <>

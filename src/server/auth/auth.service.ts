@@ -431,7 +431,7 @@ export class AuthService {
           name: companyName,
           slug: tenantSlug,
           plan: selectedPlanSlug,
-          status: isCoupon100 ? 'active' : 'trial',
+          status: isCoupon100 ? 'active' : (data.isTrial ? 'trial' : 'active'),
           email: cleanEmail,
           phone: cleanPhone,
           document: cleanCnpj,
@@ -494,10 +494,10 @@ export class AuthService {
         data: {
           tenantId: tenant.id,
           planId: chosenPlan.id,
-          status: isCoupon100 ? 'active' : 'trialing',
+          status: isCoupon100 ? 'active' : (data.isTrial ? 'trialing' : 'active'),
           currentPeriodStart: new Date(),
           currentPeriodEnd: trialEndsAt,
-          trialEndsAt: isCoupon100 ? null : trialEndsAt,
+          trialEndsAt: isCoupon100 ? null : (data.isTrial ? trialEndsAt : null),
         }
       });
 
@@ -575,6 +575,30 @@ export class AuthService {
             status: 'paid',
             amountCents: 0,
             paidAt: new Date()
+          }
+        });
+      }
+
+      // Generate 3 future invoices ahead
+      for (let i = 1; i <= 3; i++) {
+        const periodStart = new Date(Date.now() + i * 30 * 24 * 60 * 60 * 1000);
+        const periodEnd = new Date(Date.now() + (i + 1) * 30 * 24 * 60 * 60 * 1000);
+        const futureDueDate = new Date(Date.now() + i * 30 * 24 * 60 * 60 * 1000);
+
+        await tx.invoice.create({
+          data: {
+            tenantId: tenant.id,
+            subscriptionId: subscription.id,
+            invoiceNumber: `INV-${Date.now()}-${i}`,
+            status: 'open',
+            subtotalCents: chosenPlan.priceCents,
+            discountCents: 0,
+            totalCents: chosenPlan.priceCents,
+            dueDate: futureDueDate,
+            paidAt: null,
+            billingPeriodStart: periodStart,
+            billingPeriodEnd: periodEnd,
+            metadataJson: '{}'
           }
         });
       }

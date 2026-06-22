@@ -50,6 +50,7 @@ export interface Tenant {
   name: string;
   slug: string;
   plan: string;
+  status?: string;
   createdAt?: string;
   subscription?: {
     status: string;

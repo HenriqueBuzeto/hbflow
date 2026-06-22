@@ -7,6 +7,7 @@ import Sidebar from './Sidebar';
 import Header from './Header';
 import ServerStatusBanner from './ServerStatusBanner';
 import TrialBanner from './TrialBanner';
+import { Sparkles } from 'lucide-react';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -25,6 +26,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   } = useStore();
 
   const [subscriptionAccess, setSubscriptionAccess] = useState<{ daysRemaining: number; status: string } | null>(null);
+  const [showPendingModal, setShowPendingModal] = useState(false);
+  const [pendingCredentials, setPendingCredentials] = useState<any>(null);
 
   const isPublicPage =
     pathname === '/' ||
@@ -32,6 +35,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     pathname.startsWith('/agentes') ||
     pathname === '/billing' ||
     pathname === '/renovar';
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const credsStr = localStorage.getItem('hbflow_pending_credentials');
+      if (credsStr) {
+        setPendingCredentials(JSON.parse(credsStr));
+        setShowPendingModal(true);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     if (!isPublicPage && !demo_mode_enabled && !isBlocked) {
@@ -66,7 +79,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [isPublicPage, isBlocked, router]);
 
-  // Atualiza dinamicamente o título da aba do navegador de acordo com chamados ativos ou mensagens não lidas
+  // Dynamic page title update according to active conversations or unread messages
   useEffect(() => {
     if (isPublicPage || demo_mode_enabled) return;
     const activeCount = conversations.filter(
@@ -80,7 +93,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     }
   }, [conversations, isPublicPage, demo_mode_enabled]);
 
-  // Sincronização global de conversas, mensagens e contatos a cada 3 segundos nas rotas autenticadas
+  // Global background synchronization of conversations, messages and contacts every 3 seconds on authenticated routes
   useEffect(() => {
     if (isPublicPage || demo_mode_enabled || isBlocked) return;
 
@@ -105,7 +118,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }
     };
 
-    // Dispara a sincronização inicial imediatamente
+    // Trigger initial sync immediately
     doSync();
 
     const handleVisibilityChange = () => {
@@ -150,7 +163,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </h2>
           
           <p className="text-xs text-slate-400 mb-6 leading-relaxed">
-            Seu período de teste grátis ou assinatura do **HBFlow** chegou ao fim. Para continuar usando seus agentes inteligentes e WhatsApp CRM, assine um plano.
+            Seu período de teste grátis ou assinatura do **HBFlow** chegou ao fim. Para continuar usando seus agentes inteligentes e WhatsApp CRM, assine um plan.
           </p>
 
           {/* Tenant Details */}
@@ -200,7 +213,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 font-sans">
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 font-sans relative">
       {/* Dark Sidebar */}
       <Sidebar />
 
@@ -224,6 +237,68 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+
+      {/* Premium Credentials Copy Modal for direct dashboard landings (e.g. Free Trials or completed checkout) */}
+      {showPendingModal && pendingCredentials && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-4">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl relative overflow-hidden text-center flex flex-col items-center gap-6">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 text-primary flex items-center justify-center animate-bounce shadow-lg relative z-10 shrink-0">
+              <Sparkles size={32} />
+            </div>
+
+            <div className="space-y-2 relative z-10 w-full">
+              <h3 className="text-xl font-black text-slate-800 dark:text-white">Conta Criada com Sucesso! 🎉</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed font-medium">
+                Sua conta de teste grátis foi ativada. Guarde suas credenciais de login geradas abaixo para futuros acessos:
+              </p>
+              
+              <div className="bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 my-2 text-left space-y-3 w-full">
+                <div className="space-y-1">
+                  <span className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider block">Login / Email</span>
+                  <div className="flex items-center justify-between gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-xl px-3 py-2">
+                    <span className="text-xs font-semibold text-slate-700 dark:text-slate-200 truncate flex-1">{pendingCredentials.loginEmail}</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(pendingCredentials.loginEmail);
+                        alert('Email copiado!');
+                      }}
+                      className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="space-y-1">
+                  <span className="text-[9px] uppercase font-bold text-slate-400 dark:text-slate-500 tracking-wider block">Senha Inicial</span>
+                  <div className="flex items-center justify-between gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800/80 rounded-xl px-3 py-2">
+                    <span className="text-xs font-mono font-semibold text-slate-700 dark:text-slate-200 flex-1">{pendingCredentials.password}</span>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(pendingCredentials.password);
+                        alert('Senha copiada!');
+                      }}
+                      className="text-[10px] font-bold text-primary hover:underline cursor-pointer"
+                    >
+                      Copiar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                localStorage.removeItem('hbflow_pending_credentials');
+                setShowPendingModal(false);
+              }}
+              className="w-full bg-primary hover:bg-primary-hover text-white py-3.5 rounded-2xl font-black text-xs transition-all shadow-lg cursor-pointer relative z-10"
+            >
+              Acessar o Painel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

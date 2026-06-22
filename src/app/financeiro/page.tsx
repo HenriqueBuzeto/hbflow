@@ -50,7 +50,51 @@ export default function FinanceiroPage() {
   const [activeDiscount, setActiveDiscount] = useState<any>(null);
   const [lastPayment, setLastPayment] = useState<any>(null);
 
-  const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0] || { id: '', name: 'Empresa', slug: '', plan: 'starter' };
+  const activeTenant = tenants.find((t) => t.id === currentTenantId) || tenants[0] || { id: '', name: 'Empresa', slug: '', plan: 'starter', status: 'active', createdAt: undefined };
+
+  // Subscription countdown helper
+  const getSubscriptionCountdown = () => {
+    if (activeTenant.plan === 'free' || !subscriptionInfo?.currentPeriodEnd) return null;
+    const end = new Date(subscriptionInfo.currentPeriodEnd).getTime();
+    const diffMs = end - Date.now();
+    const diffDays = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
+    return {
+      daysRemaining: diffDays,
+      expired: diffMs <= 0,
+      dateStr: new Date(subscriptionInfo.currentPeriodEnd).toLocaleDateString('pt-BR'),
+    };
+  };
+
+  const subCountdown = getSubscriptionCountdown();
+
+  // Trial countdown helper
+  const getTrialCountdown = () => {
+    if (activeTenant.status !== 'trial' || !activeTenant.createdAt) return null;
+    const trialStart = new Date(activeTenant.createdAt).getTime();
+    const trialEnd = trialStart + 3 * 24 * 60 * 60 * 1000; // 3 dias em ms
+    const diffMs = trialEnd - Date.now();
+    
+    if (diffMs <= 0) {
+      return { expired: true, text: 'expirado' };
+    }
+    
+    const days = Math.floor(diffMs / (24 * 60 * 60 * 1000));
+    const hours = Math.floor((diffMs % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+    const minutes = Math.floor((diffMs % (60 * 60 * 1000)) / (60 * 1000));
+    
+    let text = '';
+    if (days > 0) {
+      text = `${days}d ${hours}h`;
+    } else if (hours > 0) {
+      text = `${hours}h ${minutes}m`;
+    } else {
+      text = `${minutes}m`;
+    }
+    
+    return { expired: false, text };
+  };
+
+  const trialInfo = getTrialCountdown();
 
   const loadBillingData = async () => {
     try {
@@ -158,6 +202,59 @@ export default function FinanceiroPage() {
           <ArrowUpRight size={14} />
         </button>
       </div>
+
+      {/* Expirations warnings shown locally inside Financeiro Page instead of flashing header */}
+      {trialInfo && (
+        <div className={`p-5 rounded-3xl border text-xs font-bold flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+          trialInfo.expired
+            ? 'bg-rose-50 border-rose-200 text-rose-800'
+            : 'bg-amber-50 border-amber-200 text-amber-800'
+        }`}>
+          <div className="flex items-center gap-3">
+            <span className={`w-2.5 h-2.5 rounded-full ${trialInfo.expired ? 'bg-rose-500' : 'bg-amber-500 animate-ping'}`} />
+            <div>
+              <p className="font-extrabold text-sm uppercase">Período de Teste Grátis</p>
+              <p className="text-slate-500 text-[11px] mt-0.5">
+                {trialInfo.expired ? 'Seu período de teste expirou.' : `Seu período de teste grátis vence em ${trialInfo.text}.`}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push('/billing')}
+            className="px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black transition-colors uppercase tracking-wider shadow-sm cursor-pointer"
+          >
+            Assinar Plano
+          </button>
+        </div>
+      )}
+
+      {subCountdown && subCountdown.daysRemaining <= 3 && (
+        <div className={`p-5 rounded-3xl border text-xs font-bold flex flex-col md:flex-row md:items-center justify-between gap-4 ${
+          subCountdown.expired
+            ? 'bg-rose-50 border-rose-200 text-rose-800'
+            : 'bg-rose-50 border-rose-200 text-rose-800 animate-pulse'
+        }`}>
+          <div className="flex items-center gap-3">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+            <div>
+              <p className="font-extrabold text-sm uppercase">Aviso de Vencimento da Assinatura</p>
+              <p className="text-slate-500 text-[11px] mt-0.5">
+                {subCountdown.expired 
+                  ? 'Sua assinatura venceu. Realize o pagamento para desbloquear o sistema.' 
+                  : subCountdown.daysRemaining === 1 
+                    ? 'Sua mensalidade vence amanhã! Evite o bloqueio do sistema.' 
+                    : `Sua mensalidade vence em ${subCountdown.daysRemaining} dias.`}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => router.push('/billing')}
+            className="px-5 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-black transition-colors uppercase tracking-wider shadow-sm cursor-pointer"
+          >
+            Renovar Agora
+          </button>
+        </div>
+      )}
 
       {/* Expiration warning & Confidence payment block */}
       {isBlocked && (

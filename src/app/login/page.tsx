@@ -259,12 +259,22 @@ export default function LoginPage() {
         throw new Error(data.error || 'Falha no cadastro comercial.');
       }
 
-      setCredentials({
-        ...data,
+      localStorage.setItem('hbflow_pending_credentials', JSON.stringify({
+        loginEmail: data.loginEmail,
+        password: data.password,
         plan: realPlan,
-        isRealPlan: true
+        isRealPlan: true,
+        totalAmountCents: data.totalAmountCents
+      }));
+
+      // Efetua login automático e redireciona imediatamente
+      await handleAutoLogin({
+        loginEmail: data.loginEmail,
+        password: data.password,
+        plan: realPlan,
+        isRealPlan: true,
+        totalAmountCents: data.totalAmountCents
       });
-      setShowModal(true);
     } catch (err: any) {
       setRealError(err.message || 'Falha no cadastro comercial.');
     } finally {
@@ -345,11 +355,24 @@ export default function LoginPage() {
         throw new Error(data.error || 'Falha no cadastro de teste grátis.');
       }
 
-      setCredentials({
-        ...data,
-        isRealPlan: false
+      localStorage.setItem('hbflow_pending_credentials', JSON.stringify({
+        loginEmail: data.loginEmail,
+        password: data.password,
+        plan: 'starter',
+        isRealPlan: false,
+        totalAmountCents: 0,
+        trialEndsAt: data.trialEndsAt
+      }));
+
+      // Efetua login automático e redireciona imediatamente
+      await handleAutoLogin({
+        loginEmail: data.loginEmail,
+        password: data.password,
+        plan: 'starter',
+        isRealPlan: false,
+        totalAmountCents: 0,
+        trialEndsAt: data.trialEndsAt
       });
-      setShowModal(true);
     } catch (err: any) {
       setTrialError(err.message || 'Falha no cadastro.');
     } finally {
@@ -363,16 +386,17 @@ export default function LoginPage() {
     setTimeout(() => setCopiedType(null), 2000);
   };
 
-  const handleAutoLogin = async () => {
-    if (!credentials) return;
+  const handleAutoLogin = async (credsToUse?: any) => {
+    const targetCreds = credsToUse || credentials;
+    if (!targetCreds) return;
     setIsLoggingInAuto(true);
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: credentials.loginEmail,
-          password: credentials.password
+          email: targetCreds.loginEmail,
+          password: targetCreds.password
         })
       });
 
@@ -400,7 +424,8 @@ export default function LoginPage() {
         id: data.tenant.id,
         name: data.tenant.name,
         slug: data.tenant.slug,
-        plan: data.tenant.plan || 'starter'
+        plan: data.tenant.plan || 'starter',
+        status: data.tenant.status || 'active'
       };
 
       useStore.getState().setDemoModeEnabled(false);
@@ -415,14 +440,14 @@ export default function LoginPage() {
       
       // Se for plano real e tiver valor a pagar (> 0), redireciona para a tela de faturamento (/billing)
       // Se for isento (totalAmountCents === 0), redireciona direto para a tela inicial (/dashboard)
-      if (credentials.isRealPlan && (credentials.totalAmountCents ?? 0) > 0) {
+      if (targetCreds.isRealPlan && (targetCreds.totalAmountCents ?? 0) > 0) {
         router.push('/billing');
       } else {
         router.push('/dashboard');
       }
     } catch (err: any) {
       console.error(err);
-      if (credentials.isRealPlan) {
+      if (targetCreds.isRealPlan) {
         setRealError(err.message || 'Erro ao acessar o sistema automaticamente.');
       } else {
         setTrialError(err.message || 'Erro ao acessar o sistema automaticamente.');
