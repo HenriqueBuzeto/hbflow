@@ -316,7 +316,7 @@ export default function AjudaPage() {
           <p className="text-xs text-slate-400">Entre em contato direto com o nosso time de suporte técnico.</p>
         </div>
         <a 
-          href="https://wa.me/5511999999999" 
+          href="https://wa.me/5517992651033" 
           target="_blank" 
           rel="noopener noreferrer" 
           className="bg-primary hover:bg-primary-hover text-white text-xs font-bold px-6 py-2.5 rounded-xl transition-all shadow-md shadow-primary/20 flex items-center gap-2"
