@@ -19,7 +19,24 @@ export async function GET(request: NextRequest) {
 
     // 3. Retrieve all active and blocked tenants to compute MRR and plan distribution
     const tenants = await prisma.tenant.findMany({
-      where: { deletedAt: null }
+      where: { deletedAt: null },
+      include: {
+        subscriptions: {
+          where: { deletedAt: null },
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        },
+        tenantDiscounts: {
+          where: {
+            isActive: true,
+            deletedAt: null,
+            OR: [
+              { endsAt: null },
+              { endsAt: { gte: new Date() } }
+            ]
+          }
+        }
+      }
     });
 
     const totalTenantsCount = tenants.length;
@@ -33,22 +50,51 @@ export async function GET(request: NextRequest) {
     let trialCount = 0;
 
     tenants.forEach(t => {
+      const activeSub = t.subscriptions[0];
+      const hasFreeSub = activeSub?.status === 'free';
+      
+      // Verifica se possui desconto de 100% ou acesso gratuito
+      const hasFreeDiscount = t.tenantDiscounts.some(d => d.type === 'free_access' || (d.type === 'percentage' && d.value === 100));
+      const isExempt = hasFreeSub || hasFreeDiscount;
+
       // Calculate MRR based on active, non-blocked paid plans
       if (!t.isBlocked && t.status === 'active') {
+        let tenantPrice = 0;
         if (t.plan === 'starter') {
-          mrr += 99.90;
+          tenantPrice = 99.90;
           starterCount++;
         } else if (t.plan === 'pro') {
-          mrr += 189.90;
+          tenantPrice = 189.90;
           proCount++;
         } else if (t.plan === 'enterprise') {
-          mrr += 499.90;
+          tenantPrice = 499.90;
           enterpriseCount++;
         } else if (t.plan === 'trial') {
           trialCount++;
         } else {
-          mrr += 99.90; // default fallback
+          tenantPrice = 99.90; // default fallback
           starterCount++;
+        }
+
+        if (!isExempt) {
+          let discountPercentage = 0;
+          let fixedDiscount = 0;
+          
+          t.tenantDiscounts.forEach(d => {
+            if (d.type === 'percentage') {
+              discountPercentage += d.value;
+            } else if (d.type === 'fixed_amount') {
+              fixedDiscount += d.value;
+            }
+          });
+
+          let finalTenantPrice = tenantPrice;
+          if (discountPercentage > 0) {
+            finalTenantPrice = finalTenantPrice * (1 - Math.min(100, discountPercentage) / 100);
+          }
+          finalTenantPrice = Math.max(0, finalTenantPrice - fixedDiscount);
+          
+          mrr += finalTenantPrice;
         }
       } else if (t.plan === 'trial') {
         trialCount++;
