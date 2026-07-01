@@ -565,10 +565,16 @@ export default function InboxPage() {
     };
   }, []);
 
-  // Sincronização inicial de redundância ao montar a tela
+  // Sincronização inicial e polling periódico para obter novas mensagens em tempo real
   useEffect(() => {
     syncDatabaseState();
     fetchUsers();
+
+    const interval = setInterval(() => {
+      syncDatabaseState();
+    }, 5000); // Executa sync a cada 5 segundos
+
+    return () => clearInterval(interval);
   }, [syncDatabaseState, fetchUsers]);
 
   useEffect(() => {
@@ -609,7 +615,8 @@ export default function InboxPage() {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const currentUser = users.find((u) => u.id === currentUserId) || users[0] || { id: '', name: 'Usuário', email: '', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces', role: 'Atendente', presence: 'offline', filters: [] };
+  const fallbackPresence = (typeof window !== 'undefined' ? localStorage.getItem('hbflow-presence') : null) || 'online';
+  const currentUser = users.find((u) => u.id === currentUserId) || users[0] || { id: '', name: 'Usuário', email: '', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces', role: 'Atendente', presence: fallbackPresence as any, filters: [] };
 
   // Scroll to bottom
   useEffect(() => {

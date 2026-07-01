@@ -194,12 +194,18 @@ export async function POST(request: Request, { params }: RouteParams) {
       data: messageData,
     });
 
-    // Update conversation lastMessageAt and lastUserMessageAt
+    // Update conversation lastMessageAt, lastUserMessageAt, and auto-assign if sent by a user
     await prisma.conversation.update({
       where: { id: conversationId },
       data: {
         lastMessageAt: new Date(),
-        ...(message.senderType === 'user' || message.senderType === 'automation' ? { lastUserMessageAt: new Date() } : {})
+        ...(message.senderType === 'user' && dbUser ? {
+          lastUserMessageAt: new Date(),
+          assignedUserId: dbUser.id,
+          status: 'open'
+        } : message.senderType === 'automation' ? {
+          lastUserMessageAt: new Date()
+        } : {})
       },
     });
 

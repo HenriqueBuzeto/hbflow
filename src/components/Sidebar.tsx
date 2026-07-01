@@ -39,7 +39,8 @@ export default function Sidebar() {
   const hasAfterSales = userPlan ? userPlan.toLowerCase() !== 'starter' : false;
   const hasChatInterno = userPlan ? userPlan.toLowerCase() !== 'starter' : false;
 
-  const currentUser = users.find((u) => u.id === currentUserId) || users[0] || { id: '', name: 'Usuário', email: '', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces', role: 'Atendente', presence: 'offline' };
+  const fallbackPresence = (typeof window !== 'undefined' ? localStorage.getItem('hbflow-presence') : null) || 'online';
+  const currentUser = users.find((u) => u.id === currentUserId) || users[0] || { id: '', name: 'Usuário', email: '', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces', role: 'Atendente', presence: fallbackPresence as any };
   
   const isAdmin = currentUser.role?.toLowerCase() === 'admin' || currentUser.role?.toLowerCase() === 'gestor';
   const hasPerm = (perm: string) => isAdmin || permissions.includes(perm);

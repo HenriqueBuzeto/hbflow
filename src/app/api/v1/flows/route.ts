@@ -16,23 +16,7 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    const totalFlowsCount = await prisma.flow.count({
-      where: { tenantId }
-    });
 
-    if (totalFlowsCount === 0) {
-      // Bootstrap default welcome flow if none exists
-      const newFlow = await FlowEngineService.bootstrapDefaultFlow(tenantId);
-      if (newFlow) {
-        flows = await prisma.flow.findMany({
-          where: { tenantId, deletedAt: null },
-          include: {
-            nodes: true,
-            edges: true,
-          },
-        });
-      }
-    }
 
     // Format fields for frontend consumption
     const formattedFlows = flows.map((f) => ({

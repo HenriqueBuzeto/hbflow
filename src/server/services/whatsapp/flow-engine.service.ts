@@ -19,149 +19,9 @@ export class FlowEngineService {
    * caso ele ainda não tenha nenhum fluxo no banco.
    */
   static async bootstrapDefaultFlow(tenantId: string) {
-    try {
-      console.log(`[FlowEngine] Bootstrapping default welcome flow for tenant: ${tenantId}`);
-
-      // Buscar departamentos reais do tenant para associar corretamente
-      const departments = await prisma.department.findMany({
-        where: { tenantId, deletedAt: null }
-      });
-
-      const vendasDept = departments.find(d => d.name.toLowerCase().includes('venda')) || departments[0];
-      const financeiroDept = departments.find(d => d.name.toLowerCase().includes('finance')) || departments[0];
-      const manutencaoDept = departments.find(d => d.name.toLowerCase().includes('manuten')) || departments.find(d => d.name.toLowerCase().includes('suporte')) || departments[0];
-
-      const nodeStartId = randomUUID();
-      const nodeChoiceId = randomUUID();
-      const nodeVendasId = randomUUID();
-      const nodeFinanceiroId = randomUUID();
-      const nodeManutencaoId = randomUUID();
-      const nodeGeralId = randomUUID();
-
-      const edge1Id = randomUUID();
-      const edgeOpt1Id = randomUUID();
-      const edgeOpt2Id = randomUUID();
-      const edgeOpt3Id = randomUUID();
-      const edgeOpt4Id = randomUUID();
-
-      const flow = await prisma.flow.create({
-        data: {
-          tenantId,
-          name: 'Fluxo de Triagem Inicial',
-          description: 'Menu inicial automático de boas vindas e roteamento por setor.',
-          triggerType: 'message_received',
-          isActive: true,
-          nodes: {
-            create: [
-              {
-                id: nodeStartId,
-                tenantId,
-                type: 'message',
-                positionX: 100,
-                positionY: 100,
-                configJson: JSON.stringify({
-                  messageText: 'Olá! Seja bem-vindo(a) à nossa central HBFlow. Como podemos ajudar?\n\n1 - Comprar ou fazer orçamento\n2 - Financeiro / Boletos\n3 - Suporte ou Manutenção\n4 - Falar com atendente'
-                })
-              },
-              {
-                id: nodeChoiceId,
-                tenantId,
-                type: 'question',
-                positionX: 100,
-                positionY: 300,
-                configJson: JSON.stringify({
-                  questionOptions: ['1', '2', '3', '4']
-                })
-              },
-              {
-                id: nodeVendasId,
-                tenantId,
-                type: 'route_department',
-                positionX: -150,
-                positionY: 500,
-                configJson: JSON.stringify({
-                  departmentId: vendasDept?.id || 'dept-vendas'
-                })
-              },
-              {
-                id: nodeFinanceiroId,
-                tenantId,
-                type: 'route_department',
-                positionX: 50,
-                positionY: 500,
-                configJson: JSON.stringify({
-                  departmentId: financeiroDept?.id || 'dept-financeiro'
-                })
-              },
-              {
-                id: nodeManutencaoId,
-                tenantId,
-                type: 'route_department',
-                positionX: 250,
-                positionY: 500,
-                configJson: JSON.stringify({
-                  departmentId: manutencaoDept?.id || 'dept-manutencao'
-                })
-              },
-              {
-                id: nodeGeralId,
-                tenantId,
-                type: 'message',
-                positionX: 450,
-                positionY: 500,
-                configJson: JSON.stringify({
-                  messageText: 'Vou te encaminhar para a fila de atendimento geral.'
-                })
-              }
-            ]
-          },
-          edges: {
-            create: [
-              {
-                id: edge1Id,
-                tenantId,
-                sourceNodeId: nodeStartId,
-                targetNodeId: nodeChoiceId,
-                conditionJson: '{}'
-              },
-              {
-                id: edgeOpt1Id,
-                tenantId,
-                sourceNodeId: nodeChoiceId,
-                targetNodeId: nodeVendasId,
-                conditionJson: JSON.stringify({ conditionValue: '1' })
-              },
-              {
-                id: edgeOpt2Id,
-                tenantId,
-                sourceNodeId: nodeChoiceId,
-                targetNodeId: nodeFinanceiroId,
-                conditionJson: JSON.stringify({ conditionValue: '2' })
-              },
-              {
-                id: edgeOpt3Id,
-                tenantId,
-                sourceNodeId: nodeChoiceId,
-                targetNodeId: nodeManutencaoId,
-                conditionJson: JSON.stringify({ conditionValue: '3' })
-              },
-              {
-                id: edgeOpt4Id,
-                tenantId,
-                sourceNodeId: nodeChoiceId,
-                targetNodeId: nodeGeralId,
-                conditionJson: JSON.stringify({ conditionValue: '4' })
-              }
-            ]
-          }
-        }
-      });
-
-      return flow;
-    } catch (error) {
-      console.error('[FlowEngine] Error bootstrapping default flow:', error);
-      return null;
-    }
+    // Por padrão do sistema, não criamos nenhum fluxo/chatbot inicial automaticamente.
+    // O cliente deve cadastrar seus fluxos de chatbot manualmente.
+    return null;
   }
 
   /**
@@ -199,21 +59,7 @@ export class FlowEngineService {
         include: { nodes: true, edges: true }
       });
 
-      if (!flow) {
-        // Tentar criar o fluxo de boas-vindas padrão APENAS se o inquilino NUNCA teve nenhum fluxo cadastrado
-        const hasAnyFlow = await prisma.flow.findFirst({
-          where: { tenantId }
-        });
-        if (!hasAnyFlow) {
-          const created = await this.bootstrapDefaultFlow(tenantId);
-          if (created) {
-            flow = await prisma.flow.findFirst({
-              where: { id: created.id },
-              include: { nodes: true, edges: true }
-            });
-          }
-        }
-      }
+
 
       if (!flow || flow.nodes.length === 0) {
         console.log(`[FlowEngine] No active flow found for tenant: ${tenantId}`);

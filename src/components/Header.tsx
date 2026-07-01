@@ -86,7 +86,8 @@ export default function Header() {
 
   const allNotifications = [...billingNotifications, ...notifications];
   const unreadNotifications = allNotifications.filter((n) => !n.isRead);
-  const currentUser = users.find((u) => u.id === currentUserId) || users[0] || { id: '', name: 'Usuário', email: '', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces', role: 'Atendente', presence: 'offline' };
+  const fallbackPresence = (typeof window !== 'undefined' ? localStorage.getItem('hbflow-presence') : null) || 'online';
+  const currentUser = users.find((u) => u.id === currentUserId) || users[0] || { id: '', name: 'Usuário', email: '', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&h=100&fit=crop&crop=faces', role: 'Atendente', presence: fallbackPresence as any };
 
   // Trial countdown helper
   const getTrialCountdown = () => {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireTenant } from '@/server/middleware/tenant.middleware';
-import { CreditCardPaymentService } from '@/server/services/billing/credit-card-payment.service';
+import { InfinitePayProvider } from '@/server/services/billing/providers/infinitepay.provider';
 
 export async function POST(
   request: NextRequest,
@@ -11,24 +11,12 @@ export async function POST(
 
   try {
     const tenantId = await requireTenant();
-    const body = await request.json();
-    const { number, holder, expiry, cvv } = body;
 
-    if (!number || !holder || !expiry || !cvv) {
-      return NextResponse.json(
-        { success: false, error: 'Dados do cartão incompletos' },
-        { status: 400 }
-      );
-    }
+    // Em produção, não processamos dados de cartão diretamente para evitar PCI DSS compliance.
+    // Redirecionamos para o checkout seguro da InfinitePay.
+    const result = await InfinitePayProvider.createCheckoutLink(invoiceId);
 
-    const result = await CreditCardPaymentService.processPayment(tenantId, invoiceId, {
-      number,
-      holder,
-      expiry,
-      cvv
-    });
-
-    return NextResponse.json(result);
+    return NextResponse.json({ success: true, checkoutUrl: result.checkoutUrl });
   } catch (error: any) {
     console.error('Error processing credit card payment:', error);
     return NextResponse.json(

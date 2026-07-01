@@ -443,11 +443,7 @@ const initialWhatsapp: WhatsappConnection = {
   lastSyncedAt: '2026-06-08T18:30:00-03:00'
 };
 
-const initialDepartments: Department[] = [
-  { id: 'dept-vendas', name: 'Vendas', description: 'Atendimento comercial, orçamentos e captação de leads.', color: '#7C3AED', icon: 'ShoppingBag', greetingMessage: 'Olá! Você está no setor de Vendas. Um vendedor já vai te atender.', awayMessage: 'Olá! Nosso time comercial está fora do horário. Retornamos às 08:00.', distributionMode: 'round_robin', slaFirstResponseMinutes: 10, slaResolutionMinutes: 30, isActive: true },
-  { id: 'dept-financeiro', name: 'Financeiro', description: 'Assuntos relacionados a cobranças, boletos e pagamentos.', color: '#2563EB', icon: 'CreditCard', greetingMessage: 'Olá! Encaminhando você para nosso time Financeiro. Aguarde um instante.', awayMessage: 'Olá! O financeiro atende de segunda a sexta, das 09h às 18h.', distributionMode: 'workload', slaFirstResponseMinutes: 15, slaResolutionMinutes: 45, isActive: true },
-  { id: 'dept-manutencao', name: 'Manutenção', description: 'Suporte técnico, garantia e manutenção de produtos.', color: '#16A34A', icon: 'Wrench', greetingMessage: 'Olá! Setor de Manutenção. Descreva seu problema ou envie fotos do produto.', awayMessage: 'Olá! Nosso suporte técnico está offline. Deixe sua mensagem.', distributionMode: 'manual', slaFirstResponseMinutes: 20, slaResolutionMinutes: 120, isActive: true }
-];
+const initialDepartments: Department[] = [];
 
 const initialContacts: Contact[] = [
   { id: 'contact-1', name: 'Mateus Oliveira', phone: '+55 11 98888-7777', email: 'mateus@email.com', document: '123.456.789-00', city: 'São Paulo', state: 'SP', origin: 'whatsapp', status: 'lead', tags: ['vendas', 'potencial-cliente'], notes: 'Interessado na compra de óculos de grau.', score: 80, totalPurchased: 0, firstContactAt: '2026-06-08T12:00:00Z', lastContactAt: '2026-06-08T19:00:00Z' },
@@ -549,30 +545,7 @@ const initialTasks: Task[] = [
   { id: 'task-2', contactId: 'contact-3', dealId: null, assignedUserId: 'user-3', title: 'Ligar para cobrar fotos do óculos quebrado', type: 'call', dueAt: '2026-06-08T20:00:00Z', priority: 'medium', status: 'pending', notes: 'Precisa ver fotos para dar o laudo da garantia.' }
 ];
 
-// Initial Routing Flow Configuration
-const initialFlows: Flow[] = [
-  {
-    id: 'flow-welcome',
-    name: 'Fluxo de Triagem Inicial',
-    description: 'Menu inicial automático de boas vindas e roteamento por setor.',
-    isActive: true,
-    nodes: [
-      { id: 'node-start', type: 'message', config: { messageText: 'Olá! Seja bem-vindo(a) à nossa central HBFlow. Como podemos ajudar?\n\n1 - Comprar ou fazer orçamento\n2 - Financeiro / Boletos\n3 - Manutenção / Garantia\n4 - Falar com atendente' }, positionX: 100, positionY: 100 },
-      { id: 'node-choice', type: 'question', config: { questionOptions: ['1', '2', '3', '4'] }, positionX: 100, positionY: 300 },
-      { id: 'node-vendas', type: 'route_department', config: { departmentId: 'dept-vendas' }, positionX: -150, positionY: 500 },
-      { id: 'node-financeiro', type: 'route_department', config: { departmentId: 'dept-financeiro' }, positionX: 50, positionY: 500 },
-      { id: 'node-manutencao', type: 'route_department', config: { departmentId: 'dept-manutencao' }, positionX: 250, positionY: 500 },
-      { id: 'node-geral', type: 'message', config: { messageText: 'Vou te encaminhar para a fila de atendimento geral.' }, positionX: 450, positionY: 500 }
-    ],
-    edges: [
-      { id: 'edge-1', sourceNodeId: 'node-start', targetNodeId: 'node-choice' },
-      { id: 'edge-opt1', sourceNodeId: 'node-choice', targetNodeId: 'node-vendas', conditionValue: '1' },
-      { id: 'edge-opt2', sourceNodeId: 'node-choice', targetNodeId: 'node-financeiro', conditionValue: '2' },
-      { id: 'edge-opt3', sourceNodeId: 'node-choice', targetNodeId: 'node-manutencao', conditionValue: '3' },
-      { id: 'edge-opt4', sourceNodeId: 'node-choice', targetNodeId: 'node-geral', conditionValue: '4' }
-    ]
-  }
-];
+const initialFlows: Flow[] = [];
 
 export const useStore = create<State & Actions>((set, get) => ({
   tenants: [],
@@ -592,10 +565,7 @@ export const useStore = create<State & Actions>((set, get) => ({
   },
   contacts: [],
   conversations: [],
-  quickReplies: [
-    { id: 'q-1', shortcut: '/saudacao', message: 'Olá! Como posso ajudar você hoje?' },
-    { id: 'q-3', shortcut: '/obrigado', message: 'Obrigado pelo contato! Se precisar de algo mais, estou à disposição.' }
-  ],
+  quickReplies: [],
   templates: [],
   stages: initialStages,
   deals: [],
@@ -648,6 +618,10 @@ export const useStore = create<State & Actions>((set, get) => ({
     set((s) => ({
       users: s.users.map((u) => u.id === userId ? { ...u, presence, isOnline: presence !== 'offline' } : u)
     }));
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('hbflow-presence', presence);
+    }
 
     if (get().demo_mode_enabled) return;
 
@@ -929,6 +903,10 @@ export const useStore = create<State & Actions>((set, get) => ({
           presence: meData.user.presence || 'online',
           workload: meData.user.workload ?? 0
         };
+
+        if (typeof window !== 'undefined' && meData.user.presence) {
+          localStorage.setItem('hbflow-presence', meData.user.presence);
+        }
 
         set((s) => {
           const exists = s.users.some(u => u.id === currentUserMapped.id);

@@ -3,8 +3,6 @@ import bcrypt from 'bcrypt';
 
 const prisma = new PrismaClient();
 
-const DEMO_PASSWORD = 'Admin@123456';
-
 async function main() {
   console.log('🌱 Starting seed...');
 
@@ -55,7 +53,6 @@ async function main() {
     },
   });
 
-
   // Criar Roles
   console.log('👥 Creating roles...');
   const adminRole = await prisma.role.create({
@@ -63,46 +60,6 @@ async function main() {
       tenantId: tenant.id,
       name: 'Admin',
       description: 'Administrador com acesso total ao sistema',
-    },
-  });
-
-  const gestorRole = await prisma.role.create({
-    data: {
-      tenantId: tenant.id,
-      name: 'Gestor',
-      description: 'Gestor de equipe com acesso limitado',
-    },
-  });
-
-  const supervisorRole = await prisma.role.create({
-    data: {
-      tenantId: tenant.id,
-      name: 'Supervisor',
-      description: 'Supervisor de atendimento',
-    },
-  });
-
-  const vendasRole = await prisma.role.create({
-    data: {
-      tenantId: tenant.id,
-      name: 'Vendas',
-      description: 'Equipe de vendas',
-    },
-  });
-
-  const financeiroRole = await prisma.role.create({
-    data: {
-      tenantId: tenant.id,
-      name: 'Financeiro',
-      description: 'Equipe financeira',
-    },
-  });
-
-  const suporteRole = await prisma.role.create({
-    data: {
-      tenantId: tenant.id,
-      name: 'Suporte',
-      description: 'Equipe de suporte técnico',
     },
   });
 
@@ -159,85 +116,16 @@ async function main() {
     });
   }
 
-  // Criar Hash da senha demo
-  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
-
   // Criar Usuários
   console.log('👤 Creating users...');
-  const adminUser = await prisma.user.create({
-    data: {
-      tenantId: tenant.id,
-      name: 'Admin',
-      email: 'admin@hbflow.com',
-      passwordHash,
-      roleId: adminRole.id,
-      isActive: true,
-    },
-  });
-
   const hiquePasswordHash = await bcrypt.hash('Hique03@', 12);
-  await prisma.user.create({
+  const adminUser = await prisma.user.create({
     data: {
       tenantId: tenant.id,
       name: 'Henrique Buzeto (Financeiro)',
       email: 'hbdevstudio@gmail.com',
       passwordHash: hiquePasswordHash,
       roleId: adminRole.id,
-      isActive: true,
-    },
-  });
-
-  const gestorUser = await prisma.user.create({
-    data: {
-      tenantId: tenant.id,
-      name: 'Gestor Demo',
-      email: 'gestor@hbflow.com',
-      passwordHash,
-      roleId: gestorRole.id,
-      isActive: true,
-    },
-  });
-
-  const supervisorUser = await prisma.user.create({
-    data: {
-      tenantId: tenant.id,
-      name: 'Supervisor Demo',
-      email: 'supervisor@hbflow.com',
-      passwordHash,
-      roleId: supervisorRole.id,
-      isActive: true,
-    },
-  });
-
-  const vendasUser = await prisma.user.create({
-    data: {
-      tenantId: tenant.id,
-      name: 'Vendedor Demo',
-      email: 'vendas@hbflow.com',
-      passwordHash,
-      roleId: vendasRole.id,
-      isActive: true,
-    },
-  });
-
-  const financeiroUser = await prisma.user.create({
-    data: {
-      tenantId: tenant.id,
-      name: 'Financeiro Demo',
-      email: 'financeiro@hbflow.com',
-      passwordHash,
-      roleId: financeiroRole.id,
-      isActive: true,
-    },
-  });
-
-  const suporteUser = await prisma.user.create({
-    data: {
-      tenantId: tenant.id,
-      name: 'Suporte Demo',
-      email: 'suporte@hbflow.com',
-      passwordHash,
-      roleId: suporteRole.id,
       isActive: true,
     },
   });
@@ -289,11 +177,9 @@ async function main() {
   // Associar usuários aos departamentos
   await prisma.userDepartment.createMany({
     data: [
-      { tenantId: tenant.id, userId: vendasUser.id, departmentId: vendasDept.id, priority: 1 },
-      { tenantId: tenant.id, userId: gestorUser.id, departmentId: vendasDept.id, priority: 2 },
-      { tenantId: tenant.id, userId: suporteUser.id, departmentId: suporteDept.id, priority: 1 },
-      { tenantId: tenant.id, userId: supervisorUser.id, departmentId: suporteDept.id, priority: 2 },
-      { tenantId: tenant.id, userId: financeiroUser.id, departmentId: financeiroDept.id, priority: 1 },
+      { tenantId: tenant.id, userId: adminUser.id, departmentId: vendasDept.id, priority: 1 },
+      { tenantId: tenant.id, userId: adminUser.id, departmentId: suporteDept.id, priority: 1 },
+      { tenantId: tenant.id, userId: adminUser.id, departmentId: financeiroDept.id, priority: 1 },
     ],
   });
 
@@ -436,30 +322,6 @@ async function main() {
       status: 'lead',
       temperature: 'hot',
     },
-    {
-      name: 'Pedro Oliveira',
-      phone: '+5511965432109',
-      email: 'pedro.oliveira@email.com',
-      type: 'prospect',
-      status: 'lead',
-      temperature: 'cold',
-    },
-    {
-      name: 'Ana Costa',
-      phone: '+5511954321098',
-      email: 'ana.costa@email.com',
-      type: 'customer',
-      status: 'lead',
-      temperature: 'warm',
-    },
-    {
-      name: 'Carlos Ferreira',
-      phone: '+5511943210987',
-      email: 'carlos.ferreira@email.com',
-      type: 'lead',
-      status: 'lead',
-      temperature: 'hot',
-    },
   ];
 
   const createdContacts = [];
@@ -484,14 +346,14 @@ async function main() {
     orderBy: { position: 'asc' },
   });
 
-  for (let i = 0; i < 5; i++) {
+  for (let i = 0; i < 2; i++) {
     const contact = createdContacts[i];
     const conversation = await prisma.conversation.create({
       data: {
         tenantId: tenant.id,
         contactId: contact.id,
-        assignedUserId: i < 2 ? vendasUser.id : suporteUser.id,
-        status: i < 3 ? 'open' : 'resolved',
+        assignedUserId: adminUser.id,
+        status: 'open',
       },
     });
 
@@ -510,7 +372,7 @@ async function main() {
           tenantId: tenant.id,
           conversationId: conversation.id,
           senderType: 'user',
-          senderId: i < 2 ? vendasUser.id : suporteUser.id,
+          senderId: adminUser.id,
           body: 'Olá! Claro, em que posso ser útil?',
           type: 'text',
           createdAt: new Date(Date.now() - (i * 3600000 + 900000)),
@@ -518,29 +380,27 @@ async function main() {
       ],
     });
 
-    // Criar Deal se for do departamento de vendas
-    if (i < 2) {
-      const deal = await prisma.deal.create({
-        data: {
-          tenantId: tenant.id,
-          contactId: contact.id,
-          pipelineId: pipeline.id,
-          stageId: stages[i % stages.length].id,
-          ownerUserId: vendasUser.id,
-          title: `Negócio com ${contact.name}`,
-          value: Math.floor(Math.random() * 50000) + 10000,
-        },
-      });
+    // Criar Deal
+    const deal = await prisma.deal.create({
+      data: {
+        tenantId: tenant.id,
+        contactId: contact.id,
+        pipelineId: pipeline.id,
+        stageId: stages[i % stages.length].id,
+        ownerUserId: adminUser.id,
+        title: `Negócio com ${contact.name}`,
+        value: Math.floor(Math.random() * 50000) + 10000,
+      },
+    });
 
-      // Criar Deal Activity
-      await prisma.dealActivity.create({
-        data: {
-          dealId: deal.id,
-          type: 'stage_change',
-          content: `Deal movido para ${stages[i % stages.length].name}`,
-        },
-      });
-    }
+    // Criar Deal Activity
+    await prisma.dealActivity.create({
+      data: {
+        dealId: deal.id,
+        type: 'stage_change',
+        content: `Deal movido para ${stages[i % stages.length].name}`,
+      },
+    });
   }
 
   // Criar Tasks Demo
@@ -550,48 +410,21 @@ async function main() {
       {
         tenantId: tenant.id,
         contactId: createdContacts[0].id,
-        assignedUserId: vendasUser.id,
+        assignedUserId: adminUser.id,
         title: 'Ligar para cliente - Follow-up',
         type: 'call',
         dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
         priority: 'high',
         status: 'pending',
-      },
-      {
-        tenantId: tenant.id,
-        dealId: (await prisma.deal.findFirst({ where: { tenantId: tenant.id } }))?.id,
-        assignedUserId: gestorUser.id,
-        title: 'Enviar proposta comercial',
-        type: 'proposal',
-        dueAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
-        priority: 'medium',
-        status: 'pending',
-      },
-      {
-        tenantId: tenant.id,
-        assignedUserId: suporteUser.id,
-        title: 'Verificar tickets pendentes',
-        type: 'follow_up',
-        dueAt: new Date(Date.now() + 12 * 60 * 60 * 1000),
-        priority: 'low',
-        status: 'pending',
-      },
+      }
     ],
   });
 
   console.log('✅ Seed completed successfully!');
   console.log('');
-  console.log('📝 Demo credentials:');
-  console.log('   Email: admin@hbflow.com');
-  console.log('   Password: Admin@123456');
-  console.log('');
-  console.log('   Other users:');
-  console.log('   - gestor@hbflow.com');
-  console.log('   - supervisor@hbflow.com');
-  console.log('   - vendas@hbflow.com');
-  console.log('   - financeiro@hbflow.com');
-  console.log('   - suporte@hbflow.com');
-  console.log('   (all with password: Admin@123456)');
+  console.log('📝 Credentials:');
+  console.log('   Email: hbdevstudio@gmail.com');
+  console.log('   Password: Hique03@');
 }
 
 main()

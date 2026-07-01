@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireTenant } from '@/server/middleware/tenant.middleware';
-import { PixPaymentService } from '@/server/services/billing/pix-payment.service';
+import { InfinitePayProvider } from '@/server/services/billing/providers/infinitepay.provider';
 
 export async function POST(
   request: NextRequest,
@@ -11,9 +11,10 @@ export async function POST(
   try {
     const tenantId = await requireTenant();
 
-    const pixCharge = await PixPaymentService.generatePixCharge(tenantId, invoiceId);
+    // Redireciona para o checkout real da InfinitePay que gerencia Pix de forma real
+    const result = await InfinitePayProvider.createCheckoutLink(invoiceId);
 
-    return NextResponse.json({ success: true, pixCharge });
+    return NextResponse.json({ success: true, checkoutUrl: result.checkoutUrl });
   } catch (error: any) {
     console.error('Error generating PIX charge:', error);
     return NextResponse.json(

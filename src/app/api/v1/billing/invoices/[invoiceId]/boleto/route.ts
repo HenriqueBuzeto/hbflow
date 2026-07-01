@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireTenant } from '@/server/middleware/tenant.middleware';
-import { BoletoPaymentService } from '@/server/services/billing/boleto-payment.service';
+import { InfinitePayProvider } from '@/server/services/billing/providers/infinitepay.provider';
 
 export async function POST(
   request: NextRequest,
@@ -12,9 +12,10 @@ export async function POST(
   try {
     const tenantId = await requireTenant();
 
-    const boletoCharge = await BoletoPaymentService.generateBoleto(tenantId, invoiceId);
+    // Redireciona para o checkout real da InfinitePay
+    const result = await InfinitePayProvider.createCheckoutLink(invoiceId);
 
-    return NextResponse.json(boletoCharge);
+    return NextResponse.json({ success: true, checkoutUrl: result.checkoutUrl });
   } catch (error: any) {
     console.error('Error generating Boleto:', error);
     return NextResponse.json(

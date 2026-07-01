@@ -138,8 +138,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 3. Processar mensagens recebidas (messages.upsert)
-    if (event === 'messages.upsert' || event === 'MESSAGES_UPSERT') {
+    // 3. Processar mensagens recebidas (messages.upsert ou messages.set)
+    if (
+      event === 'messages.upsert' || 
+      event === 'MESSAGES_UPSERT' || 
+      event === 'messages.set' || 
+      event === 'MESSAGES_SET'
+    ) {
       const result = await WhatsAppMessageService.handleWebhook(headers, bodyText, bodyJson);
       
       // Registrar log de webhook

@@ -230,10 +230,13 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
 
   async processWebhook(body: any, connection: any): Promise<WebhookMessagePayload[] | null> {
     try {
-      // Evolution API envia eventos do tipo "MESSAGES_UPSERT" ou "messages.upsert"
+      // Evolution API envia eventos do tipo "MESSAGES_UPSERT" ou "messages.upsert", e para histórico "messages.set" ou "MESSAGES_SET"
       const eventType = body.event || '';
-      if (eventType !== 'messages.upsert' && eventType !== 'MESSAGES_UPSERT') {
-        return null; // Apenas processa mensagens recebidas
+      const isUpsert = eventType === 'messages.upsert' || eventType === 'MESSAGES_UPSERT';
+      const isSet = eventType === 'messages.set' || eventType === 'MESSAGES_SET';
+
+      if (!isUpsert && !isSet) {
+        return null; // Apenas processa mensagens recebidas ou histórico
       }
 
       // Validar se a mensagem pertence a esta instância
@@ -241,121 +244,142 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
         return null;
       }
 
-      const messageData = body.data;
-      if (!messageData || !messageData.key) {
-        return null;
-      }
-
-      const fromMe = !!messageData.key.fromMe;
-
-      // Extrair número do remetente
-      const remoteJid = messageData.key.remoteJid || '';
-      const cleanPhone = remoteJid.split('@')[0] || '';
-      if (!cleanPhone || remoteJid.includes('@g.us')) {
-        return null; // Ignorar mensagens de grupo
-      }
-
-      const senderPhone = `+${cleanPhone}`;
-      const senderName = fromMe ? senderPhone : (body.data.pushName || senderPhone);
-      
-      let messageBody = '';
-      let messageType: WebhookMessagePayload['messageType'] = 'other';
-      let mediaUrl: string | undefined;
-      let mimeType: string | undefined;
-
-      const messageContent = messageData.message;
-      if (!messageContent) {
-        return null;
-      }
-
-      // Obter conteúdo conforme o tipo de mensagem
-      if (messageContent.conversation) {
-        messageBody = messageContent.conversation;
-        messageType = 'text';
-      } else if (messageContent.extendedTextMessage) {
-        messageBody = messageContent.extendedTextMessage.text || '';
-        messageType = 'text';
-      } else if (messageContent.imageMessage) {
-        messageBody = messageContent.imageMessage.caption || '[Imagem]';
-        messageType = 'image';
-        mimeType = messageContent.imageMessage.mimetype;
-      } else if (messageContent.audioMessage) {
-        messageBody = '[Áudio]';
-        messageType = 'audio';
-        mimeType = messageContent.audioMessage.mimetype;
-      } else if (messageContent.videoMessage) {
-        messageBody = messageContent.videoMessage.caption || '[Vídeo]';
-        messageType = 'video';
-        mimeType = messageContent.videoMessage.mimetype;
-      } else if (messageContent.documentMessage) {
-        messageBody = messageContent.documentMessage.fileName || '[Documento]';
-        messageType = 'document';
-        mimeType = messageContent.documentMessage.mimetype;
-      } else if (messageContent.buttonsResponseMessage) {
-        messageBody = messageContent.buttonsResponseMessage.selectedDisplayText || '';
-        messageType = 'text';
-      } else if (messageContent.templateButtonReplyMessage) {
-        messageBody = messageContent.templateButtonReplyMessage.selectedDisplayText || '';
-        messageType = 'text';
-      } else if (messageContent.listResponseMessage) {
-        messageBody = messageContent.listResponseMessage.title || '';
-        messageType = 'text';
-      } else if (messageContent.stickerMessage) {
-        messageBody = '[Figurinha]';
-        messageType = 'image';
-        mimeType = messageContent.stickerMessage.mimetype || 'image/webp';
-      }
-
-      // Baixar mídia se disponível para tipos suportados
-      const messageId = messageData.key.id;
-      if (['image', 'audio', 'video', 'document'].includes(messageType) && messageId) {
-        try {
-          const { url, apiKey } = this.getApiConfig();
-          const endpoint = `${url}/chat/getBase64FromMediaMessage/${connection.instanceName}`;
-          
-          const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'apikey': apiKey,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              message: {
-                key: {
-                  id: messageId
-                }
-              },
-              convertToMp4: false
-            })
-          });
-
-          if (response.ok) {
-            const resData = (await response.json()) as any;
-            if (resData && resData.base64) {
-              const detectedMime = resData.mimetype || mimeType || 'application/octet-stream';
-              mediaUrl = `data:${detectedMime};base64,${resData.base64}`;
-              if (resData.mimetype) {
-                mimeType = resData.mimetype;
-              }
-            }
-          } else {
-            console.error(`Falha ao buscar mídia do QR Gateway. Status: ${response.status}`);
-          }
-        } catch (mediaError) {
-          console.error('Erro ao baixar mídia do QR Gateway:', mediaError);
+      // Extrair mensagens brutas dependendo do evento
+      let rawMessages: any[] = [];
+      if (isUpsert) {
+        if (body.data) {
+          rawMessages = [body.data];
+        }
+      } else if (isSet) {
+        if (body.data && Array.isArray(body.data.messages)) {
+          rawMessages = body.data.messages;
         }
       }
 
-      return [{
-        senderPhone,
-        senderName,
-        body: messageBody,
-        messageType,
-        providerMessageId: messageData.key.id,
-        mediaUrl,
-        mimeType,
-        fromMe
-      }];
+      if (rawMessages.length === 0) {
+        return null;
+      }
+
+      const payloads: WebhookMessagePayload[] = [];
+
+      for (const messageData of rawMessages) {
+        if (!messageData || !messageData.key) {
+          continue;
+        }
+
+        const fromMe = !!messageData.key.fromMe;
+
+        // Extrair número do remetente
+        const remoteJid = messageData.key.remoteJid || '';
+        const cleanPhone = remoteJid.split('@')[0] || '';
+        if (!cleanPhone || remoteJid.includes('@g.us')) {
+          continue; // Ignorar mensagens de grupo
+        }
+
+        const senderPhone = `+${cleanPhone}`;
+        const senderName = fromMe ? senderPhone : (messageData.pushName || body.data?.pushName || senderPhone);
+        
+        let messageBody = '';
+        let messageType: WebhookMessagePayload['messageType'] = 'other';
+        let mediaUrl: string | undefined;
+        let mimeType: string | undefined;
+
+        const messageContent = messageData.message;
+        if (!messageContent) {
+          continue;
+        }
+
+        // Obter conteúdo conforme o tipo de mensagem
+        if (messageContent.conversation) {
+          messageBody = messageContent.conversation;
+          messageType = 'text';
+        } else if (messageContent.extendedTextMessage) {
+          messageBody = messageContent.extendedTextMessage.text || '';
+          messageType = 'text';
+        } else if (messageContent.imageMessage) {
+          messageBody = messageContent.imageMessage.caption || '[Imagem]';
+          messageType = 'image';
+          mimeType = messageContent.imageMessage.mimetype;
+        } else if (messageContent.audioMessage) {
+          messageBody = '[Áudio]';
+          messageType = 'audio';
+          mimeType = messageContent.audioMessage.mimetype;
+        } else if (messageContent.videoMessage) {
+          messageBody = messageContent.videoMessage.caption || '[Vídeo]';
+          messageType = 'video';
+          mimeType = messageContent.videoMessage.mimetype;
+        } else if (messageContent.documentMessage) {
+          messageBody = messageContent.documentMessage.fileName || '[Documento]';
+          messageType = 'document';
+          mimeType = messageContent.documentMessage.mimetype;
+        } else if (messageContent.buttonsResponseMessage) {
+          messageBody = messageContent.buttonsResponseMessage.selectedDisplayText || '';
+          messageType = 'text';
+        } else if (messageContent.templateButtonReplyMessage) {
+          messageBody = messageContent.templateButtonReplyMessage.selectedDisplayText || '';
+          messageType = 'text';
+        } else if (messageContent.listResponseMessage) {
+          messageBody = messageContent.listResponseMessage.title || '';
+          messageType = 'text';
+        } else if (messageContent.stickerMessage) {
+          messageBody = '[Figurinha]';
+          messageType = 'image';
+          mimeType = messageContent.stickerMessage.mimetype || 'image/webp';
+        }
+
+        // Baixar mídia se disponível para tipos suportados
+        const messageId = messageData.key.id;
+        if (['image', 'audio', 'video', 'document'].includes(messageType) && messageId) {
+          try {
+            const { url, apiKey } = this.getApiConfig();
+            const endpoint = `${url}/chat/getBase64FromMediaMessage/${connection.instanceName}`;
+            
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'apikey': apiKey,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                message: {
+                  key: {
+                    id: messageId
+                  }
+                },
+                convertToMp4: false
+              })
+            });
+
+            if (response.ok) {
+              const resData = (await response.json()) as any;
+              if (resData && resData.base64) {
+                const detectedMime = resData.mimetype || mimeType || 'application/octet-stream';
+                mediaUrl = `data:${detectedMime};base64,${resData.base64}`;
+                if (resData.mimetype) {
+                  mimeType = resData.mimetype;
+                }
+              }
+            } else {
+              console.error(`Falha ao buscar mídia do QR Gateway. Status: ${response.status}`);
+            }
+          } catch (mediaError) {
+            console.error('Erro ao baixar mídia do QR Gateway:', mediaError);
+          }
+        }
+
+        payloads.push({
+          senderPhone,
+          senderName,
+          body: messageBody,
+          messageType,
+          providerMessageId: messageData.key.id,
+          mediaUrl,
+          mimeType,
+          fromMe
+        });
+      }
+
+      return payloads.length > 0 ? payloads : null;
     } catch (error) {
       console.error('Erro ao processar webhook da Evolution API:', error);
       return null;
@@ -385,6 +409,9 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
         token: apiKey,
         qrcode: true,
         integration: 'WHATSAPP-BAILEYS',
+        settings: {
+          syncFullHistory: true
+        },
         // Structure for v2 (nested settings and webhooks)
         webhook: {
           enabled: true,
@@ -393,11 +420,11 @@ export class WhatsAppQrGatewayProvider implements WhatsAppProvider {
           headers: {
             'webhook-authorization': webhookSecret
           },
-          events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE', 'QRCODE_UPDATED']
+          events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE', 'QRCODE_UPDATED', 'MESSAGES_SET']
         },
         // Legacy/alternate formats for compatibility
         webhookUrl: webhookUrl,
-        events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE', 'QRCODE_UPDATED']
+        events: ['MESSAGES_UPSERT', 'CONNECTION_UPDATE', 'QRCODE_UPDATED', 'MESSAGES_SET']
       })
     });
     return response.json();
