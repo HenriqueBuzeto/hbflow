@@ -37,7 +37,32 @@ export class FlowEngineService {
   ): Promise<void> {
     try {
       const cleanBody = body.trim();
-      if (!cleanBody) return;
+      // Salvaguarda Anti-Loop: Evita loops infinitos com bots externos/mensagens automáticas concorrentes
+      const recentAutomationMessagesCount = await prisma.message.count({
+        where: {
+          conversationId,
+          senderType: 'automation',
+          createdAt: {
+            gte: new Date(Date.now() - 15 * 1000) // 15 segundos
+          }
+        }
+      });
+      if (recentAutomationMessagesCount >= 3) {
+        console.warn(`[FlowEngine] Loop de automação detectado na conversa ${conversationId}. Chatbot suspenso.`);
+        await prisma.message.create({
+          data: {
+            tenantId,
+            conversationId,
+            senderType: 'system',
+            senderName: 'Anti-Loop',
+            body: '⚠️ Loop de mensagens detectado com outro sistema de automação/bot. O chatbot foi suspenso temporariamente para esta conversa para evitar spam.',
+            type: 'text',
+            status: 'delivered',
+            isRead: true
+          }
+        });
+        return;
+      }
 
       // 1. Verificar se um atendente humano já enviou alguma mensagem nesta conversa.
       // Se sim, o chatbot não deve interferir para evitar triagens indevidas após atendimento humano iniciado.
@@ -51,6 +76,27 @@ export class FlowEngineService {
       if (hasUserMsg) {
         console.log(`[FlowEngine] Bot disabled because conversation ${conversationId} has human messages.`);
         return;
+      }
+
+      // Limpeza automática de fluxos mock legados herdados para garantir ambiente 100% limpo
+      const mockNodes = await prisma.flowNode.findMany({
+        where: {
+          tenantId,
+          configJson: {
+            contains: 'central HBFlow'
+          }
+        }
+      });
+      if (mockNodes.length > 0) {
+        const mockFlowIds = mockNodes.map(n => n.flowId);
+        await prisma.flow.updateMany({
+          where: { id: { in: mockFlowIds } },
+          data: { deletedAt: new Date(), isActive: false }
+        });
+        await prisma.flowSession.updateMany({
+          where: { flowId: { in: mockFlowIds }, status: 'active' },
+          data: { status: 'cancelled', finishedAt: new Date() }
+        });
       }
 
       // 2. Buscar fluxo ativo do tenant

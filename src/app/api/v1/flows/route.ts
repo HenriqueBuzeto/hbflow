@@ -8,6 +8,27 @@ export async function GET(request: NextRequest) {
     const userSession = await requireAuth();
     const tenantId = userSession.tenantId;
 
+    // Limpeza automática de fluxos mock legados herdados para garantir ambiente 100% limpo no frontend
+    const mockNodes = await prisma.flowNode.findMany({
+      where: {
+        tenantId,
+        configJson: {
+          contains: 'central HBFlow'
+        }
+      }
+    });
+    if (mockNodes.length > 0) {
+      const mockFlowIds = mockNodes.map(n => n.flowId);
+      await prisma.flow.updateMany({
+        where: { id: { in: mockFlowIds } },
+        data: { deletedAt: new Date(), isActive: false }
+      });
+      await prisma.flowSession.updateMany({
+        where: { flowId: { in: mockFlowIds }, status: 'active' },
+        data: { status: 'cancelled', finishedAt: new Date() }
+      });
+    }
+
     let flows = await prisma.flow.findMany({
       where: { tenantId, deletedAt: null },
       include: {
@@ -135,18 +156,7 @@ export async function POST(request: NextRequest) {
         triggerType: 'message_received',
         isActive: false,
         nodes: {
-          create: [
-            {
-              id: `node-${Date.now()}`,
-              tenantId,
-              type: 'message',
-              positionX: 100,
-              positionY: 100,
-              configJson: JSON.stringify({
-                messageText: 'Olá! Como podemos ajudar hoje?'
-              })
-            }
-          ]
+          create: []
         }
       },
       include: {

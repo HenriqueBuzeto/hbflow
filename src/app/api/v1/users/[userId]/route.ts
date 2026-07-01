@@ -27,8 +27,8 @@ async function getOrCreateDepartmentTx(tx: any, tenantId: string, deptName: stri
         description: `Setor de ${normalized}`,
         color: '#7C3AED',
         icon: 'Shield',
-        greetingMessage: `Olá! Você está no setor de ${normalized}.`,
-        awayMessage: `Olá! Nosso setor de ${normalized} está offline.`
+        greetingMessage: '',
+        awayMessage: ''
       }
     });
   }

@@ -449,7 +449,8 @@ export class WhatsAppMessageService {
             }
           }
 
-          const isFromMe = !!payload.fromMe;
+          const connectionPhoneNormalized = connection.phoneNumber ? connection.phoneNumber.replace(/\D/g, '') : '';
+          const isFromMe = !!payload.fromMe || (!!connectionPhoneNormalized && normalizedPhone === connectionPhoneNormalized);
           const senderType = isFromMe ? 'user' : 'contact';
           const senderName = isFromMe ? (payload.senderName || 'Você') : contact.name;
 

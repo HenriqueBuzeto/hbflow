@@ -1579,11 +1579,12 @@ export const useStore = create<State & Actions>((set, get) => ({
               }),
               users: s.users.map(u => u.id === assignedUser!.id ? { ...u, workload: u.workload + 1 } : u)
             }));
-            // Add automatic welcome notification message
-            setTimeout(() => {
-              const welcomeMsg = dept.greetingMessage || `Olá, aqui é o ${assignedUser?.name}. Como posso ajudar?`;
-              get().sendMessage(newConv.id, welcomeMsg, 'automation');
-            }, 1000);
+            // Add automatic welcome notification message if set
+            if (dept.greetingMessage) {
+              setTimeout(() => {
+                get().sendMessage(newConv.id, dept.greetingMessage, 'automation');
+              }, 1000);
+            }
           }
         }
       }
@@ -1972,24 +1973,7 @@ export const useStore = create<State & Actions>((set, get) => ({
         .catch((err) => console.error('Error resolving conversation:', err));
     }
 
-    // Trigger NPS Survey mock reply
-    setTimeout(() => {
-      const npsMsg: Message = {
-        id: `m-nps-${Date.now()}`,
-        conversationId,
-        senderType: 'automation',
-        senderName: 'Pesquisa HBFlow',
-        body: 'Como você avalia nosso atendimento de 0 a 10? Sua opinião é muito importante para nós!',
-        type: 'text',
-        isRead: true,
-        createdAt: new Date().toISOString()
-      };
-      set((s) => ({
-        conversations: s.conversations.map(c =>
-          c.id === conversationId ? { ...c, messages: [...c.messages, npsMsg] } : c
-        )
-      }));
-    }, 1000);
+
 
     // Trigger AI Agents Orchestrator
     setTimeout(() => {
@@ -2357,10 +2341,11 @@ export const useStore = create<State & Actions>((set, get) => ({
               }).catch((err) => console.error('Error assigning in triage:', err));
             }
 
-            setTimeout(() => {
-              const welcomeMsg = dept.greetingMessage || `Olá, aqui é o ${assignedUser?.name}. Como posso ajudar?`;
-              get().sendMessage(conv.id, welcomeMsg, 'automation');
-            }, 1000);
+            if (dept.greetingMessage) {
+              setTimeout(() => {
+                get().sendMessage(conv.id, dept.greetingMessage, 'automation');
+              }, 1000);
+            }
           }
         }
       } else {
